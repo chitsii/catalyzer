@@ -1,6 +1,7 @@
 'use client';
 
 import React from "react";
+import { Textarea } from "@/components/ui/textarea"
 
 
 type LOG_LEVEL = 'INFO' | 'DEBUG' | 'ERROR';
@@ -59,8 +60,8 @@ function LoggingArea(
     <>
       <textarea
         id="my_console"
+        className="w-full min-h-80 bg-gray-800 text-xs text-green-300 overflow-scroll p-4"
         disabled
-        className="w-full min-h-80 bg-gray-700 text-xs text-green-300 overflow-scroll p-4"
         defaultValue={`[${new Date().toLocaleTimeString()} - GREET] Welcome back, survivor!\n`}
         ref={consoleRef}
       />

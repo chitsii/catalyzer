@@ -1,6 +1,7 @@
 "use client";
 
 import React, { RefObject, useEffect } from "react";
+import  Link  from "next/link";
 import path  from "path";
 import { Greet } from "@/components/greet";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
 import { invoke } from '@tauri-apps/api/tauri';
-
 import { LoggingArea, Logger } from "@/components/loggingArea";
 
 
@@ -151,9 +151,11 @@ export default function Home() {
   const listBranch = gitBaseFunc.bind(null, 'list_branches');
   const checkoutBranch = gitBaseFunc.bind(null, 'checkout_branch');
 
+
   return (
     <main>
       <div>
+        <Link href="/test" className="text-cyan-600 hover:underline">Mod List＞＞</Link>
         <div>
           <Label htmlFor="source">Source Dir / Mod Root Dir</Label>
           <Input id="source" type="text" className="p-4" ref={source_ref} defaultValue={"/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source"} />
