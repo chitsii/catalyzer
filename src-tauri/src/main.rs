@@ -1,0 +1,332 @@
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use std::fmt::Debug;
+
+use git2::{Repository, Signature};
+
+fn main() {
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            remove_file,
+            create_symlink,
+            list_symlinks,
+            list_mod_directories,
+            init_local_repository,
+            commit_changes,
+            reset_changes,
+            list_branches,
+            checkout_branch,
+            show_changes,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+
+#[tauri::command]
+fn greet(name: &str) -> String {
+    format!("Hello, {}!", name)
+}
+
+#[tauri::command]
+fn list_mod_directories(source_dir: String) -> Result<Vec<std::path::PathBuf>, String> {
+    println!("Listing mod directories in {}", source_dir);
+
+    let path = std::path::Path::new(&source_dir);
+
+    if !path.exists() {
+        return Err(format!("Directory does not exist: {}", path.display()));
+    }
+
+    let mut mod_dirs = Vec::new();
+
+    match std::fs::read_dir(path) {
+        Ok(entries) => {
+            for entry in entries {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.is_dir() {
+                    println!("Mod directory: {}", path.display());
+                    // TODO: Check if directory is a valid mod directory
+                    mod_dirs.push(path);
+                }
+            }
+            Ok(mod_dirs)
+        }
+        Err(e) => Err(format!("Failed to list mod directories: {}", e)),
+    }
+}
+
+#[tauri::command]
+fn create_symlink(source_dir: String, target_dir: String) -> Result<(), String> {
+    println!("Creating symlink from {} to {}", source_dir, target_dir);
+
+    let source = std::path::Path::new(&source_dir);
+    let target = std::path::Path::new(&target_dir);
+
+    if !source.exists() || !source.is_dir() {
+        return Err(format!("Source is Invalid: {}", source.display()));
+    }
+    if target.exists() {
+        return Err(format!("Target is invalid: {}", target.display()));
+    }
+
+    match std::os::unix::fs::symlink(source, target) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to create symlink: {}", e)),
+    }
+}
+
+#[tauri::command]
+fn remove_file(target_file: String) -> Result<(), String> {
+    println!("Unlinking symlink at {}", target_file);
+    let target = std::path::Path::new(&target_file);
+    if !target.exists() {
+        return Err(format!(
+            "Target directory does not exist: {}",
+            target.display()
+        ));
+    }
+    match std::fs::remove_file(&target) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to remove symlink: {}", e)),
+    }
+}
+
+#[tauri::command]
+fn list_symlinks(target_root_dir: String) -> Result<Vec<std::path::PathBuf>, String> {
+    println!("Listing symlinks in {}", target_root_dir);
+
+    let target = std::path::Path::new(&target_root_dir);
+
+    if !target.exists() {
+        return Err(format!(
+            "Target directory does not exist: {}",
+            target.display()
+        ));
+    }
+
+    let mut symlinks = Vec::new();
+
+    match std::fs::read_dir(target) {
+        Ok(entries) => {
+            for entry in entries {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if path.is_symlink() {
+                    println!("Symlink: {}", path.display());
+                    symlinks.push(path);
+                }
+            }
+            Ok(symlinks)
+        }
+        Err(e) => Err(format!("Failed to list symlinks: {}", e)),
+    }
+}
+
+fn git_open(target_dir: String) -> Result<Repository, String> {
+    println!("Opening repository at {}", target_dir);
+    match Repository::open(&target_dir) {
+        Ok(repo) => Ok(repo),
+        Err(e) => Err(format!("Failed to open repository: {}", e)),
+    }
+}
+
+fn git_init(target_dir: String) -> Result<Repository, String> {
+    println!("Initializing repository at {}", target_dir);
+    match Repository::init(&target_dir) {
+        Ok(_) => {
+            let repo = git_open(target_dir).unwrap();
+            Ok(repo)
+        }
+        Err(e) => Err(format!("Failed to initialize repository: {}", e)),
+    }
+}
+
+fn git_commit(repo: &Repository, message: &str) -> Result<(), String> {
+    println!("Committing changes to repository");
+
+    let sig = Signature::now("CataclysmLauncher", "Nothing").unwrap();
+
+    match repo.head() {
+        Ok(data) => {
+            let current_head = data.peel_to_commit().unwrap();
+            println!("Current HEAD: {}", current_head.id());
+            let head_tree_id = current_head.tree_id();
+            let mut index = repo.index().unwrap();
+            let cb = &mut |path: &std::path::Path, _matched_spec: &[u8]| -> i32 {
+                let status = repo.status_file(path).unwrap();
+                if status.contains(git2::Status::WT_NEW) {
+                    println!("Adding new file: {}", path.display());
+                    0
+                } else if status.contains(git2::Status::WT_MODIFIED) {
+                    println!("Adding modified file: {}", path.display());
+                    0
+                } else if status.contains(git2::Status::WT_DELETED) {
+                    println!("Adding deleted file: {}", path.display());
+                    0
+                } else {
+                    1
+                }
+            };
+            let cb = Some(cb as &mut git2::IndexMatchedPath);
+            index
+                .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, cb)
+                .unwrap();
+            let oid = index.write_tree().unwrap();
+            let tree = repo.find_tree(oid).unwrap();
+            if head_tree_id == tree.id() {
+                git_reset_hard(repo).unwrap();
+                return Err("No changes to commit".to_string());
+            }
+            println!("Committing changes");
+            repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[&current_head])
+                .unwrap();
+            git_reset_hard(repo).unwrap();
+            Ok(())
+        }
+        Err(_) => {
+            println!("No HEAD found, creating initial commit.");
+            let tree_id = repo.index().unwrap().write_tree().unwrap();
+            let tree = repo.find_tree(tree_id).unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[])
+                .unwrap();
+            Ok(())
+        }
+    }
+}
+
+fn git_reset_hard(repo: &Repository) -> Result<(), String> {
+    println!("Resetting repository to HEAD");
+    let head = repo.head().unwrap();
+    let head_commit = head.peel_to_commit().unwrap();
+    let head_object = head_commit.as_object();
+    repo.reset(head_object, git2::ResetType::Hard, None)
+        .unwrap();
+    Ok(())
+}
+
+fn git_list_branches(repo: &Repository) -> Result<Vec<String>, String> {
+    println!("Listing branches in repository");
+    let mut branches = Vec::new();
+    for branch in repo.branches(None).unwrap() {
+        let (branch, _) = branch.unwrap();
+        let branch_name = branch.name().unwrap().unwrap();
+        branches.push(branch_name.to_string());
+    }
+    Ok(branches)
+}
+
+fn git_checkout_branch(repo: &Repository, branch_name: &str) -> Result<(), String> {
+    println!("Checking out branch {}", branch_name);
+    let branch = repo
+        .find_branch(branch_name, git2::BranchType::Local)
+        .unwrap();
+    let branch = branch.into_reference();
+    repo.set_head(branch.name().unwrap()).unwrap();
+    Ok(())
+}
+
+fn git_create_branch(
+    repo: &Repository,
+    branch_name: &str,
+    base_branch: &str,
+) -> Result<(), String> {
+    println!("Creating branch {} from {}", branch_name, base_branch);
+    let base_branch = repo
+        .find_branch(base_branch, git2::BranchType::Local)
+        .unwrap();
+    let base_branch = base_branch.into_reference();
+    let base_commit = base_branch.peel_to_commit().unwrap();
+    repo.branch(branch_name, &base_commit, false).unwrap();
+    Ok(())
+}
+
+#[tauri::command]
+fn init_local_repository(target_dir: String) -> Result<(), String> {
+    let target = std::path::Path::new(&target_dir);
+    if !target.exists() {
+        return Err(format!(
+            "Target directory does not exist: {}",
+            target.display()
+        ));
+    }
+    if git_open(target_dir.clone()).is_ok() {
+        return Err(format!("Repository already exists at {}", target_dir));
+    }
+
+    let res = git_init(target_dir).unwrap();
+    println!("Repository initialized at {}", res.path().display());
+
+    git_commit(&res, "Initial commit").unwrap();
+
+    // let branches = git_list_branches(&res).unwrap();
+    // println!("Branches: {:?}", branches);
+    Ok(())
+}
+
+#[tauri::command]
+fn commit_changes(target_dir: String, message: Option<String>) -> Result<(), String> {
+    let now = chrono::Local::now().to_string();
+    let message = message.unwrap_or_else(|| format!("Changes committed at {}", now));
+
+    // let repo = git_open(target_dir).unwrap();
+    let repo = match git_open(target_dir) {
+        Ok(repo) => repo,
+        Err(e) => return Err(e),
+    };
+
+    match git_commit(&repo, &message) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
+}
+
+#[tauri::command]
+fn reset_changes(target_dir: String) -> Result<(), String> {
+    let repo = git_open(target_dir).unwrap();
+    git_reset_hard(&repo).unwrap();
+    Ok(())
+}
+
+#[tauri::command]
+fn list_branches(target_dir: String) -> Result<Vec<String>, String> {
+    let repo = git_open(target_dir).unwrap();
+    match git_list_branches(&repo) {
+        Ok(branches) => Ok(branches),
+        Err(e) => Err(format!("Failed to list branches: {}", e)),
+    }
+}
+
+#[tauri::command]
+fn checkout_branch(target_dir: String, branch_name: String) -> Result<(), String> {
+    let repo = git_open(target_dir).unwrap();
+    git_checkout_branch(&repo, &branch_name).unwrap();
+    Ok(())
+}
+
+/// return changed files
+#[tauri::command]
+fn show_changes(target_dir: String) -> Result<Vec<String>, String> {
+    let repo = git_open(target_dir).unwrap();
+    let mut changed_files = Vec::new();
+    let mut diff_opts = git2::DiffOptions::new();
+    diff_opts.include_untracked(true);
+    let diff = repo
+        .diff_index_to_workdir(None, Some(&mut diff_opts))
+        .unwrap();
+    diff.foreach(
+        &mut |delta, _progress| {
+            let new_file = delta.new_file();
+            let path = new_file.path().unwrap();
+            changed_files.push(path.to_string_lossy().to_string());
+            true
+        },
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    Ok(changed_files)
+}

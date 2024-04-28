@@ -1,113 +1,196 @@
-import Image from "next/image";
+"use client";
+
+import React, { RefObject, useEffect } from "react";
+import path  from "path";
+import { Greet } from "@/components/greet";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+
+import { invoke } from '@tauri-apps/api/tauri';
+
+import { LoggingArea, Logger } from "@/components/loggingArea";
+
 
 export default function Home() {
+
+  const source_ref: RefObject<HTMLInputElement> = React.useRef(null);
+  const target_ref: RefObject<HTMLInputElement> = React.useRef(null);
+  const subdir_ref: RefObject<HTMLInputElement> = React.useRef(null);
+
+  const [modDirectories, setModDirectories] = React.useState<string[]>([]);
+  const [symlinkList, setSymlinkList] = React.useState<string[]>([]);
+
+  const consoleRef: RefObject<HTMLTextAreaElement> = React.useRef(null);
+  const logger = new Logger(consoleRef, 'DEBUG');
+
+  const branch_ref: RefObject<HTMLInputElement> = React.useRef(null);
+
+
+  const listModDirectories = async () => {
+    invoke<string[]>('list_mod_directories', { sourceDir: source_ref.current?.value.toString() })
+      .then((response) => {
+        logger.info(JSON.stringify(response));
+        setModDirectories(response);
+      })
+      .catch((err) => logger.error(err));
+  };
+
+  const listSymlinks = async () => {
+    const target = target_ref.current?.value;
+    if (!target) {
+      logger.error('target path is required!');
+      return;
+    }
+    invoke<string[]>('list_symlinks', { targetRootDir: target.toString() })
+      .then((response) => {
+        logger.info(JSON.stringify(response));
+        setSymlinkList(response);
+      })
+      .catch(logger.error);
+  };
+
+  const createSymlink = async () => {
+    const source = source_ref.current?.value;
+    const target = target_ref.current?.value;
+    const subdir = subdir_ref.current?.value;
+
+    if (!source || !target || !subdir) {
+      logger.error('source, target and subdir paths are required!');
+      return;
+    }
+    logger.debug([source, target, subdir].join(' '));
+
+    invoke<string>('create_symlink',
+    {
+      sourceDir: path.join(source, subdir),
+      targetDir: path.join(target, subdir)
+    }
+  )
+      .then((response) => {
+        logger.debug(response);
+        logger.info('symlink created!');
+      })
+      .catch((err) => logger.error(err))
+  };
+
+  const removeSymlink = async () => {
+    const target_root = target_ref.current?.value;
+    const subdir = subdir_ref.current?.value;
+
+    if (!target_root || !subdir) {
+      logger.error('source and target paths are required!');
+      return;
+    }
+
+    invoke<string>('remove_file', { targetFile: path.join(target_root, subdir)})
+      .then((response) => {
+        logger.debug(response);
+        logger.info('symlink removed!');
+      })
+      .catch((err) => logger.error(err))
+  };
+
+  const createAllSymlinks = async () => {
+    listModDirectories();
+    const target_root_dir = target_ref.current?.value;
+    if (!target_root_dir) {
+      logger.error('target path is required!');
+      return;
+    }
+    modDirectories.map((dir) => {
+      invoke<string>('create_symlink',
+      {
+        sourceDir: dir,
+        targetDir: path.join(target_root_dir, path.parse(dir).base),
+      })
+        .then((response) => {
+          logger.debug(response);
+          logger.info('symlink created!');
+        })
+        .catch((err) => logger.error(err))
+    })
+  };
+
+  const removeAllSymlink = async () => {
+    symlinkList.map((link) => {
+      invoke<string>('remove_file', { targetFile: link })
+        .then((response) => {
+          logger.debug(response);
+          logger.info('symlink removed!');
+        })
+        .catch((err) => logger.error(err))
+    })
+  };
+
+
+  const gitBaseFunc = async (command: string) => {
+    const target_root_dir = source_ref.current?.value;
+    const subdir = subdir_ref.current?.value;
+
+    if (!target_root_dir || !subdir) {
+      logger.error('source and target paths are required!');
+      return;
+    }
+
+    invoke<string>(command, { targetDir: path.join(target_root_dir, subdir) })
+      .then((response) => {
+        logger.debug(response);
+        logger.info(`executed ${command}' on ${target_root_dir}/${subdir}.`);
+      })
+      .catch((err) => logger.error(err))
+  }
+
+  const initLocalRepo = gitBaseFunc.bind(null, 'init_local_repository');
+
+  const showChanges = gitBaseFunc.bind(null, 'show_changes');
+  const commitChanges = gitBaseFunc.bind(null, 'commit_changes');
+  const resetChanges = gitBaseFunc.bind(null, 'reset_changes');
+
+  const listBranch = gitBaseFunc.bind(null, 'list_branches');
+  const checkoutBranch = gitBaseFunc.bind(null, 'checkout_branch');
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <main>
+      <div>
+        <div>
+          <Label htmlFor="source">Source Dir / Mod Root Dir</Label>
+          <Input id="source" type="text" className="p-4" ref={source_ref} defaultValue={"/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source"} />
+
+          <Label htmlFor="target">Target Root Dir</Label>
+          <Input id="target" type="text" className="p-4" ref={target_ref} defaultValue={"/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets"} />
+          <br /><br />
+
+          <Label htmlFor="subdir">Subdir Name / Mod Dir Name</Label>
+          <Input id="subdir" type="text" className="p-4" ref={subdir_ref} defaultValue={"mod1"} />
+          <br /><br />
+
+          <p className="font-bold text-xl">Mod追加</p>
+          <Button size="sm" className="p-4" onClick={listModDirectories}>List Mod Directories</Button>
+          <Button size="sm" className="p-4" onClick={listSymlinks}>List Symlinks</Button>
+          <br/>
+          <Button size="sm" onClick={createAllSymlinks}>create all symlinks</Button>
+          <Button size="sm" className="p-4" onClick={removeAllSymlink}>remove all symlinks</Button>
+          <br/>
+          <Button size="sm" className="p-4" onClick={createSymlink}>create 1 symlink</Button>
+          <Button size="sm" className="p-4" onClick={removeSymlink}>remove 1 symlink</Button>
+
+
+          <p className="font-bold text-xl">断面管理</p>
+          <Button onClick={initLocalRepo}>Gitリポジトリ初期化</Button>
+          <Button onClick={showChanges}>作業差分取得</Button>
+          <Button onClick={commitChanges}>作業差分記録</Button>
+          <Button onClick={resetChanges}>作業差分リセット</Button>
+          <br />
+          <Input id="branch" type="text" className="p-4" ref={branch_ref} defaultValue={"main"} />
+          <Button onClick={listBranch}>ブランチ一覧取得</Button>
+          <Button onClick={checkoutBranch}>ブランチ切り替え</Button>
+
         </div>
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
+        <LoggingArea consoleRef={consoleRef} />
       </div>
     </main>
   );
 }
+
