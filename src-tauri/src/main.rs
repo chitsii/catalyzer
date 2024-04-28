@@ -19,6 +19,7 @@ fn main() {
             list_branches,
             checkout_branch,
             show_changes,
+            scan_mods
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -329,4 +330,99 @@ fn show_changes(target_dir: String) -> Result<Vec<String>, String> {
     )
     .unwrap();
     Ok(changed_files)
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ModInfo {
+    ident: Option<String>,
+    id: Option<String>,
+    name: String,
+    authors: Option<Vec<String>>,
+    description: Option<String>,
+    category: Option<String>,
+    dependencies: Option<Vec<String>>,
+    maintainers: Option<Vec<String>>,
+    version: Option<String>,
+} // Todo: Optionを全部につけるんじゃなくて、もっと柔軟にファイル依存でキーを返せるようにする
+
+impl ModInfo {
+    fn from_path(path: &std::path::Path) -> Result<Self, String> {
+        println!("Reading modinfo from {}", path.display());
+        let content = std::fs::read_to_string(path).unwrap();
+        println!("Content: {}", content);
+        let info: Vec<ModInfo> = serde_json::from_str(&content).unwrap();
+        if info.len() != 1 {
+            return Err("Invalid modinfo.json".to_string());
+        }
+        let elem = info.first().unwrap().clone();
+        Ok(elem)
+    }
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct LocalVersion {
+    branch_name: String,
+    last_commit_date: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+struct Mod {
+    info: ModInfo,
+    local_version: Option<LocalVersion>,
+    is_installed: bool,
+}
+
+#[tauri::command]
+fn scan_mods(source_dir: String) -> Result<Vec<Mod>, String> {
+    let mod_dirs = list_mod_directories(source_dir.clone()).unwrap();
+
+    let mut mods = Vec::new();
+    for mod_dir in mod_dirs {
+        // Mod情報取得
+        let mod_info_path = mod_dir.join("modinfo.json");
+        if !mod_info_path.exists() {
+            println!("Failed to open modinfo.json");
+            continue;
+        }
+        let info = ModInfo::from_path(&mod_info_path)?;
+
+        // 断面管理情報
+        let res = git_open(mod_dir.display().to_string());
+        let local_version = match res {
+            Ok(repo) => {
+                let head = repo.head().unwrap();
+                let head_branch = &head.name().unwrap();
+                let last_commit = &head.peel_to_commit().unwrap();
+                let last_commit_date = last_commit.time().seconds();
+                let last_commit_date =
+                    chrono::DateTime::<chrono::Utc>::from_timestamp(last_commit_date, 0).unwrap();
+                Some(LocalVersion {
+                    branch_name: head_branch.to_string(),
+                    last_commit_date: last_commit_date.to_string(),
+                })
+            }
+            Err(e) => {
+                println!("Failed to open as repository: {}", e);
+                None
+            }
+        };
+
+        // インストール状態
+        let is_installed = list_symlinks(source_dir.clone())
+            .unwrap()
+            .iter()
+            .any(|path| path == &mod_dir);
+
+        let m = Mod {
+            info,
+            local_version,
+            is_installed,
+        };
+        mods.push(m);
+    }
+
+    Ok(mods)
 }
