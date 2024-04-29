@@ -3,8 +3,6 @@
 import React, { RefObject, useEffect } from "react";
 import Link from "next/link";
 import path from "path";
-import { Greet } from "@/components/greet";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -15,8 +13,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-import { invoke } from '@tauri-apps/api/tauri';
 import { LogConsole, Logger } from "@/components/log-console";
 import { ModsTable, Mod } from "@/components/datatable/mod-table/table-mods";
 import {
@@ -29,9 +25,14 @@ import {
   GitCmdBase,
   fetchMods,
 } from "@/lib/api";
-import { Atom, atom, PrimitiveAtom } from 'jotai';
-import { useAtom } from 'jotai';
-import { useAtomValue, useSetAtom } from 'jotai'
+import {
+  Atom,
+  atom,
+  PrimitiveAtom,
+  useAtom,
+  useAtomValue,
+  useSetAtom
+} from 'jotai'
 
 import {
   modDataDirPath,
@@ -83,6 +84,7 @@ const LocalPathForm = (
 export default function Home() {
   const [mods, setMods] = useAtom(modsAtom);
   const modDataDir = useAtomValue(modDataDirPath);
+  const gameModDir = useAtomValue(gameModDirPath);
 
   // コンソールへの出力ログ関連
   const consoleRef: RefObject<HTMLTextAreaElement> = React.useRef(null);
@@ -91,15 +93,14 @@ export default function Home() {
     <main>
       <div className="w-full overflow-hidden select-none">
         <div className="w-full h-200 overflow-auto">
-          asdf
         </div>
         <div className="w-full">
           <Tabs defaultValue="wip" className="w-full">
-            <TabsList className="">
+            <TabsList className="flex items-center justify-items-center m-5">
               <TabsTrigger value="mods" className="w-auto"
-                onClick={()=> {fetchMods(modDataDir, setMods)}}>Mods</TabsTrigger>
+                onClick={() => { fetchMods(modDataDir, gameModDir, setMods) }}>Mods</TabsTrigger>
               <TabsTrigger value="wip" className="w-auto">Settings</TabsTrigger>
-              <TabsTrigger value="console" className="w-auto">ログ</TabsTrigger>
+              {/* <TabsTrigger value="console" className="w-auto">ログ</TabsTrigger> */}
             </TabsList>
             <TabsContent value="wip" className="p-2 space-y-4">
               <div>

@@ -393,8 +393,10 @@ struct Mod {
 }
 
 #[tauri::command]
-fn scan_mods(source_dir: String) -> Result<Vec<Mod>, String> {
+fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String> {
     let mod_dirs = list_mod_directories(source_dir.clone()).unwrap();
+
+    let existing_symlinks = list_symlinks(target_dir.clone()).unwrap();
 
     let mut mods = Vec::new();
     for mod_dir in mod_dirs {
@@ -434,10 +436,35 @@ fn scan_mods(source_dir: String) -> Result<Vec<Mod>, String> {
         };
 
         // インストール状態
-        let is_installed = list_symlinks(source_dir.clone())
-            .unwrap()
+        let mod_dir_name = mod_dir.file_name().unwrap();
+        let is_installed = existing_symlinks
             .iter()
-            .any(|path| path == &mod_dir);
+            .any(|path| path.file_name().unwrap() == mod_dir_name);
+
+        // println!("is_installed: {}", is_installed);
+        // println!("existing_symlinks: {:?}", existing_symlinks);
+        // println!(
+        //     "existing symlink file_name: {:?}",
+        //     existing_symlinks
+        //         .iter()
+        //         .map(|path| path.file_name().unwrap())
+        //         .collect::<Vec<_>>()
+        // );
+        // println!("mod_dir_name: {}", mod_dir_name.to_string_lossy());
+        // println!(
+        //     "{:?}",
+        //     existing_symlinks
+        //         .iter()
+        //         .map(|path| path.file_name().unwrap())
+        //         .collect::<Vec<_>>()
+        //         .contains(&mod_dir_name)
+        // );
+        // println!(
+        //     "{:?}",
+        //     existing_symlinks
+        //         .iter()
+        //         .any(|path| path.file_name().unwrap() == mod_dir_name)
+        // );
 
         let m = Mod {
             info,
@@ -447,7 +474,7 @@ fn scan_mods(source_dir: String) -> Result<Vec<Mod>, String> {
         };
         mods.push(m);
     }
-
+    // println!("Mods: {:?}", mods);
     Ok(mods)
 }
 

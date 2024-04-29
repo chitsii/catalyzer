@@ -25,13 +25,17 @@ import { DataTablePagination } from "@/components/datatable/pagenation";
 
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[],
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  fetchMods: () => void;
+  gameModDir: string;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  fetchMods,
+  gameModDir,
 }: DataTableProps<TData, TValue>) {
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -54,8 +58,21 @@ export function DataTable<TData, TValue>({
       sorting,
       columnFilters,
       rowSelection,
+    },
+    defaultColumn: {
+      size: 200, //starting column size
+      minSize: 50, //enforced during column resizing
+      maxSize: 500, //enforced during column resizing
+    },
+    meta: {
+      // this is a meta object that is passed to all column and cell functions
+      // you can use this to pass additional data to the column and cell functions
+      // this is useful for things like i18n, formatting, etc
+      fetchMods: fetchMods,
+      gameModDir: gameModDir,
     }
-  });
+  },
+  );
 
 
   return (

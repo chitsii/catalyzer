@@ -7,6 +7,7 @@ import { DataTableColumnHeader } from "@/components/datatable/header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import path from "path";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,19 +19,21 @@ import {
 import { isNonEmptyStringOrArray } from "@/lib/utils";
 
 import {
-  fListModDirs,
-  fListSymLinks,
-  fCreateSymlink,
   createSymlink,
-  fRemoveSymlink,
-  fCreateAllSymlinks,
-  fRemoveAllSymlink,
+  removeSymlink,
   GitCmdBase,
-  fetchMods,
-  openLocalDir
+  openLocalDir,
 } from "@/lib/api";
-import { init } from "next/dist/compiled/webpack/webpack";
 
+
+
+import { RowData } from '@tanstack/react-table';
+declare module '@tanstack/react-table' {
+  interface TableMeta<TData extends RowData> {
+    fetchMods: (() => void),
+    gameModDir: string,
+  }
+}
 
 type ModInfo = {
   id?: string;
@@ -61,6 +64,7 @@ export const columns: ColumnDef<Mod>[] = [
   {
     accessorKey: "rowIndex",
     header: "#",
+    enableResizing: false,
     cell: ({ row }) => {
       return (
         <p className="text-xs text-gray-600">{row.index + 1}</p>
@@ -80,7 +84,7 @@ export const columns: ColumnDef<Mod>[] = [
             info.name && (
               <p
                 className="text-sm font-bold text-blue-800 cursor-pointer hover:underline"
-                onClick={()=>{
+                onClick={() => {
                   console.log(`opne locally: ${info.name}`)
                   openLocalDir(row.original.localPath)
                 }}
@@ -110,6 +114,7 @@ export const columns: ColumnDef<Mod>[] = [
   {
     accessorKey: "info",
     header: "Description",
+    enableResizing: true,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
       if (info == null) return null;
@@ -159,7 +164,7 @@ export const columns: ColumnDef<Mod>[] = [
     accessorKey: "localVersion",
     header: "断面管理",
     enableResizing: true,
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const local_version: LocalVersion = row.getValue("localVersion");
       return (
         <div>
@@ -174,28 +179,32 @@ export const columns: ColumnDef<Mod>[] = [
               </>
             ) : (
               <>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button
-                  variant="notInstalled"
-                  size="sm"
-                  className="ml-2 text-[10px]"
-                >
-                  N/A
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => {
-                  console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
-                  const localPath = row.original.localPath;
-                  GitCmdBase(localPath)("init_local_repository");
-                }}
-              >
-                <div className="flex gap-1"><GitGraphIcon size={16}/>断面管理を始める</div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="notInstalled"
+                      size="sm"
+                      className="ml-2 text-[10px]"
+                    >
+                      N/A
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => {
+                        console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
+                        const localPath = row.original.localPath;
+                        GitCmdBase(localPath)("init_local_repository");
+
+                        // reload table
+                        const f = table.options.meta?.fetchMods;
+                        if (f) f();
+                      }}
+                    >
+                      <div className="flex gap-1"><GitGraphIcon size={16} />断面管理を始める</div>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )
           }
@@ -204,39 +213,46 @@ export const columns: ColumnDef<Mod>[] = [
     }
   },
   {
-    accessorKey: "is_installed",
+    accessorKey: "isInstalled",
     header: "Status",
-    cell: ({ row }) => {
-      const is_installed: boolean = row.getValue("is_installed");
+    enableResizing: true,
+    cell: ({ row, table }) => {
+      const isInstalled: boolean = row.getValue("isInstalled");
       return (
         <>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                variant={is_installed ? "installed" : "notInstalled"}
+                variant={isInstalled ? "installed" : "notInstalled"}
                 size="sm"
               >
-                {is_installed ? "Installed" : "Not Installed"}
+                {isInstalled ? "Installed" : "Not Installed"}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={
                 () => {
-                  const toggleInstall = () => {
-                    if (is_installed) {
-                      console.log(`uninstall: ${row.original.info.name}`);
+                  const targetDir = table.options.meta?.gameModDir;
+                  const base = path.parse(row.original.localPath).base;
 
-                      const targetDir = "";
-                      createSymlink(row.original.localPath, targetDir);
+                  if (!targetDir || targetDir == "") {
+                    console.error("target directory is not set!");
+                    return
+                  };
+                  const targetModDir = path.join(targetDir, base);
 
-                    } else {
-                      console.log(`install: ${row.original.info.name}`)
-                    }
+                  if (isInstalled) {
+                    console.log(`uninstall: ${row.original.info.name}`);
+                    removeSymlink(targetModDir);
+                  } else {
+                    createSymlink(row.original.localPath, targetModDir);
                   }
+                  // reload table
+                  const f = table.options.meta?.fetchMods;
+                  if (f) f();
                 }
-
               }>
-                {is_installed ? "Uninstall" : "Install"}
+                {isInstalled ? "Uninstall" : "Install"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -246,16 +262,20 @@ export const columns: ColumnDef<Mod>[] = [
   },
   // {
   //   id: "select",
-  //   header: ({ table }) => (
-  //     <Checkbox
-  //       checked={
-  //         table.getIsAllPageRowsSelected() ||
-  //         (table.getIsSomePageRowsSelected() && "indeterminate")
-  //       }
-  //       onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-  //       aria-label="Select all"
-  //     />
-  //   ),
+  //   header: ({ table }) =>
+  // {
+  // table.options.meta?.fetchMods();
+  // }
+  // (
+  // <Checkbox
+  //   checked={
+  //     table.getIsAllPageRowsSelected() ||
+  //     (table.getIsSomePageRowsSelected() && "indeterminate")
+  //   }
+  //   onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+  //   aria-label="Select all"
+  // />
+  // ),
   //   cell: ({ row }) => (
   //     <Checkbox
   //       checked={row.getIsSelected()}

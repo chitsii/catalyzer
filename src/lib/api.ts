@@ -98,6 +98,16 @@ export function fRemoveSymlink(target_ref: React.RefObject<HTMLInputElement>, su
 }
 
 
+export function removeSymlink(target: string) {
+  invoke<string>('remove_file', { targetFile: target })
+    .then((response) => {
+      console.debug(response);
+      console.info('symlink removed!');
+    })
+    .catch((err) => console.error(err));
+};
+
+
 export function createSymlink(source: string, target: string) {
   invoke<string>('create_symlink',
     {
@@ -156,12 +166,16 @@ export function fListSymLinks(target_ref: React.RefObject<HTMLInputElement>, log
 
 export const fetchMods = async (
   modDataDir: string,
-  setMods: React.Dispatch<React.SetStateAction<Mod[]>>
+  gameModDir: string,
+  setMods?: React.Dispatch<React.SetStateAction<Mod[]>>
 ) => {
-  const res = await invoke<Mod[]>('scan_mods', { sourceDir: modDataDir })
+  const res = await invoke<Mod[]>('scan_mods', { sourceDir: modDataDir, targetDir: gameModDir})
     .then((response) => {
       console.log(response);
-      setMods(response);
+      if (setMods) {
+        setMods(response);
+      }
+      return response;
     })
     .catch((err) => {
       console.error(err);
