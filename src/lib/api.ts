@@ -154,12 +154,14 @@ export function fListSymLinks(target_ref: React.RefObject<HTMLInputElement>, log
   };
 }
 
-export const fetchMods = async () => {
-  const modDirPath = useAtomValue(modDataDirPath);
-  const res = await invoke<Mod[]>('scan_mods', { sourceDir: modDirPath })
+export const fetchMods = async (
+  modDataDir: string,
+  setMods: React.Dispatch<React.SetStateAction<Mod[]>>
+) => {
+  const res = await invoke<Mod[]>('scan_mods', { sourceDir: modDataDir })
     .then((response) => {
       console.log(response);
-      return response;
+      setMods(response);
     })
     .catch((err) => {
       console.error(err);

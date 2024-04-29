@@ -27,7 +27,7 @@ import {
   fCreateAllSymlinks,
   fRemoveAllSymlink,
   GitCmdBase,
-  // fetchMods,
+  fetchMods,
 } from "@/lib/api";
 import { Atom, atom, PrimitiveAtom } from 'jotai';
 import { useAtom } from 'jotai';
@@ -84,19 +84,6 @@ export default function Home() {
   const [mods, setMods] = useAtom(modsAtom);
   const modDataDir = useAtomValue(modDataDirPath);
 
-  const refrshMods = async () => {
-    const res = await invoke<Mod[]>("scan_mods", { sourceDir: modDataDir }).then(
-      (mods) => {
-        console.log(mods);
-        setMods(mods);
-      }
-    ).catch(
-      (err) => {
-        console.error(err);
-      }
-    );
-  }
-
   // コンソールへの出力ログ関連
   const consoleRef: RefObject<HTMLTextAreaElement> = React.useRef(null);
 
@@ -110,7 +97,7 @@ export default function Home() {
           <Tabs defaultValue="wip" className="w-full">
             <TabsList className="">
               <TabsTrigger value="mods" className="w-auto"
-                onClick={refrshMods}>Mods</TabsTrigger>
+                onClick={()=> {fetchMods(modDataDir, setMods)}}>Mods</TabsTrigger>
               <TabsTrigger value="wip" className="w-auto">Settings</TabsTrigger>
               <TabsTrigger value="console" className="w-auto">ログ</TabsTrigger>
             </TabsList>

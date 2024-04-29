@@ -12,8 +12,6 @@ const defaultGameModDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/
 
 const mods = atom<Mod[]>([]);
 const modDataDirPath = atomWithStorage('modDataDir', defaultModDataDir);
-
-
 const gameModDirPath = atomWithStorage('gameModDir', defaultGameModDir);
 const gameDir = atomWithStorage('gameDir', '');
 
