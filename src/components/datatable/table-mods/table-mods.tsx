@@ -8,7 +8,6 @@ import { DataTable } from "./data-table";
 import { Button } from "@/components/ui/button";
 
 import { invoke } from '@tauri-apps/api/tauri';
-import { LoggingArea, Logger } from "@/components/loggingArea";
 
 
 function getMockData(): Mod[] {
@@ -103,16 +102,13 @@ const getMods = (
     });
 }
 
-
-export default function Home() {
+function ModsTable() {
   // const data = getMockData();
-
   const [mods, setMods] = React.useState<Mod[]>([]);
 
   const handleScanMods = () => {
     getMods({ mods, setMods });
   }
-
 
   return (
     <div className="container mx-auto py-10">
@@ -122,5 +118,6 @@ export default function Home() {
       <DataTable columns={columns} data={mods} />
     </div>
   )
-
 }
+
+export { ModsTable };
