@@ -15,7 +15,7 @@ export function isEmptyArray(value: unknown): value is [] {
   return value.length === 0 || value.join('') === ''
 }
 
-export function isUnemptyStringOrArray(value: unknown): value is string | string[] {
+export function isNonEmptyStringOrArray(value: unknown): value is string | string[] {
   if (typeof value === "string") {
     return value.length > 0
   }

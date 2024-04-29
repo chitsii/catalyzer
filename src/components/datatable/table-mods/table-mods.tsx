@@ -40,7 +40,8 @@ export function getMockData(): Mod[] {
           dependencies: [ "dda" ]
       },
       localVersion: null,
-      isInstalled: true
+      isInstalled: true,
+      localPath: ""
     },
     {
       info: {
@@ -62,7 +63,8 @@ export function getMockData(): Mod[] {
         branchName: "main",
         lastCommitDate: "2021-08-02"
       },
-      isInstalled: true
+      isInstalled: true,
+      localPath: ""
     },
     {
       info: {
@@ -78,7 +80,8 @@ export function getMockData(): Mod[] {
         branchName: "main",
         lastCommitDate: "2021-08-02"
       },
-      isInstalled: false
+      isInstalled: false,
+      localPath: ""
     },
     {
       info: {
@@ -96,7 +99,8 @@ export function getMockData(): Mod[] {
         branchName: "main",
         lastCommitDate: "2021-08-02"
       },
-      isInstalled: true
+      isInstalled: true,
+      localPath: ""
     }
   ]
 }

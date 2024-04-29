@@ -15,7 +15,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { isEmptyArray, isUnemptyStringOrArray } from "@/lib/utils";
+import { isNonEmptyStringOrArray } from "@/lib/utils";
+
+import {
+  fListModDirs,
+  fListSymLinks,
+  fCreateSymlink,
+  createSymlink,
+  fRemoveSymlink,
+  fCreateAllSymlinks,
+  fRemoveAllSymlink,
+  GitCmdBase,
+  getMods,
+  openLocalDir
+} from "@/lib/api";
+import { init } from "next/dist/compiled/webpack/webpack";
+
 
 type ModInfo = {
   id?: string;
@@ -39,6 +54,7 @@ export type Mod = {
   info: ModInfo;
   localVersion: LocalVersion | null;
   isInstalled: boolean;
+  localPath: string;
 }
 
 export const columns: ColumnDef<Mod>[] = [
@@ -62,23 +78,30 @@ export const columns: ColumnDef<Mod>[] = [
         <div>
           {
             info.name && (
-              <p className="text-sm font-semibold">{info.name}</p>
+              <p
+                className="text-sm font-bold text-blue-800 cursor-pointer hover:underline"
+                onClick={()=>{
+                  console.log(`opne locally: ${info.name}`)
+                  openLocalDir(row.original.localPath)
+                }}
+              >
+                {info.name}
+              </p>
             )
           }
-          {/* {
-            info.id ? (<p className="text-[9px] text-gray-600">{info.id}</p>) : (
-              <p className="text-[9px] text-gray-600">{info.ident}</p>
-            )
-          } */}
           {
-            (isUnemptyStringOrArray(info.authors)) && (
+            (isNonEmptyStringOrArray(info.authors)) && (
               <p className="text-xs text-gray-600">作成者 {info.authors}</p>
             )
           }
           {
-            (isUnemptyStringOrArray(info.maintainers)) && (
+            (isNonEmptyStringOrArray(info.maintainers)) && (
               <p className="text-xs text-gray-600">メンテナ {info.maintainers}</p>
             )
+          }
+          {
+            info.category &&
+            (<Badge variant="category">{info.category}</Badge>)
           }
         </div>
       )
@@ -95,10 +118,6 @@ export const columns: ColumnDef<Mod>[] = [
           {
             info.description && (
               <div>
-                {
-                  info.category &&
-                  (<Badge variant="category" className="text-xs uppercase">{info.category}</Badge>)
-                }
                 <p className="text-xs text-gray-600">{info.description}</p>
               </div>
             )
@@ -155,18 +174,19 @@ export const columns: ColumnDef<Mod>[] = [
               </>
             ) : (
               <>
-                {/* <p className="text-xs font-semibold text-gray-600">未管理 */}
                 <Button
                   variant="notInstalled"
                   size="sm"
                   className="ml-2 text-[10px]"
                   onClick={() => {
-                    console.log(`start managing section: ${JSON.stringify(row.original.info)}`)
+                    // console.log(`start managing section: ${JSON.stringify(row.original.info)}`)
+                    console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
+                    const localPath = row.original.localPath;
+                    GitCmdBase(localPath)("init_local_repository");
                   }}
                 >
                   断面管理する
                 </Button>
-                {/* </p> */}
               </>
             )
           }
@@ -176,9 +196,7 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "is_installed",
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
+    header: "Status",
     cell: ({ row }) => {
       const is_installed: boolean = row.getValue("is_installed");
       return (
@@ -189,13 +207,28 @@ export const columns: ColumnDef<Mod>[] = [
                 variant={is_installed ? "installed" : "notInstalled"}
                 size="sm"
               >
-                {is_installed ? "導入済み" : "未導入"}
+                {is_installed ? "Installed" : "Not Installed"}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel className="text-xs">変更</DropdownMenuLabel>
-              <DropdownMenuItem>インストール</DropdownMenuItem>
-              <DropdownMenuItem>アンインストール</DropdownMenuItem>
+              <DropdownMenuItem onClick={
+                () => {
+                  const toggleInstall = () => {
+                    if (is_installed) {
+                      console.log(`uninstall: ${row.original.info.name}`);
+
+                      const targetDir = "";
+                      createSymlink(row.original.localPath, targetDir);
+
+                    } else {
+                      console.log(`install: ${row.original.info.name}`)
+                    }
+                  }
+                }
+
+              }>
+                {is_installed ? "Uninstall" : "Install"}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </>

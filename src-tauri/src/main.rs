@@ -4,6 +4,7 @@
 use std::fmt::Debug;
 
 use git2::{Repository, Signature};
+use std::process::Command;
 
 fn main() {
     tauri::Builder::default()
@@ -19,7 +20,8 @@ fn main() {
             list_branches,
             checkout_branch,
             show_changes,
-            scan_mods
+            scan_mods,
+            show_in_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -387,6 +389,7 @@ struct Mod {
     info: ModInfo,
     local_version: Option<LocalVersion>,
     is_installed: bool,
+    local_path: String,
 }
 
 #[tauri::command]
@@ -440,9 +443,59 @@ fn scan_mods(source_dir: String) -> Result<Vec<Mod>, String> {
             info,
             local_version,
             is_installed,
+            local_path: mod_dir.display().to_string(),
         };
         mods.push(m);
     }
 
     Ok(mods)
+}
+
+#[tauri::command]
+fn show_in_folder(target_dir: String) {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .args(["/select,", &target_dir]) // The comma after select is not a typo
+            .spawn()
+            .unwrap();
+    }
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .args(["-R", &target_dir])
+            .spawn()
+            .unwrap();
+    }
+
+    // #[cfg(target_os = "linux")]
+    // {
+    //     if path.contains(",") {
+    //         // see https://gitlab.freedesktop.org/dbus/dbus/-/issues/76
+    //         let new_path = match metadata(&path).unwrap().is_dir() {
+    //             true => path,
+    //             false => {
+    //                 let mut path2 = PathBuf::from(path);
+    //                 path2.pop();
+    //                 path2.into_os_string().into_string().unwrap()
+    //             }
+    //         };
+    //         Command::new("xdg-open").arg(&new_path).spawn().unwrap();
+    //     } else {
+    //         if let Ok(Fork::Child) = daemon(false, false) {
+    //             Command::new("dbus-send")
+    //                 .args([
+    //                     "--session",
+    //                     "--dest=org.freedesktop.FileManager1",
+    //                     "--type=method_call",
+    //                     "/org/freedesktop/FileManager1",
+    //                     "org.freedesktop.FileManager1.ShowItems",
+    //                     format!("array:string:\"file://{path}\"").as_str(),
+    //                     "string:\"\"",
+    //                 ])
+    //                 .spawn()
+    //                 .unwrap();
+    //         }
+    //     }
+    // }
 }

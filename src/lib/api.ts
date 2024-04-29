@@ -20,25 +20,23 @@ export function fListModDirs(
       .catch((err) => logger.error(err));
   };
 }
-export function fGitCmdBase(source_ref: React.RefObject<HTMLInputElement>, subdir_ref: React.RefObject<HTMLInputElement>, logger: Logger) {
-  return async (command: string) => {
-    const target_root_dir = source_ref.current?.value;
-    const subdir = subdir_ref.current?.value;
 
-    if (!target_root_dir || !subdir) {
-      logger.error('source and target paths are required!');
-      return;
-    }
-
-    invoke<string>(command, { targetDir: path.join(target_root_dir, subdir) })
+type GitApi = "init_local_repository" | "show_changes" | "commit_changes" | "reset_changes" | "list_branches" | "checkout_branch"
+export function GitCmdBase(targetDir: string) {
+  return async (command: GitApi) => {
+    if (!targetDir) return;
+    invoke<string>(command, { targetDir: targetDir })
       .then((response) => {
-        logger.debug(response);
-        logger.info(`executed ${command}' on ${target_root_dir}/${subdir}.`);
+        console.debug(response);
+        console.info(`executed ${command}' on ${targetDir}.`);
       })
-      .catch((err) => logger.error(err));
+      .catch((err) => console.error(err));
   };
 }
 
+export function openLocalDir(targetDir: string) {
+  invoke<string>("show_in_folder", { targetDir: targetDir });
+}
 
 export function fRemoveAllSymlink(symlinkList: string[], logger: Logger) {
   return async () => {
@@ -93,6 +91,21 @@ export function fRemoveSymlink(target_ref: React.RefObject<HTMLInputElement>, su
       })
       .catch((err) => logger.error(err));
   };
+}
+
+
+export function createSymlink(source: string, target: string) {
+  invoke<string>('create_symlink',
+    {
+      sourceDir: source,
+      targetDir: target
+    }
+  )
+    .then((response) => {
+      console.debug(response);
+      console.info('symlink created!');
+    })
+    .catch((err) => console.error(err));
 }
 
 export function fCreateSymlink(source_ref: React.RefObject<HTMLInputElement>, target_ref: React.RefObject<HTMLInputElement>, subdir_ref: React.RefObject<HTMLInputElement>, logger: Logger) {
