@@ -17,7 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { invoke } from '@tauri-apps/api/tauri';
-import { LoggingArea, Logger } from "@/components/loggingArea";
+import { LogConsole, Logger } from "@/components/log-console";
 import { ModsTable, Mod } from "@/components/datatable/table-mods/table-mods";
 import {
   fListModDirs,
@@ -46,8 +46,8 @@ const LocalPathForm = (
   }: LocalPathFormProps
 ) => {
   return (<div className="flex grid grid-col-10 gap-x-2">
-    <Label htmlFor="source_dir" className="col-span-10">{title}</Label>
-    <Input id="source_dir" type="text" className="p-4 col-span-9" ref={source_ref} defaultValue={defaultValue} />
+    <Label htmlFor="source_dir" className="col-span-10 text-xs text-gray-600">{title}</Label>
+    <Input id="source_dir" type="text" className="p-4 col-span-9 text-xs" ref={source_ref} defaultValue={defaultValue} />
     <Button className="col-span-1" onClick={validateHandler}>OK</Button>
   </div>);
 }
@@ -77,7 +77,7 @@ export default function Home() {
   const createSymlink = fCreateSymlink(source_ref, target_ref, subdir_ref, logger);
   const removeSymlink = fRemoveSymlink(target_ref, subdir_ref, logger);
   const createAllSymlinks = fCreateAllSymlinks(listModDirectories, target_ref, logger, modDirectories);
-  const removeAllSymlink = fRemoveAllSymlink(symlinkList, logger);
+  const removeAllSymlinks = fRemoveAllSymlink(symlinkList, logger);
 
   const gitCmdBase = fGitCmdBase(source_ref, subdir_ref, logger)
   const initLocalRepo = gitCmdBase.bind(null, 'init_local_repository');
@@ -90,79 +90,76 @@ export default function Home() {
 
   return (
     <main>
-      <div>
-        {/* <Link href="/test" className="text-cyan-600 hover:underline">Mod List＞＞</Link> */}
+      <div className="w-full overflow-hidden select-none">
+        <div className="w-full h-200 overflow-auto">
+          <LocalPathForm
+            title="Modデータディレクトリ"
+            source_ref={source_ref}
+            validateHandler={() => {
+              // TODO: implement
+              logger.info("confirm source dir path!")
+            }}
+            defaultValue={"/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source"}
+          />
+          <LocalPathForm
+            title="Targetディレクトリ"
+            source_ref={target_ref}
+            validateHandler={() => { }}
+            defaultValue={"/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets"}
+          />
+          <LocalPathForm
+            title="Modディレクトリ"
+            source_ref={subdir_ref}
+            validateHandler={() => { }}
+            defaultValue={"mod1"}
+          />
+        </div>
+        <div className="w-full">
+          <Tabs defaultValue="wip" className="w-full">
+            <TabsList>
+              <TabsTrigger value="wip" className="w-[250px]">WIP</TabsTrigger>
+              <TabsTrigger value="mods" className="w-[250px]" onClick={() => getMods({ mods, setMods })}>Mods</TabsTrigger>
+              <TabsTrigger value="console" className="w-[250px]">ログ</TabsTrigger>
+            </TabsList>
+            <TabsContent value="wip">
+              <br /><br />
+              <p className="font-bold text-xl">Mod追加</p>
+              {/* <Button size="sm" className="p-4" onClick={listModDirectories}>List Mod Directories</Button> */}
+              {/* <Button size="sm" className="p-4" onClick={listSymlinks}>List Symlinks</Button> */}
+              <br />
+              <Button size="sm" onClick={createAllSymlinks}>create all symlinks</Button>
+              <Button size="sm" className="p-4" onClick={removeAllSymlinks}>remove all symlinks</Button>
+              <br />
+              <Button size="sm" className="p-4" onClick={createSymlink}>create 1 symlink</Button>
+              <Button size="sm" className="p-4" onClick={removeSymlink}>remove 1 symlink</Button>
 
 
-        <Tabs defaultValue="account" className="w-full h-[750px]">
-          <TabsList>
-            <TabsTrigger value="account" className="w-[250px]">WIP</TabsTrigger>
-            <TabsTrigger value="mods" className="w-[250px]" onClick={() => getMods({ mods, setMods })}>Mods</TabsTrigger>
-          </TabsList>
-          <TabsContent value="account">
-            <div className="space-y-4">
-            <LocalPathForm
-              title="Modデータディレクトリ"
-              source_ref={source_ref}
-              validateHandler={() => {
-                // TODO: implement
-                logger.info("confirm source dir path!")
-              }}
-              defaultValue={"/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source"}
-            />
-            <LocalPathForm
-              title="Targetディレクトリ"
-              source_ref={target_ref}
-              validateHandler={() => {}}
-              defaultValue={"/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets"}
-            />
-            <LocalPathForm
-              title="Modディレクトリ"
-              source_ref={subdir_ref}
-              validateHandler={() => {}}
-              defaultValue={"mod1"}
-            />
-            </div>
-
-            {/* < Label htmlFor="target" > Target Root Dir</Label>
-            <Input id="target" type="text" className="p-4" ref={target_ref} defaultValue={"/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets"} /> */}
-            {/* <br /><br /> */}
-
-            {/* <Label htmlFor="subdir">Subdir Name / Mod Dir Name</Label>
-            <Input id="subdir" type="text" className="p-4" ref={subdir_ref} defaultValue={"mod1"} /> */}
-            <br /><br />
-
-            <p className="font-bold text-xl">Mod追加</p>
-            <Button size="sm" className="p-4" onClick={listModDirectories}>List Mod Directories</Button>
-            <Button size="sm" className="p-4" onClick={listSymlinks}>List Symlinks</Button>
-            <br />
-            <Button size="sm" onClick={createAllSymlinks}>create all symlinks</Button>
-            <Button size="sm" className="p-4" onClick={removeAllSymlink}>remove all symlinks</Button>
-            <br />
-            <Button size="sm" className="p-4" onClick={createSymlink}>create 1 symlink</Button>
-            <Button size="sm" className="p-4" onClick={removeSymlink}>remove 1 symlink</Button>
-
-
-            <p className="font-bold text-xl">断面管理</p>
-            <Button onClick={initLocalRepo}>Gitリポジトリ初期化</Button>
-            <Button onClick={showChanges}>作業差分取得</Button>
-            <Button onClick={commitChanges}>作業差分記録</Button>
-            <Button onClick={resetChanges}>作業差分リセット</Button>
-            <br />
-            <Input id="branch" type="text" className="p-4" ref={branch_ref} defaultValue={"main"} />
-            <Button onClick={listBranch}>ブランチ一覧取得</Button>
-            <Button onClick={checkoutBranch}>ブランチ切り替え</Button>
-          </TabsContent>
-          <TabsContent value="mods">
-            <ModsTable
-              mods={mods}
-              setMods={setMods}
-            />
-          </TabsContent>
-        </Tabs>
-        <LoggingArea
-          consoleRef={consoleRef}
-        />
+              <p className="font-bold text-xl">断面管理</p>
+              <Button onClick={initLocalRepo}>Gitリポジトリ初期化</Button>
+              <Button onClick={showChanges}>作業差分取得</Button>
+              <Button onClick={commitChanges}>作業差分記録</Button>
+              <Button onClick={resetChanges}>作業差分リセット</Button>
+              <br />
+              <Input id="branch" type="text" className="p-4" ref={branch_ref} defaultValue={"main"} />
+              <Button onClick={listBranch}>ブランチ一覧取得</Button>
+              <Button onClick={checkoutBranch}>ブランチ切り替え</Button>
+            </TabsContent>
+            <TabsContent value="mods">
+              <Button className="text-xs" onClick={() => getMods({ mods, setMods })}>Scan</Button>
+              <Button onClick={createAllSymlinks}>全てゲームに追加</Button>
+              <Button onClick={removeAllSymlinks}>全てゲームから削除</Button>
+              <ModsTable
+                mods={mods}
+                setMods={setMods}
+              />
+            </TabsContent>
+            <TabsContent value="console">
+              <LogConsole
+                consoleRef={consoleRef}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </main >
   );

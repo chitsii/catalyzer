@@ -53,20 +53,20 @@ class Logger {
   }
 }
 
-function LoggingArea(
+function LogConsole(
   { consoleRef }: Readonly<{ consoleRef: React.RefObject<HTMLTextAreaElement> }>
 ) {
   return (
     <>
-      <textarea
+      <Textarea
         id="my_console"
-        className="w-full min-h-40 bg-gray-800 text-xs text-green-300 overflow-scroll p-4"
-        disabled
+        className="w-full h-console bg-gray-800 text-xs text-green-300 overflow-scroll p-4"
         defaultValue={`[${new Date().toLocaleTimeString()} - GREET] Welcome back, survivor!\n`}
         ref={consoleRef}
+        readOnly
       />
     </>
   )
 }
 
-export { LoggingArea, Logger }
+export { LogConsole, Logger }

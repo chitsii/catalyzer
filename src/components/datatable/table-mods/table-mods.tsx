@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { Mod, columns } from "./columns";
 import { DataTable } from "./data-table";
-import { Button } from "@/components/ui/button";
+
 
 import { getMods } from "@/lib/api";
 
@@ -18,14 +18,10 @@ export type getModsProps = {
 function ModsTable(
   {mods, setMods}: getModsProps
 ) {
-  const handleScanMods = () => getMods({ mods, setMods });
-
+  // const handleScanMods = () => getMods({ mods, setMods });
   return (
     <div className="container mx-auto py-10">
-      {/* <Link href="/" className="text-cyan-600 hover:underline">＜＜Home</Link> */}
-      {/* <p className="text-xl font-bold">Mod List</p> */}
-      <Button onClick={handleScanMods}>Scan Mods</Button>
-      <DataTable columns={columns} data={mods} />
+      <DataTable columns={columns} data={mods}/>
     </div>
   )
 }

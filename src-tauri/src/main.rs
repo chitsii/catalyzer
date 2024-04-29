@@ -333,6 +333,13 @@ fn show_changes(target_dir: String) -> Result<Vec<String>, String> {
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[serde(untagged)]
+enum StringOrVec {
+    String(String),
+    Vec(Vec<String>),
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 struct ModInfo {
     ident: Option<String>,
@@ -342,7 +349,7 @@ struct ModInfo {
     description: Option<String>,
     category: Option<String>,
     dependencies: Option<Vec<String>>,
-    maintainers: Option<Vec<String>>,
+    maintainers: Option<StringOrVec>,
     version: Option<String>,
 } // Todo: Optionを全部につけるんじゃなくて、もっと柔軟にファイル依存でキーを返せるようにする
 
@@ -351,7 +358,14 @@ impl ModInfo {
         println!("Reading modinfo from {}", path.display());
         let content = std::fs::read_to_string(path).unwrap();
         println!("Content: {}", content);
-        let info: Vec<ModInfo> = serde_json::from_str(&content).unwrap();
+        let info: Vec<ModInfo> = serde_json::from_str(&content).unwrap_or_else(|e| {
+            println!(
+                "⬛︎⬛︎⬛︎⬛︎ Failed to parse modinfo.json of mod {}. msg: {}",
+                &path.to_string_lossy(),
+                e
+            );
+            Vec::new()
+        });
         if info.len() != 1 {
             return Err("Invalid modinfo.json".to_string());
         }
@@ -387,7 +401,13 @@ fn scan_mods(source_dir: String) -> Result<Vec<Mod>, String> {
             println!("Failed to open modinfo.json");
             continue;
         }
-        let info = ModInfo::from_path(&mod_info_path)?;
+        let info = match ModInfo::from_path(&mod_info_path) {
+            Ok(info) => info,
+            Err(e) => {
+                println!("Failed to read modinfo.json: {}", e);
+                continue;
+            }
+        };
 
         // 断面管理情報
         let res = git_open(mod_dir.display().to_string());

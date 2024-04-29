@@ -11,8 +11,8 @@ import {
   getPaginationRowModel,
   SortingState,
   getSortedRowModel,
-} from "@tanstack/react-table"
-
+} from "@tanstack/react-table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -21,14 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DataTablePagination } from "@/components/datatable/pagenation";
 
-import { DataTableViewOptions } from "@/components/datatable/column-toggle";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
-  data: TData[]
+  data: TData[],
 }
 
 export function DataTable<TData, TValue>({
@@ -61,29 +59,11 @@ export function DataTable<TData, TValue>({
 
 
   return (
-    <div>
-      { /* ヘッダhide */}
-      {/* <div className="mr-auto">
-        <DataTableViewOptions table={table} />
-      </div> */}
-
-      {/* フィルタ */}
-      {/* <div className="flex items-center py-4">
-        <Input
-          placeholder="Filter mod info..."
-          value={
-            (table.getColumn("info")?.getFilterValue() as string) ?? ""
-          }
-          onChange={
-            (event) => table.getColumn("info")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
-      </div> */}
-
-      <div className="rounded-md border">
+    <>
+      <DataTablePagination table={table} />
+      <ScrollArea className="h-mod-table rounded-md border pr-2">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-secondary">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
@@ -124,30 +104,7 @@ export function DataTable<TData, TValue>({
             )}
           </TableBody>
         </Table>
-      </div>
-      {/* <div className="flex-1 items-center justify-start text-sm text-muted-foreground">
-        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
-      </div> */}
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          Previous
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          Next
-        </Button>
-      </div>
-
-    </div>
+      </ScrollArea>
+    </>
   )
 }
