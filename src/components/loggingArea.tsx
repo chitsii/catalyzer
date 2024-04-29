@@ -60,7 +60,7 @@ function LoggingArea(
     <>
       <textarea
         id="my_console"
-        className="w-full min-h-80 bg-gray-800 text-xs text-green-300 overflow-scroll p-4"
+        className="w-full min-h-40 bg-gray-800 text-xs text-green-300 overflow-scroll p-4"
         disabled
         defaultValue={`[${new Date().toLocaleTimeString()} - GREET] Welcome back, survivor!\n`}
         ref={consoleRef}

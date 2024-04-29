@@ -7,10 +7,31 @@ import { Mod, columns } from "./columns";
 import { DataTable } from "./data-table";
 import { Button } from "@/components/ui/button";
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { getMods } from "@/lib/api";
 
 
-function getMockData(): Mod[] {
+export type getModsProps = {
+  mods: Mod[];
+  setMods: (mods: Mod[]) => void;
+}
+
+function ModsTable(
+  {mods, setMods}: getModsProps
+) {
+  const handleScanMods = () => getMods({ mods, setMods });
+
+  return (
+    <div className="container mx-auto py-10">
+      {/* <Link href="/" className="text-cyan-600 hover:underline">＜＜Home</Link> */}
+      {/* <p className="text-xl font-bold">Mod List</p> */}
+      <Button onClick={handleScanMods}>Scan Mods</Button>
+      <DataTable columns={columns} data={mods} />
+    </div>
+  )
+}
+
+
+export function getMockData(): Mod[] {
   return [
     {
       info: {
@@ -84,40 +105,5 @@ function getMockData(): Mod[] {
   ]
 }
 
-type getModsProps = {
-  mods: Mod[];
-  setMods: (mods: Mod[]) => void;
-}
-const getMods = (
-  { mods, setMods }: getModsProps
-) => {
-  invoke<Mod[]>('scan_mods', { sourceDir: "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source" })
-    .then((response) => {
-      console.log(response);
-      setMods(response);
-    })
-    .catch((err) => {
-      console.error(err);
-      setMods(getMockData());
-    });
-}
-
-function ModsTable() {
-  // const data = getMockData();
-  const [mods, setMods] = React.useState<Mod[]>([]);
-
-  const handleScanMods = () => {
-    getMods({ mods, setMods });
-  }
-
-  return (
-    <div className="container mx-auto py-10">
-      <Link href="/" className="text-cyan-600 hover:underline">＜＜Home</Link>
-      <p className="text-xl font-bold">Mod List</p>
-      <Button onClick={handleScanMods}>Scan Mods</Button>
-      <DataTable columns={columns} data={mods} />
-    </div>
-  )
-}
-
-export { ModsTable };
+export { ModsTable, getMods };
+export type { Mod };
