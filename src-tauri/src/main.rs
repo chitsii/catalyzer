@@ -91,7 +91,7 @@ fn remove_file(target_file: String) -> Result<(), String> {
             target.display()
         ));
     }
-    match std::fs::remove_file(&target) {
+    match std::fs::remove_file(target) {
         Ok(_) => Ok(()),
         Err(e) => Err(format!("Failed to remove symlink: {}", e)),
     }

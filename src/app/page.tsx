@@ -18,7 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { invoke } from '@tauri-apps/api/tauri';
 import { LogConsole, Logger } from "@/components/log-console";
-import { ModsTable, Mod } from "@/components/datatable/table-mods/table-mods";
+import { ModsTable, Mod } from "@/components/datatable/mod-table/table-mods";
 import {
   fListModDirs,
   fListSymLinks,

@@ -1,5 +1,5 @@
-import { getModsProps, getMockData } from "@/components/datatable/table-mods/table-mods";
-import { Mod } from "@/components/datatable/table-mods/columns";
+import { getModsProps, getMockData } from "@/components/datatable/mod-table/table-mods";
+import { Mod } from "@/components/datatable/mod-table/columns";
 import { Logger } from "@/components/log-console";
 import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
 import path from "path";

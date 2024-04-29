@@ -179,7 +179,6 @@ export const columns: ColumnDef<Mod>[] = [
                   size="sm"
                   className="ml-2 text-[10px]"
                   onClick={() => {
-                    // console.log(`start managing section: ${JSON.stringify(row.original.info)}`)
                     console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
                     const localPath = row.original.localPath;
                     GitCmdBase(localPath)("init_local_repository");
