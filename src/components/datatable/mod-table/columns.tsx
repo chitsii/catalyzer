@@ -1,7 +1,7 @@
 "use client"
-
+import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, ArrowUpDown } from "lucide-react";
+import { GitGraphIcon } from "lucide-react";
 import { DataTableColumnHeader } from "@/components/datatable/header";
 
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ import {
   fCreateAllSymlinks,
   fRemoveAllSymlink,
   GitCmdBase,
-  getMods,
+  fetchMods,
   openLocalDir
 } from "@/lib/api";
 import { init } from "next/dist/compiled/webpack/webpack";
@@ -127,7 +127,7 @@ export const columns: ColumnDef<Mod>[] = [
               Object.keys(info).map((k) => {
                 const value = info[k as keyof ModInfo];
                 // 前のカラムで表示済み
-                const skipKeys = ['type', 'ident', 'id', 'name', 'authors', 'maintainers', 'dependencies', 'category', 'description', 'description'];
+                const skipKeys = ['type', 'ident', 'id', 'name', 'authors', 'maintainers', 'category', 'description'];
 
                 if (skipKeys.includes(k)) return null;
                 if (Array.isArray(value)) {
@@ -174,18 +174,28 @@ export const columns: ColumnDef<Mod>[] = [
               </>
             ) : (
               <>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
                 <Button
                   variant="notInstalled"
                   size="sm"
                   className="ml-2 text-[10px]"
-                  onClick={() => {
-                    console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
-                    const localPath = row.original.localPath;
-                    GitCmdBase(localPath)("init_local_repository");
-                  }}
                 >
-                  断面管理する
+                  N/A
                 </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
+                  const localPath = row.original.localPath;
+                  GitCmdBase(localPath)("init_local_repository");
+                }}
+              >
+                <div className="flex gap-1"><GitGraphIcon size={16}/>断面管理を始める</div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
               </>
             )
           }

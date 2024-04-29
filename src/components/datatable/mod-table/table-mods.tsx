@@ -7,7 +7,7 @@ import { Mod, columns } from "./columns";
 import { DataTable } from "./data-table";
 
 
-import { getMods } from "@/lib/api";
+import { fetchMods } from "@/lib/api";
 
 
 export type getModsProps = {
@@ -26,5 +26,5 @@ function ModsTable(
   )
 }
 
-export { ModsTable, getMods };
+export { ModsTable, fetchMods as getMods };
 export type { Mod };

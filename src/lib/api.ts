@@ -1,9 +1,13 @@
-import { getModsProps, getMockData } from "@/components/datatable/mod-table/table-mods";
 import { Mod } from "@/components/datatable/mod-table/columns";
 import { Logger } from "@/components/log-console";
 import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
 import path from "path";
 import React from "react";
+import {
+  mods as modsAtom,
+  modDataDirPath
+} from "@/components/atoms";
+import { useAtomValue, useSetAtom } from "jotai";
 
 
 export function fListModDirs(
@@ -150,17 +154,15 @@ export function fListSymLinks(target_ref: React.RefObject<HTMLInputElement>, log
   };
 }
 
-export const getMods = (
-  { mods, setMods }: getModsProps
-) => {
-  invoke<Mod[]>('scan_mods', { sourceDir: "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source" })
+export const fetchMods = async () => {
+  const modDirPath = useAtomValue(modDataDirPath);
+  const res = await invoke<Mod[]>('scan_mods', { sourceDir: modDirPath })
     .then((response) => {
       console.log(response);
-      setMods(response);
+      return response;
     })
     .catch((err) => {
       console.error(err);
-      setMods(getMockData());
     });
+  return res;
 };
-
