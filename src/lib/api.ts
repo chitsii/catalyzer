@@ -1,3 +1,5 @@
+import { getModsProps, getMockData } from "@/components/datatable/table-mods/table-mods";
+import { Mod } from "@/components/datatable/table-mods/columns";
 import { Logger } from "@/components/loggingArea";
 import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
 import path from "path";
@@ -134,4 +136,18 @@ export function fListSymLinks(target_ref: React.RefObject<HTMLInputElement>, log
       .catch(logger.error);
   };
 }
+
+export const getMods = (
+  { mods, setMods }: getModsProps
+) => {
+  invoke<Mod[]>('scan_mods', { sourceDir: "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source" })
+    .then((response) => {
+      console.log(response);
+      setMods(response);
+    })
+    .catch((err) => {
+      console.error(err);
+      setMods(getMockData());
+    });
+};
 
