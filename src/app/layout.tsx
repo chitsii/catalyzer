@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
-
 import { ThemeProvider } from 'next-themes'
 import { M_PLUS_1_Code, Noto_Sans_Mono } from "next/font/google";;
 import { Toaster } from "@/components/ui/sonner";
-import { theme, ThemeVariants, store } from "@/components/atoms";
-import { useAtomValue, useAtom } from "jotai";
 import "./globals.css";
-
 
 export const m_plus_1_code = M_PLUS_1_Code({
   subsets: ["latin"]
@@ -19,7 +15,6 @@ export const metadata: Metadata = {
   title: "Cataclysm Launcher",
   description: "Cataclysm: Dark Days Ahead Launcher",
 };
-
 
 export default function RootLayout(
   { children, }: Readonly<{ children: React.ReactNode; }>
