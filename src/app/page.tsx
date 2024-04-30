@@ -27,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dashboard } from "@/components/setting";
 
 
-import { LogConsole, Logger } from "@/components/log-console";
+// import { LogConsole, Logger } from "@/components/log-console";
 import { ModsTable, Mod } from "@/components/datatable/mod-table/table-mods";
 import {
   fetchMods,

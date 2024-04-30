@@ -1,7 +1,5 @@
 import { Mod } from "@/components/datatable/mod-table/columns";
-import { Logger } from "@/components/log-console";
 import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
-import path from "path";
 import React from "react";
 
 export function GitCmdBase(targetDir: string) {
