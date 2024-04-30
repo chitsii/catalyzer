@@ -22,7 +22,12 @@ export default function RootLayout(
   return (
     <html lang="ja" suppressHydrationWarning>
       <body className={noto_sans_mono.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider
+          themes={["light", "dark", "yukari"]}
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+        >
           {children}
         </ThemeProvider>
         <Toaster />
