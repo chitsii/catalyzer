@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+// import { Inter } from "next/font/google";
 import { M_PLUS_1_Code, Noto_Sans_Mono } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner"
 
 import "./globals.css";
 
@@ -26,7 +27,10 @@ export default function RootLayout(
       lang="ja"
       className="dark"
     >
-      <body className={noto_sans_mono.className}>{children}</body>
+      <body className={noto_sans_mono.className}>
+        {children}
+        <Toaster />
+      </body>
     </html>
   );
 }

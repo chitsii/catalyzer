@@ -1,6 +1,7 @@
 "use client";
 
 import { Atom, atom, PrimitiveAtom } from 'jotai';
+import { createStore, Provider } from 'jotai';
 import { atomWithStorage } from 'jotai/utils'
 import { Mod } from "@/components/datatable/mod-table/table-mods";
 
@@ -15,9 +16,12 @@ const modDataDirPath = atomWithStorage('modDataDir', defaultModDataDir);
 const gameModDirPath = atomWithStorage('gameModDir', defaultGameModDir);
 const gameDir = atomWithStorage('gameDir', '');
 
+const store = createStore();
+
 export {
   mods,
   modDataDirPath,
   gameModDirPath,
-  gameDir
+  gameDir,
+  store
 }
