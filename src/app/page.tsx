@@ -8,12 +8,6 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
   Card,
   CardContent,
   CardDescription,
@@ -22,12 +16,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dashboard } from "@/components/setting";
-import { theme, ThemeVariants } from "@/components/atoms";
-
 import { ColorThemeSelector } from "@/components/theme-seletor";
-
-
 import { ModsTable } from "@/components/datatable/mod-table/table-mods";
 import { fetchMods } from "@/lib/api";
 import {
@@ -35,28 +24,14 @@ import {
   useAtom,
   useAtomValue,
 } from 'jotai'
-
 import {
   modDataDirPath,
   gameModDirPath,
-  gameDir,
   mods as modsAtom,
   store as AtomStore,
-  theme as themeAtom,
 } from "@/components/atoms";
+import { invoke } from "@tauri-apps/api/tauri";
 
-import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
-
-
-// const ThemeChanger = () => {
-//   const { theme, setTheme } = useTheme()
-//   return (
-//     <div>
-//       <button onClick={() => setTheme('light')}>Light Mode</button>
-//       <button onClick={() => setTheme('dark')}>Dark Mode</button>
-//     </div>
-//   )
-// }
 
 const popUp = (title: "success" | "failed", msg: string) => {
   console.info(msg);
@@ -84,14 +59,6 @@ const unzipModArchive = async (src: string, dest: string) => {
 import { appWindow } from "@tauri-apps/api/window";
 import { ask } from '@tauri-apps/api/dialog';
 import { ScrollArea } from "@radix-ui/react-scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 
 type LocalPathFormProps = {

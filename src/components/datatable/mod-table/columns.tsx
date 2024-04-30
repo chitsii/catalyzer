@@ -1,23 +1,18 @@
 "use client"
 import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { GitGraphIcon, TerminalIcon, Terminal, SquareTerminal, LucideCopy } from "lucide-react";
-import { DataTableColumnHeader } from "@/components/datatable/header";
+import { GitGraphIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import path from "path";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isNonEmptyStringOrArray } from "@/lib/utils";
-
 import {
   createSymlink,
   removeSymlink,
