@@ -1,10 +1,10 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::fmt::Debug;
-
 use git2::{Repository, Signature};
+use std::fmt::Debug;
 use std::process::Command;
+use tempfile::tempdir;
 
 fn main() {
     tauri::Builder::default()
@@ -12,8 +12,8 @@ fn main() {
             greet,
             remove_file,
             create_symlink,
-            list_symlinks,
-            list_mod_directories,
+            // list_symlinks,
+            // list_mod_directories,
             init_local_repository,
             commit_changes,
             reset_changes,
@@ -22,6 +22,7 @@ fn main() {
             show_changes,
             scan_mods,
             show_in_folder,
+            unzip_mod_archive,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -216,6 +217,8 @@ fn git_list_branches(repo: &Repository) -> Result<Vec<String>, String> {
     for branch in repo.branches(None).unwrap() {
         let (branch, _) = branch.unwrap();
         let branch_name = branch.name().unwrap().unwrap();
+        let branch_name = branch_name.split('/').last().unwrap();
+
         branches.push(branch_name.to_string());
     }
     Ok(branches)
@@ -420,6 +423,7 @@ fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String>
             Ok(repo) => {
                 let head = repo.head().unwrap();
                 let head_branch = &head.name().unwrap();
+                let head_branch = head_branch.split('/').last().unwrap();
                 let last_commit = &head.peel_to_commit().unwrap();
                 let last_commit_date = last_commit.time().seconds();
                 let last_commit_date =
@@ -435,37 +439,11 @@ fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String>
             }
         };
 
-        // インストール状態
+        // インストール状態取得
         let mod_dir_name = mod_dir.file_name().unwrap();
         let is_installed = existing_symlinks
             .iter()
             .any(|path| path.file_name().unwrap() == mod_dir_name);
-
-        // println!("is_installed: {}", is_installed);
-        // println!("existing_symlinks: {:?}", existing_symlinks);
-        // println!(
-        //     "existing symlink file_name: {:?}",
-        //     existing_symlinks
-        //         .iter()
-        //         .map(|path| path.file_name().unwrap())
-        //         .collect::<Vec<_>>()
-        // );
-        // println!("mod_dir_name: {}", mod_dir_name.to_string_lossy());
-        // println!(
-        //     "{:?}",
-        //     existing_symlinks
-        //         .iter()
-        //         .map(|path| path.file_name().unwrap())
-        //         .collect::<Vec<_>>()
-        //         .contains(&mod_dir_name)
-        // );
-        // println!(
-        //     "{:?}",
-        //     existing_symlinks
-        //         .iter()
-        //         .any(|path| path.file_name().unwrap() == mod_dir_name)
-        // );
-
         let m = Mod {
             info,
             local_version,
@@ -494,7 +472,6 @@ fn show_in_folder(target_dir: String) {
             .spawn()
             .unwrap();
     }
-
     // #[cfg(target_os = "linux")]
     // {
     //     if path.contains(",") {
@@ -525,4 +502,77 @@ fn show_in_folder(target_dir: String) {
     //         }
     //     }
     // }
+}
+
+fn is_mod_dir(path: &std::path::Path) -> bool {
+    let modinfo_path = path.join("modinfo.json");
+    modinfo_path.exists()
+}
+
+fn get_shallowest_mod_dir(path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let entries = std::fs::read_dir(path).unwrap();
+    for entry in entries {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if path.is_dir() {
+            if is_mod_dir(&path) {
+                return Some(path);
+            } else {
+                let res = get_shallowest_mod_dir(&path);
+                if res.is_some() {
+                    return res;
+                }
+            }
+        }
+    }
+    None
+}
+
+#[tauri::command]
+fn unzip_mod_archive(src: String, dest: String) -> Result<(), String> {
+    let src_path = std::path::PathBuf::from(src);
+    let dest_path = std::path::PathBuf::from(dest).with_extension("");
+    if dest_path.exists() {
+        return Err(format!(
+            "Destination directory already exists: {}",
+            dest_path.display()
+        ));
+    }
+    if !src_path.exists() {
+        return Err(format!(
+            "Source file does not exist: {}",
+            src_path.display()
+        ));
+    }
+
+    let archive: Vec<u8> = std::fs::read(src_path).unwrap();
+    let archive = std::io::Cursor::new(archive);
+
+    let tmp_dir = tempdir().unwrap();
+    let tmp_dir_path = tmp_dir.path();
+
+    match zip_extract::extract(archive, tmp_dir_path, true) {
+        Ok(_) => {
+            // find if there is a mod directory in the extracted files
+            let mod_dir = get_shallowest_mod_dir(tmp_dir_path);
+
+            // if None, remove tmp_dir and return error
+            match mod_dir {
+                Some(mod_dir) => {
+                    // copy the mod directory to the destination
+                    std::fs::rename(mod_dir, dest_path).unwrap();
+                }
+                None => {
+                    // remove tmp dir and return error
+                    tmp_dir.close().unwrap();
+                    return Err("Failed to extract archive: Invalid mod directory".to_string());
+                }
+            }
+            Ok(())
+        }
+        Err(e) => {
+            tmp_dir.close().unwrap();
+            Err(format!("Failed to extract archive: {}", e))
+        }
+    }
 }
