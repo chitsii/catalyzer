@@ -1,14 +1,12 @@
 "use client";
 
-import React, { RefObject, useEffect } from "react";
+import React, { useEffect } from "react";
+import { useTheme } from 'next-themes';
 import Link from "next/link";
 import path from "path";
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import { CircleUser, Menu, Package2, Search } from "lucide-react"
 import {
   Accordion,
   AccordionContent,
@@ -25,13 +23,13 @@ import {
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dashboard } from "@/components/setting";
+import { theme, ThemeVariants } from "@/components/atoms";
+
+import { ColorThemeSelector } from "@/components/theme-seletor";
 
 
-// import { LogConsole, Logger } from "@/components/log-console";
-import { ModsTable, Mod } from "@/components/datatable/mod-table/table-mods";
-import {
-  fetchMods,
-} from "@/lib/api";
+import { ModsTable } from "@/components/datatable/mod-table/table-mods";
+import { fetchMods } from "@/lib/api";
 import {
   PrimitiveAtom,
   useAtom,
@@ -43,11 +41,22 @@ import {
   gameModDirPath,
   gameDir,
   mods as modsAtom,
-  store as AtomStore
+  store as AtomStore,
+  theme as themeAtom,
 } from "@/components/atoms";
-import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
-import { cn } from "@/lib/utils";
 
+import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
+
+
+// const ThemeChanger = () => {
+//   const { theme, setTheme } = useTheme()
+//   return (
+//     <div>
+//       <button onClick={() => setTheme('light')}>Light Mode</button>
+//       <button onClick={() => setTheme('dark')}>Dark Mode</button>
+//     </div>
+//   )
+// }
 
 const popUp = (title: "success" | "failed", msg: string) => {
   console.info(msg);
@@ -55,8 +64,9 @@ const popUp = (title: "success" | "failed", msg: string) => {
     title.toUpperCase(),
     {
       description: msg,
-      duration: 100,
-      // className: cn("fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:right-0 sm:flex-col md:max-w-[420px] data-[state=open]:sm:slide-in-from-bottom-full to data-[state=open]:sm:slide-in-from-top-full")
+      position: 'top-right',
+      duration: 3000,
+      closeButton: true,
     }
   );
 }
@@ -73,6 +83,15 @@ const unzipModArchive = async (src: string, dest: string) => {
 
 import { appWindow } from "@tauri-apps/api/window";
 import { ask } from '@tauri-apps/api/dialog';
+import { ScrollArea } from "@radix-ui/react-scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 
 type LocalPathFormProps = {
@@ -103,7 +122,6 @@ const LocalPathForm = (
         </CardHeader>
         <CardContent>
           <form>
-            {/* <Input placeholder="Store Name" /> */}
             <Input
               id="source_dir"
               type="text"
@@ -162,8 +180,6 @@ appWindow.onFileDropEvent(async (ev) => {
   }
   else if (path.parse(filepath).dir === modDataDir) {
     popUp('success', 'The file is already in the Mod Directory.');
-    // toast('The file is already in the Mod Directory.');
-    // console.error('The file is already in the Mod Directory.');
   }
   else {
     popUp(
@@ -173,13 +189,19 @@ appWindow.onFileDropEvent(async (ev) => {
   }
 })
 
+
 export default function Home() {
+  const { theme, setTheme } = useTheme()
+
   const [mods, setMods] = useAtom(modsAtom);
   const modDataDir = useAtomValue(modDataDirPath);
   const gameModDir = useAtomValue(gameModDirPath);
 
-  // コンソールへの出力ログ関連
-  const consoleRef: RefObject<HTMLTextAreaElement> = React.useRef(null);
+  useEffect(() => {
+    const modDataDir = AtomStore.get(modDataDirPath);
+    const gameModDir = AtomStore.get(gameModDirPath);
+    fetchMods(modDataDir, gameModDir, setMods);
+  }, []);
 
   return (
     <main>
@@ -187,17 +209,24 @@ export default function Home() {
         <div className="w-full h-200 overflow-auto">
         </div>
         <div className="w-full">
-          <Tabs defaultValue="wip" className="w-full h-full">
-            <TabsList className="m-5">
+          <Tabs defaultValue="mods" className="w-full h-full">
+            <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="mods" className="text-lg"
                 onClick={() => { fetchMods(modDataDir, gameModDir, setMods) }}
               >
                 Mod一覧
               </TabsTrigger>
-              <TabsTrigger value="wip" className="text-lg">設定</TabsTrigger>
-              {/* <TabsTrigger value="console" className="text-lg">ログ</TabsTrigger> */}
+              <TabsTrigger value="setting" className="text-lg">設定</TabsTrigger>
             </TabsList>
-            <TabsContent value="wip">
+            <TabsContent value="mods">
+              <div className="bg-muted/40">
+                <ModsTable
+                  mods={mods}
+                  setMods={setMods}
+                />
+              </div>
+            </TabsContent>
+            <TabsContent value="setting">
               <div className="flex min-h-[calc(97vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
                 <div className="mx-auto grid w-full max-w-6xl gap-2">
                   <h1 className="text-3xl font-semibold">設定</h1>
@@ -209,48 +238,42 @@ export default function Home() {
                     <Link href="#mod_management_setting" className="font-semibold text-primary">
                       Mod管理
                     </Link>
-                    {/* <Link href="#">Security</Link>
-                    <Link href="#">Integrations</Link>
-                    <Link href="#">Support</Link>
-                    <Link href="#">Organizations</Link>
-                    <Link href="#">Advanced</Link> */}
+                    <Link href="#theme_setting" className="font-semibold text-primary">
+                      配色
+                    </Link>
                   </nav>
-                  <div className="grid gap-6">
-                    <p id="mod_management_setting" className="font-bold text-xl">Mod管理</p>
-                    <LocalPathForm
-                      title="Mod保存先"
-                      description="Modの集中管理用の任意のディレクトリ"
-                      inputAtom={modDataDirPath}
-                    />
-                    <LocalPathForm
-                      title="ゲームのMod読み込み先"
-                      description="ゲームがModを読み込むディレクトリ"
-                      inputAtom={gameModDirPath}
-                    />
-                    <div>
-                      {/* <LocalPathForm
-                      title="ゲーム本体へのディレクトリパス"
-                      description="ゲームを起動するために必要"
-                      inputAtom={gameDir}
-                    /> */}
+                  <ScrollArea>
+                    <div className="grid gap-2" id="mod_management_setting">
+                      <p className="font-bold text-xl">Mod管理</p>
+                      <LocalPathForm
+                        title="Mod保存先"
+                        description="Modの集中管理用の任意のディレクトリ"
+                        inputAtom={modDataDirPath}
+                      />
+                      <LocalPathForm
+                        title="ゲームのMod読み込み先"
+                        description="ゲームがModを読み込むディレクトリ"
+                        inputAtom={gameModDirPath}
+                      />
                     </div>
-                  </div>
+                    <br/>
+                    <div className="grid gap-2" id="theme_setting">
+                      <p className="font-bold text-xl">配色</p>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>配色</CardTitle>
+                          <CardDescription>
+                            配色を選択します
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <ColorThemeSelector/>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </ScrollArea>
                 </div>
               </div>
-            </TabsContent>
-            <TabsContent value="mods">
-              <div className="bg-muted/40">
-                <ModsTable
-                  mods={mods}
-                  setMods={setMods}
-                />
-              </div>
-            </TabsContent>
-            <TabsContent value="console">
-              {/* <LogConsole
-                consoleRef={consoleRef}
-              /> */}
-              <Dashboard />
             </TabsContent>
           </Tabs>
         </div>

@@ -5,12 +5,13 @@ import { createStore, Provider } from 'jotai';
 import { atomWithStorage } from 'jotai/utils'
 import { Mod } from "@/components/datatable/mod-table/table-mods";
 
-
+// atomWithStorage
 // ToDo: Remove this
 const defaultModDataDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source";
 const defaultGameModDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets";
 
-
+type ThemeVariants = 'dark' | 'light' | 'yukari' | 'yukari_dark';
+const theme = atomWithStorage<ThemeVariants>('theme', 'yukari_dark');
 const mods = atom<Mod[]>([]);
 const modDataDirPath = atomWithStorage('modDataDir', defaultModDataDir);
 const gameModDirPath = atomWithStorage('gameModDir', defaultGameModDir);
@@ -19,9 +20,11 @@ const gameDir = atomWithStorage('gameDir', '');
 const store = createStore();
 
 export {
+  theme,
   mods,
   modDataDirPath,
   gameModDirPath,
   gameDir,
   store
 }
+export type { ThemeVariants }

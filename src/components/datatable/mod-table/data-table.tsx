@@ -13,6 +13,7 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -75,7 +76,21 @@ export function DataTable<TData, TValue>({
 
   return (
     <>
-      <DataTablePagination table={table} />
+      <div className="flex">
+        <div className="w-full flex items-center py-4 justify-self-start">
+          <Input
+            placeholder="Search mods..."
+            value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              table.getColumn("name")?.setFilterValue(event.target.value)
+            }
+            className="max-w-sm justify-self-start w-full"
+          />
+        </div>
+        <div className="flex items-center justify-items-center ml-auto">
+          <DataTablePagination table={table}/>
+        </div>
+      </div>
       <ScrollArea className="h-mod-table rounded-md border pr-2">
         <Table>
           <TableHeader className="sticky top-0 bg-secondary">
