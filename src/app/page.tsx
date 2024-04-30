@@ -13,6 +13,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dashboard } from "@/components/setting";
+
+
 import { LogConsole, Logger } from "@/components/log-console";
 import { ModsTable, Mod } from "@/components/datatable/mod-table/table-mods";
 import {
@@ -60,11 +63,11 @@ const LocalPathForm = (
   return (
     <>
       <div className="flex grid grid-col-10 gap-x-2">
-        <Label htmlFor="source_dir" className="col-span-10 text-xs text-gray-600">{title}</Label>
+        <Label htmlFor="source_dir" className="col-span-10 text-xs text-muted-foreground">{title}</Label>
         <Input
           id="source_dir"
           type="text"
-          className="p-4 col-span-9 text-xs text-gray-100 bg-gray-900"
+          className="p-4 col-span-9 text-xs"
           defaultValue={value as string}
           onChange={(e) => setValue(e.target.value)}
           disabled={lock}
@@ -91,7 +94,7 @@ export default function Home() {
 
   return (
     <main>
-      <div className="w-full overflow-hidden select-none">
+      <div className="w-full overflow-hidden select-none bg-muted/40">
         <div className="w-full h-200 overflow-auto">
         </div>
         <div className="w-full">
@@ -100,7 +103,7 @@ export default function Home() {
               <TabsTrigger value="mods" className="w-auto"
                 onClick={() => { fetchMods(modDataDir, gameModDir, setMods) }}>Mods</TabsTrigger>
               <TabsTrigger value="wip" className="w-auto">Settings</TabsTrigger>
-              {/* <TabsTrigger value="console" className="w-auto">ログ</TabsTrigger> */}
+              <TabsTrigger value="console" className="w-auto">ログ</TabsTrigger>
             </TabsList>
             <TabsContent value="wip" className="p-2 space-y-4">
               <div>
@@ -132,9 +135,10 @@ export default function Home() {
               />
             </TabsContent>
             <TabsContent value="console">
-              <LogConsole
+              {/* <LogConsole
                 consoleRef={consoleRef}
-              />
+              /> */}
+              <Dashboard/>
             </TabsContent>
           </Tabs>
         </div>

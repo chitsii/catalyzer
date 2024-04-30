@@ -1,7 +1,7 @@
 "use client"
 import React from "react";
 import { ColumnDef } from "@tanstack/react-table";
-import { GitGraphIcon } from "lucide-react";
+import { GitGraphIcon, TerminalIcon, Terminal, SquareTerminal, LucideCopy } from "lucide-react";
 import { DataTableColumnHeader } from "@/components/datatable/header";
 
 import { Badge } from "@/components/ui/badge";
@@ -67,7 +67,7 @@ export const columns: ColumnDef<Mod>[] = [
     enableResizing: false,
     cell: ({ row }) => {
       return (
-        <p className="text-xs text-gray-600">{row.index + 1}</p>
+        <p className="text-xs">{row.index + 1}</p>
       )
     }
   },
@@ -82,8 +82,9 @@ export const columns: ColumnDef<Mod>[] = [
         <div>
           {
             info.name && (
+              <div>
               <p
-                className="text-sm font-bold text-blue-800 cursor-pointer hover:underline"
+                className="text-sm text-primary hover:font-bold cursor-pointer hover:underline"
                 onClick={() => {
                   console.log(`opne locally: ${info.name}`)
                   openLocalDir(row.original.localPath)
@@ -91,22 +92,24 @@ export const columns: ColumnDef<Mod>[] = [
               >
                 {info.name}
               </p>
+              </div>
             )
           }
           {
             (isNonEmptyStringOrArray(info.authors)) && (
-              <p className="text-xs text-gray-600">作成者 {info.authors}</p>
+              <p className="text-xs text-muted-foreground">作成者 {info.authors}</p>
             )
           }
           {
             (isNonEmptyStringOrArray(info.maintainers)) && (
-              <p className="text-xs text-gray-600">メンテナ {info.maintainers}</p>
+              <p className="text-xs text-muted-foreground">メンテナ {info.maintainers}</p>
             )
           }
           {
             info.category &&
             (<Badge variant="category">{info.category}</Badge>)
           }
+          {/* <LucideCopy size={16} className="m-2"/> */}
         </div>
       )
     }
@@ -123,7 +126,7 @@ export const columns: ColumnDef<Mod>[] = [
           {
             info.description && (
               <div>
-                <p className="text-xs text-gray-600">{info.description}</p>
+                <p className="text-xs text-muted-foreground">{info.description}</p>
               </div>
             )
           }
@@ -139,8 +142,8 @@ export const columns: ColumnDef<Mod>[] = [
                   return (value.join("").trim() != "") && (
                     <>
                       <p>
-                        <span className="text-xs font-semibold text-gray-600 uppercase">{k}: </span>
-                        <span className="text-xs text-gray-600">{value.join(", ")}</span>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase">{k}: </span>
+                        <span className="text-xs text-muted-foreground">{value.join(", ")}</span>
                       </p>
                     </>
                   )
@@ -148,8 +151,8 @@ export const columns: ColumnDef<Mod>[] = [
                 else {
                   return value && (
                     <>
-                      <span className="text-xs font-semibold text-gray-600 uppercase">{k}: </span>
-                      <span className="text-xs text-gray-600">{value}</span>
+                      <span className="text-xs font-semibold text-muted-foreground uppercase">{k}: </span>
+                      <span className="text-xs text-muted-foreground">{value}</span>
                     </>
                   )
                 }
@@ -171,11 +174,11 @@ export const columns: ColumnDef<Mod>[] = [
           {
             local_version ? (
               <>
-                <p className="text-xs font-semibold text-gray-600">ブランチ</p>
-                <p className="text-xs text-gray-600">{local_version.branchName}</p>
+                <p className="text-xs font-semibold text-muted-foreground">ブランチ</p>
+                <p className="text-xs text-muted-foreground">{local_version.branchName}</p>
                 <br />
-                <p className="text-xs font-semibold text-gray-600">最終編集日</p>
-                <p className="text-xs text-gray-600">{local_version.lastCommitDate}</p>
+                <p className="text-xs font-semibold text-muted-foreground">最終編集日</p>
+                <p className="text-xs text-muted-foreground">{local_version.lastCommitDate}</p>
               </>
             ) : (
               <>

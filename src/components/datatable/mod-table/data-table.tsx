@@ -66,8 +66,6 @@ export function DataTable<TData, TValue>({
     },
     meta: {
       // this is a meta object that is passed to all column and cell functions
-      // you can use this to pass additional data to the column and cell functions
-      // this is useful for things like i18n, formatting, etc
       fetchMods: fetchMods,
       gameModDir: gameModDir,
     }

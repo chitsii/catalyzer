@@ -22,7 +22,10 @@ export default function RootLayout(
   { children, }: Readonly<{ children: React.ReactNode; }>
 ) {
   return (
-    <html lang="ja">
+    <html
+      lang="ja"
+      className="dark"
+    >
       <body className={noto_sans_mono.className}>{children}</body>
     </html>
   );
