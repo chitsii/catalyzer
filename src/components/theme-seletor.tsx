@@ -25,8 +25,7 @@ const ColorThemeSelector = () => {
 
   const [mounted, setMounted] = useState(false);
   const { theme, resolvedTheme, themes, setTheme } = useTheme();
-
-  console.log(themes);
+  // console.log(themes); // Debug
 
   useEffect(() => {
     setMounted(true);

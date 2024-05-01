@@ -73,8 +73,7 @@ const config = {
         "accordion-up": "accordion-up 0.2s ease-out",
       },
       height: {
-        "mod-table": "750px",
-        "console": "750px",
+        "mod-table": "830px",
       },
     },
   },

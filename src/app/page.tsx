@@ -27,6 +27,7 @@ import {
   gameModDirPath,
   refreshMods,
   modsQ,
+  lastOpenTab as lastOpenTabAtom,
   // mods as modsAtom,
   store as AtomStore,
 } from "@/components/atoms";
@@ -52,7 +53,7 @@ const LocalPathForm = (
   const [value, setValue] = useAtom<string>(inputAtom);
   const [lock, setLock] = React.useState<boolean>(true);
 
-  console.log(value); // Debug
+  // console.log(value); // Debug
 
   return (
     <>
@@ -76,7 +77,7 @@ const LocalPathForm = (
           </form>
         </CardContent>
         <CardFooter className="border-t px-6 py-4">
-          <Button onClick={() => setLock(!lock)}>{lock ? "変更" : "保存"}</Button>
+          <Button variant="default" onClick={() => setLock(!lock)}>{lock ? "変更" : "保存"}</Button>
         </CardFooter>
       </Card>
 
@@ -125,7 +126,7 @@ const unzipModArchive = async (src: string, dest: string) => {
     });
 }
 appWindow.onFileDropEvent(async (ev) => {
-  console.log(ev);
+  // console.log(ev); // Debug
   if (ev.payload.type !== 'drop') {
     return;
   }
@@ -144,7 +145,7 @@ appWindow.onFileDropEvent(async (ev) => {
     return;
   }
   else if (path.parse(filepath).dir === modDataDir) {
-    popUp('success', 'The file is already in the Mod Directory.');
+    popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
   }
   else {
     popUp(
@@ -159,21 +160,37 @@ export default function Home() {
   const [{ data, isPending, isError }] = useAtom(modsQ);
   const [_, refresh] = useAtom(refreshMods);
 
+  const [lastOpened, setLasetOpened] = useAtom(lastOpenTabAtom);
+  // ToDo: 最後に開いたタブの保存がうまくいっていない
+  // StorageAtomsの初期化でStorageの値よりdefault値が先に読み込まれている模様
+
+  console.log(lastOpened); // Debug
+
   return (
     <main>
+      {/* <img src={`/app_icon.webp`} className="w-24 h-24"/> */}
       <div className="w-full overflow-hidden select-none bg-muted/40">
         <div className="w-full h-200 overflow-auto">
         </div>
         <div className="w-full">
-          <Tabs defaultValue="mods" className="w-full h-full">
+          <Tabs defaultValue={lastOpened} className="w-full h-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="mods" className="text-lg"
-                onClick={refresh}
+                onClick={() => {
+                  setLasetOpened('mods');
+                  refresh();
+                }}
               >
                 Mod一覧
               </TabsTrigger>
-              <TabsTrigger value="setting" className="text-lg">設定</TabsTrigger>
-              {/* <TabsTrigger value="releases" className="text-lg">リリース</TabsTrigger> */}
+              <TabsTrigger
+                value="setting"
+                className="text-lg"
+                onClick={() => {
+                  setLasetOpened('mods');
+                }}
+              >設定
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="mods">
               <div className="bg-muted/40">

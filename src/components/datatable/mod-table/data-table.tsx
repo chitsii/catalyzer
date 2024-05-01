@@ -28,7 +28,7 @@ import { DataTablePagination } from "@/components/datatable/pagenation";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  fetchMods: () => void;
+  fetchMods: () => void; // This is a function that refresh mod list;
   gameModDir: string;
 }
 
@@ -92,7 +92,7 @@ export function DataTable<TData, TValue>({
           <DataTablePagination table={table}/>
         </div>
       </div>
-      <ScrollArea className="h-mod-table rounded-md border pr-2">
+      <ScrollArea className="h-mod-table rounded-md border">
         <Table>
           <TableHeader className="sticky top-0 bg-secondary">
             {table.getHeaderGroups().map((headerGroup) => (

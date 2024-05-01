@@ -50,26 +50,28 @@
       --ring: 142.4 71.8% 29.2%;
     }
 
+    /* hsl(342deg 19% 20%) */
+    /* 51 33% 80%; */
     .yukari {
       --background: 240,11%,14%;
-      --foreground: 274,24%,57%;
+      --foreground: 51 33% 80%;
       --card: 24 9.8% 10%;
-      --card-foreground: 0 0% 95%;
+      --card-foreground: 51 33% 80%;
       --popover: 0 0% 9%;
       --popover-foreground: 0 0% 95%;
       --primary: 327deg 53% 63%;
-      --primary-foreground: 334,42%,80%;
+      --primary-foreground: 342 20% 10%;
       --secondary: 288,17%,18%;
-      --secondary-foreground: 221,30%,75%;
+      --secondary-foreground: 342 19% 20%;
       --muted: 341,20%,20%;
       --muted-foreground: 341,28%,75%;
-      --accent: 12 6.5% 15.1%;
-      --accent-foreground: 0 0% 98%;
+      --accent: 9 13% 19%;
+      --accent-foreground: 29 95% 60%;
       --destructive: 0 62.8% 30.6%;
       --destructive-foreground: 0 85.7% 97.3%;
       --border: 288 25% 40%;
       --input: 9 27% 25%;
-      --ring: 9 27% 25%;
+      --ring: 142.4 71.8% 29.2%;
     }
   }
 }
