@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useTheme } from 'next-themes';
 import Link from "next/link";
 import path from "path";
 import { toast } from "sonner"
@@ -22,43 +21,20 @@ import { fetchMods } from "@/lib/api";
 import {
   PrimitiveAtom,
   useAtom,
-  useAtomValue,
 } from 'jotai'
 import {
   modDataDirPath,
   gameModDirPath,
-  mods as modsAtom,
+  refreshMods,
+  modsQ,
+  // mods as modsAtom,
   store as AtomStore,
 } from "@/components/atoms";
 import { invoke } from "@tauri-apps/api/tauri";
-
-
-const popUp = (title: "success" | "failed", msg: string) => {
-  console.info(msg);
-  toast(
-    title.toUpperCase(),
-    {
-      description: msg,
-      position: 'top-right',
-      duration: 3000,
-      closeButton: true,
-    }
-  );
-}
-
-const unzipModArchive = async (src: string, dest: string) => {
-  invoke<string>('unzip_mod_archive', { src: src, dest: dest, removeNonModFiles: false })
-    .then((response) => {
-      popUp('success', 'Mod archive extracted at ' + dest);
-    })
-    .catch((err) => {
-      popUp('failed', err);
-    });
-}
-
 import { appWindow } from "@tauri-apps/api/window";
 import { ask } from '@tauri-apps/api/dialog';
 import { ScrollArea } from "@radix-ui/react-scroll-area";
+
 
 
 type LocalPathFormProps = {
@@ -126,6 +102,28 @@ const LocalPathForm = (
   );
 }
 
+
+const popUp = (title: "success" | "failed", msg: string) => {
+  console.info(msg);
+  toast(
+    title.toUpperCase(),
+    {
+      description: msg,
+      position: 'top-right',
+      duration: 3000,
+      closeButton: true,
+    }
+  );
+}
+const unzipModArchive = async (src: string, dest: string) => {
+  invoke<string>('unzip_mod_archive', { src: src, dest: dest, removeNonModFiles: false })
+    .then((response) => {
+      popUp('success', 'Mod archive extracted at ' + dest);
+    })
+    .catch((err) => {
+      popUp('failed', err);
+    });
+}
 appWindow.onFileDropEvent(async (ev) => {
   console.log(ev);
   if (ev.payload.type !== 'drop') {
@@ -158,17 +156,8 @@ appWindow.onFileDropEvent(async (ev) => {
 
 
 export default function Home() {
-  const { theme, setTheme } = useTheme()
-
-  const [mods, setMods] = useAtom(modsAtom);
-  const modDataDir = useAtomValue(modDataDirPath);
-  const gameModDir = useAtomValue(gameModDirPath);
-
-  useEffect(() => {
-    const modDataDir = AtomStore.get(modDataDirPath);
-    const gameModDir = AtomStore.get(gameModDirPath);
-    fetchMods(modDataDir, gameModDir, setMods);
-  }, []);
+  const [{ data, isPending, isError }] = useAtom(modsQ);
+  const [_, refresh] = useAtom(refreshMods);
 
   return (
     <main>
@@ -177,19 +166,20 @@ export default function Home() {
         </div>
         <div className="w-full">
           <Tabs defaultValue="mods" className="w-full h-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="mods" className="text-lg"
-                onClick={() => { fetchMods(modDataDir, gameModDir, setMods) }}
+                onClick={refresh}
               >
                 Mod一覧
               </TabsTrigger>
               <TabsTrigger value="setting" className="text-lg">設定</TabsTrigger>
+              {/* <TabsTrigger value="releases" className="text-lg">リリース</TabsTrigger> */}
             </TabsList>
             <TabsContent value="mods">
               <div className="bg-muted/40">
                 <ModsTable
-                  mods={mods}
-                  setMods={setMods}
+                  mods={data!}
+                // setMods={setMods}
                 />
               </div>
             </TabsContent>
@@ -223,7 +213,7 @@ export default function Home() {
                         inputAtom={gameModDirPath}
                       />
                     </div>
-                    <br/>
+                    <br />
                     <div className="grid gap-2" id="theme_setting">
                       <p className="font-bold text-xl">配色</p>
                       <Card>
@@ -234,13 +224,22 @@ export default function Home() {
                           </CardDescription>
                         </CardHeader>
                         <CardContent>
-                          <ColorThemeSelector/>
+                          <ColorThemeSelector />
                         </CardContent>
                       </Card>
                     </div>
                   </ScrollArea>
                 </div>
               </div>
+            </TabsContent>
+            <TabsContent value="releases">
+              <Link
+                href="https://github.com/CleverRaven/Cataclysm-DDA/releases"
+                className="text-primary"
+                target="_blank"
+              >
+                Cataclysm: Dark Days Ahead Releases
+              </Link>
             </TabsContent>
           </Tabs>
         </div>

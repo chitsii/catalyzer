@@ -1,9 +1,11 @@
 "use client";
 
-import { Atom, atom, PrimitiveAtom } from 'jotai';
+import { Atom, atom, PrimitiveAtom, useAtom } from 'jotai';
 import { createStore, Provider } from 'jotai';
 import { atomWithStorage } from 'jotai/utils'
 import { Mod } from "@/components/datatable/mod-table/table-mods";
+import { fetchMods } from "@/lib/api";
+import { atomWithQuery, atomWithSuspenseQuery } from 'jotai-tanstack-query';
 
 // atomWithStorage
 // ToDo: Remove this
@@ -16,8 +18,24 @@ const gameModDirPath = atomWithStorage('gameModDir', defaultGameModDir);
 
 const store = createStore();
 
+
+const refreshState = atom(0);
+const refreshMods = atom((get) => get(refreshState), (get, set) => {
+  set(refreshState, (c) => c + 1);
+});
+const modsQ = atomWithSuspenseQuery((get) => ({
+  queryKey: [get(refreshState), get(modDataDirPath), get(gameModDirPath)],
+  queryFn: async () => {
+    const res = await fetchMods(get(modDataDirPath), get(gameModDirPath));
+    return res;
+  },
+}))
+
+
 export {
   mods,
+  modsQ,
+  refreshMods,
   modDataDirPath,
   gameModDirPath,
   store
