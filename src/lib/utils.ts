@@ -5,7 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-
 export function isUnEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0
 }
@@ -23,4 +22,21 @@ export function isNonEmptyStringOrArray(value: unknown): value is string | strin
     return value.length > 0 && value.join('') !== ''
   }
   return false
+}
+
+
+import { toast } from "sonner"
+import { invoke } from "@tauri-apps/api/tauri";
+
+export const popUp = (title: "success" | "failed", msg: string) => {
+  console.info(msg);
+  toast(
+    title.toUpperCase(),
+    {
+      description: msg,
+      position: 'top-right',
+      duration: 3000,
+      closeButton: true,
+    }
+  );
 }

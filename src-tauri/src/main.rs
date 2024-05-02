@@ -224,11 +224,29 @@ fn git_list_branches(repo: &Repository) -> Result<Vec<String>, String> {
     Ok(branches)
 }
 
-fn git_checkout_branch(repo: &Repository, branch_name: &str) -> Result<(), String> {
+fn git_checkout(
+    repo: &Repository,
+    branch_name: &str,
+    create_if_unexist: bool,
+) -> Result<(), String> {
     println!("Checking out branch {}", branch_name);
-    let branch = repo
-        .find_branch(branch_name, git2::BranchType::Local)
-        .unwrap();
+
+    let branch = match repo.find_branch(branch_name, git2::BranchType::Local) {
+        Ok(branch) => branch,
+        Err(e) => {
+            if create_if_unexist {
+                let head = repo.head().unwrap();
+                let current_branch = head.name().unwrap().split('/').last().unwrap();
+                git_create_branch(repo, branch_name, current_branch).unwrap();
+                let branch = repo
+                    .find_branch(branch_name, git2::BranchType::Local)
+                    .unwrap();
+                branch
+            } else {
+                return Err("Did not find branch that name to checkout".to_string());
+            }
+        }
+    };
     let branch = branch.into_reference();
     repo.set_head(branch.name().unwrap()).unwrap();
     Ok(())
@@ -306,10 +324,17 @@ fn list_branches(target_dir: String) -> Result<Vec<String>, String> {
 }
 
 #[tauri::command]
-fn checkout_branch(target_dir: String, branch_name: String) -> Result<(), String> {
+fn checkout_branch(
+    target_dir: String,
+    target_branch: String,
+    create_if_unexist: bool,
+) -> Result<(), String> {
     let repo = git_open(target_dir).unwrap();
-    git_checkout_branch(&repo, &branch_name).unwrap();
-    Ok(())
+
+    match git_checkout(&repo, &target_branch, create_if_unexist) {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e),
+    }
 }
 
 /// return changed files
@@ -350,10 +375,10 @@ struct ModInfo {
     ident: Option<String>,
     id: Option<String>,
     name: String,
-    authors: Option<Vec<String>>,
+    authors: Option<StringOrVec>,
     description: Option<String>,
     category: Option<String>,
-    dependencies: Option<Vec<String>>,
+    dependencies: Option<StringOrVec>,
     maintainers: Option<StringOrVec>,
     version: Option<String>,
 } // Todo: Optionを全部につけるんじゃなくて、もっと柔軟にファイル依存でキーを返せるようにする

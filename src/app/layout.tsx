@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
 import { ThemeProvider } from 'next-themes'
-import { M_PLUS_1_Code, Noto_Sans_Mono } from "next/font/google";;
+import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-export const m_plus_1_code = M_PLUS_1_Code({
-  subsets: ["latin"]
-});
-export const noto_sans_mono = Noto_Sans_Mono({
-  subsets: ["latin"]
+// import { M_PLUS_1_Code, Noto_Sans_Mono } from "next/font/google";
+// export const m_plus_1_code = M_PLUS_1_Code({
+//   subsets: ["latin"]
+// });
+// export const noto_sans_mono = Noto_Sans_Mono({
+//   subsets: ["latin"]
+// });
+
+const NotoSansMono = localFont({
+  src: "assets/NotoSansMono-VariableFont_wdth,wght.ttf",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -21,7 +27,10 @@ export default function RootLayout(
 ) {
   return (
     <html lang="ja" suppressHydrationWarning>
-      <body className={noto_sans_mono.className}>
+      <body className={
+        // noto_sans_mono.className
+        NotoSansMono.className
+        }>
         <ThemeProvider
           themes={["light", "dark", "yukari"]}
           attribute="class"

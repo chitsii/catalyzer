@@ -1,18 +1,25 @@
 import { Mod } from "@/components/datatable/mod-table/columns";
 import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
 import React from "react";
+import { popUp } from "@/lib/utils";
 
-export function GitCmdBase(targetDir: string) {
-  return async (command: string) => {
-    if (!targetDir) return;
-    invoke<string>(command, { targetDir: targetDir })
+type GitArgs = {
+  targetDir: string;
+  sourceBranch?: string;
+  targetBranch?: string;
+  createIfUnexist?: boolean;
+};
+export function GitCmd(command: string, args: GitArgs) {
+    invoke<string>(command, args)
       .then((response) => {
         console.debug(response);
-        console.info(`executed ${command}' on ${targetDir}.`);
+        popUp("success", `git command success.`);
       })
-      .catch((err) => console.error(err));
+      .catch((err) => {
+        console.error(err);
+        popUp("failed", err);
+      });
   };
-};
 
 export function openLocalDir(targetDir: string) {
   invoke<string>("show_in_folder", { targetDir: targetDir });
@@ -23,8 +30,13 @@ export function removeSymlink(target: string) {
     .then((response) => {
       console.debug(response);
       console.info('symlink removed!');
+      // popUp("success", "Removed symblic link.")
     })
-    .catch((err) => console.error(err));
+    .catch((err) =>
+      {
+        console.error(err);
+        popUp("failed", err);
+      });
 };
 
 export function createSymlink(source: string, target: string) {
@@ -36,9 +48,12 @@ export function createSymlink(source: string, target: string) {
   )
     .then((response) => {
       console.debug(response);
-      console.info('symlink created!');
+      // popUp("success", "Created symbolic link.")
     })
-    .catch((err) => console.error(err));
+    .catch((err) => {
+      console.error(err);
+      popUp("failed", err);
+    });
 };
 
 export const fetchMods = async (
@@ -59,3 +74,13 @@ export const fetchMods = async (
     });
   return res;
 };
+
+export const unzipModArchive = async (src: string, dest: string) => {
+  invoke<string>('unzip_mod_archive', { src: src, dest: dest, removeNonModFiles: false })
+    .then((response) => {
+      popUp('success', 'Mod archive extracted at ' + dest);
+    })
+    .catch((err) => {
+      popUp('failed', err);
+    });
+}

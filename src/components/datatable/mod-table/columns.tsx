@@ -35,9 +35,10 @@ import { isNonEmptyStringOrArray } from "@/lib/utils";
 import {
   createSymlink,
   removeSymlink,
-  GitCmdBase,
+  GitCmd,
   openLocalDir,
 } from "@/lib/api";
+import { popUp } from "@/lib/utils";
 import { open } from '@tauri-apps/api/dialog';
 import { downloadDir } from '@tauri-apps/api/path';
 
@@ -77,6 +78,16 @@ export type Mod = {
 
 export const columns: ColumnDef<Mod>[] = [
   {
+    accessorKey: "rowIndex",
+    header: "#",
+    enableResizing: false,
+    cell: ({ row }) => {
+      return (
+        <p className="text-xs">{row.index + 1}</p>
+      )
+    }
+  },
+  {
     accessorKey: "name",
     header: "Name",
     enableResizing: false,
@@ -90,7 +101,7 @@ export const columns: ColumnDef<Mod>[] = [
             info.name && (
               <div>
                 <p
-                  className="text-sm text-primary hover:font-bold cursor-pointer hover:underline"
+                  className="text-sm text-primary cursor-pointer hover:underline"
                   onClick={() => {
                     console.log(`opne locally: ${info.name}`)
                     openLocalDir(row.original.localPath)
@@ -218,13 +229,21 @@ export const columns: ColumnDef<Mod>[] = [
                             <SelectValue placeholder="選択..." />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="light">experimental_20240501</SelectItem>
-                            <SelectItem value="dark">0.G</SelectItem>
-                            <SelectItem value="system">0.H</SelectItem>
+                            <SelectItem value="1">experimental_20240501</SelectItem>
+                            <SelectItem value="2">0.G</SelectItem>
+                            <SelectItem value="3">0.H</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
-                      <Button className="col-span-1">OK</Button>
+                      <Button className="col-span-1"
+                        onClick={() => {
+                          GitCmd("checkout_branch", {
+                            targetDir: row.original.localPath,
+                            targetBranch: "foo",
+                            createIfUnexist: true,
+                          });
+                        }}
+                      >OK</Button>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={(e) => { e.preventDefault(); }}>
@@ -246,7 +265,7 @@ export const columns: ColumnDef<Mod>[] = [
 
                           <div className="flex-none">
                             <Label htmlFor="branch_name" className="text-xs">ブランチ名</Label>
-                            <Input type="text" id="branch_name" placeholder="0.H, 0.H, experimental_20240501 etc..." />
+                            <Input type="text" id="branch_name" placeholder="0.G, experimental_20240501 etc..." />
                           </div>
                           <div className="flex-none">
                             <Label htmlFor="zip_file" className="text-xs">zipファイル</Label><br />
@@ -262,7 +281,31 @@ export const columns: ColumnDef<Mod>[] = [
                                   }
                                 );
                                 console.log(selected);
-                                // ToDo:reset_hard->ブランチを作成->中身削除->zipファイルを展開->commit
+
+                                //reset_hard
+                                GitCmd("reset_changes", { targetDir: row.original.localPath });
+
+                                // ブランチを作成
+                                const input_branch_name = document.getElementById("branch_name")?.textContent;
+                                if (!input_branch_name) {
+                                  popUp("failed", "!");
+                                  return
+                                }
+                                GitCmd("checkout_branch", {
+                                  targetDir: row.original.localPath,
+                                  targetBranch: input_branch_name,
+                                  createIfUnexist: true,
+                                }
+
+                                  // 中身削除->zipファイルを展開->commit
+
+
+
+                                );
+
+                                // GitCmdBase("checkout")("targetdir", "branch_name")
+                                // remove all files from branch
+                                // extract files to branch
 
                               }}
                             >Zipファイルを選択する</Button>
@@ -301,7 +344,7 @@ export const columns: ColumnDef<Mod>[] = [
                       onClick={() => {
                         console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
                         const localPath = row.original.localPath;
-                        GitCmdBase(localPath)("init_local_repository");
+                        GitCmd("init_local_repository", { targetDir: localPath });
 
                         // reload table
                         const f = table.options.meta?.fetchMods;
@@ -344,13 +387,14 @@ export const columns: ColumnDef<Mod>[] = [
 
                   if (!targetDir || targetDir == "") {
                     console.error("target directory is not set!");
+                    popUp("failed", "target directory is not set!");
                     return
                   };
                   const targetModDir = path.join(targetDir, base);
 
                   if (isInstalled) {
-                    console.log(`uninstall: ${row.original.info.name}`);
                     removeSymlink(targetModDir);
+
                   } else {
                     createSymlink(row.original.localPath, targetModDir);
                   }

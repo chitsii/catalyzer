@@ -1,11 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import path from "path";
-import { toast } from "sonner"
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -17,9 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorThemeSelector } from "@/components/theme-seletor";
 import { ModsTable } from "@/components/datatable/mod-table/table-mods";
-import { fetchMods } from "@/lib/api";
 import {
-  PrimitiveAtom,
   useAtom,
 } from 'jotai'
 import {
@@ -31,100 +26,15 @@ import {
   // mods as modsAtom,
   store as AtomStore,
 } from "@/components/atoms";
-import { invoke } from "@tauri-apps/api/tauri";
 import { appWindow } from "@tauri-apps/api/window";
 import { ask } from '@tauri-apps/api/dialog';
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 
+import { LocalPathForm } from "@/components/input-card";
+import { popUp } from "@/lib/utils";
+import { unzipModArchive } from "@/lib/api";
 
 
-type LocalPathFormProps = {
-  title: string,
-  description?: string,
-  inputAtom: PrimitiveAtom<string>,
-}
-const LocalPathForm = (
-  {
-    title,
-    description,
-    inputAtom,
-  }: LocalPathFormProps
-) => {
-  const [value, setValue] = useAtom<string>(inputAtom);
-  const [lock, setLock] = React.useState<boolean>(true);
-
-  // console.log(value); // Debug
-
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardDescription>
-            {description}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form>
-            <Input
-              id="source_dir"
-              type="text"
-              className="p-4 text-xs"
-              defaultValue={value as string}
-              onChange={(e) => setValue(e.target.value)}
-              disabled={lock}
-            />
-          </form>
-        </CardContent>
-        <CardFooter className="border-t px-6 py-4">
-          <Button variant="default" onClick={() => setLock(!lock)}>{lock ? "変更" : "保存"}</Button>
-        </CardFooter>
-      </Card>
-
-      {/* <div className="flex grid grid-col-10 gap-x-2">
-        <Label htmlFor="source_dir" className="col-span-10 text-xs text-muted-foreground">{title}</Label>
-        <Input
-          id="source_dir"
-          type="text"
-          className="p-4 col-span-9 text-xs"
-          defaultValue={value as string}
-          onChange={(e) => setValue(e.target.value)}
-          disabled={lock}
-        />
-        <Button
-          size="sm"
-          className="col-span-1 text-xs"
-          onClick={() => setLock(!lock)}
-        >
-          {lock ? "Edit" : "OK"}
-        </Button>
-      </div> */}
-    </>
-  );
-}
-
-
-const popUp = (title: "success" | "failed", msg: string) => {
-  console.info(msg);
-  toast(
-    title.toUpperCase(),
-    {
-      description: msg,
-      position: 'top-right',
-      duration: 3000,
-      closeButton: true,
-    }
-  );
-}
-const unzipModArchive = async (src: string, dest: string) => {
-  invoke<string>('unzip_mod_archive', { src: src, dest: dest, removeNonModFiles: false })
-    .then((response) => {
-      popUp('success', 'Mod archive extracted at ' + dest);
-    })
-    .catch((err) => {
-      popUp('failed', err);
-    });
-}
 appWindow.onFileDropEvent(async (ev) => {
   // console.log(ev); // Debug
   if (ev.payload.type !== 'drop') {
@@ -163,8 +73,7 @@ export default function Home() {
   const [lastOpened, setLasetOpened] = useAtom(lastOpenTabAtom);
   // ToDo: 最後に開いたタブの保存がうまくいっていない
   // StorageAtomsの初期化でStorageの値よりdefault値が先に読み込まれている模様
-
-  console.log(lastOpened); // Debug
+  // console.log(lastOpened); // Debug
 
   return (
     <main>

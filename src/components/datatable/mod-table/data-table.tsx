@@ -74,6 +74,7 @@ export function DataTable<TData, TValue>({
   },
   );
 
+  console.debug(table.getState().pagination.pageSize);
 
   return (
     <>
