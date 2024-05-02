@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import path from "path";
 import {
@@ -70,7 +70,7 @@ export default function Home() {
   const [{ data, isPending, isError }] = useAtom(modsQ);
   const [_, refresh] = useAtom(refreshMods);
 
-  const [lastOpened, setLasetOpened] = useAtom(lastOpenTabAtom);
+  const [lastOpened, setLastOpened] = useAtom(lastOpenTabAtom);
   // ToDo: 最後に開いたタブの保存がうまくいっていない
   // StorageAtomsの初期化でStorageの値よりdefault値が先に読み込まれている模様
   // console.log(lastOpened); // Debug
@@ -86,7 +86,7 @@ export default function Home() {
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="mods" className="text-lg"
                 onClick={() => {
-                  setLasetOpened('mods');
+                  setLastOpened('mods');
                   refresh();
                 }}
               >
@@ -96,7 +96,7 @@ export default function Home() {
                 value="setting"
                 className="text-lg"
                 onClick={() => {
-                  setLasetOpened('mods');
+                  setLsstOpened('mods');
                 }}
               >設定
               </TabsTrigger>
