@@ -22,7 +22,7 @@ import {
   gameModDirPath,
   refreshMods,
   modsQ,
-  lastOpenTab as lastOpenTabAtom,
+  // lastOpenTab as lastOpenTabAtom,
   // mods as modsAtom,
   store as AtomStore,
 } from "@/components/atoms";
@@ -70,11 +70,6 @@ export default function Home() {
   const [{ data, isPending, isError }] = useAtom(modsQ);
   const [_, refresh] = useAtom(refreshMods);
 
-  const [lastOpened, setLastOpened] = useAtom(lastOpenTabAtom);
-  // ToDo: 最後に開いたタブの保存がうまくいっていない
-  // StorageAtomsの初期化でStorageの値よりdefault値が先に読み込まれている模様
-  // console.log(lastOpened); // Debug
-
   return (
     <main>
       {/* <img src={`/app_icon.webp`} className="w-24 h-24"/> */}
@@ -82,11 +77,12 @@ export default function Home() {
         <div className="w-full h-200 overflow-auto">
         </div>
         <div className="w-full">
-          <Tabs defaultValue={lastOpened} className="w-full h-full">
+          <Tabs
+          defaultValue="mods"
+          className="w-full h-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="mods" className="text-lg"
                 onClick={() => {
-                  setLastOpened('mods');
                   refresh();
                 }}
               >
@@ -95,10 +91,10 @@ export default function Home() {
               <TabsTrigger
                 value="setting"
                 className="text-lg"
-                onClick={() => {
-                  setLsstOpened('mods');
-                }}
               >設定
+              </TabsTrigger>
+              <TabsTrigger value="games">
+                Games
               </TabsTrigger>
             </TabsList>
             <TabsContent value="mods">
@@ -157,6 +153,26 @@ export default function Home() {
                   </ScrollArea>
                 </div>
               </div>
+            </TabsContent>
+            <TabsContent value="games">
+              <form onSubmit={
+                (e: any) => {
+                  e.preventDefault();
+                  console.log(e.target);
+                  console.log(e.target["selectedGameVersion"].value);
+                  // ToDo: ゲームのバージョンを選択して起動する
+
+                }
+              }>
+              <div className="grid gap-4 text-lg">
+                <select name="selectedGameVersion">
+                  <option value="cdda">Cataclysm: Dark Days Ahead</option>
+                  <option value="cdda_experimental">Stable builds</option>
+                  <option value="cdda_launcher">Experimentsl builds</option>
+                </select>
+              </div>
+              <button type="submit">Submit</button>
+              </form>
             </TabsContent>
             <TabsContent value="releases">
               <Link

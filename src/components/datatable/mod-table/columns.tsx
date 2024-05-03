@@ -37,12 +37,12 @@ import {
   removeSymlink,
   GitCmd,
   openLocalDir,
+  list_branches,
+  unzipModArchive
 } from "@/lib/api";
 import { popUp } from "@/lib/utils";
 import { open } from '@tauri-apps/api/dialog';
 import { downloadDir } from '@tauri-apps/api/path';
-
-
 import { RowData } from '@tanstack/react-table';
 declare module '@tanstack/react-table' {
   interface TableMeta<TData extends RowData> {
@@ -114,7 +114,11 @@ export const columns: ColumnDef<Mod>[] = [
           }
           {
             (isNonEmptyStringOrArray(info.authors)) && (
-              <p className="text-xs text-muted-foreground">作成者 {info.authors}</p>
+              <p className="text-xs text-muted-foreground">作成者 {
+                Array.isArray(info.authors)
+                  ? info.authors.map((author) => author).join(",")
+                  : info.authors
+              }</p>
             )
           }
           {
@@ -200,54 +204,73 @@ export const columns: ColumnDef<Mod>[] = [
     size: 50,
     cell: ({ row, table }) => {
       const local_version: LocalVersion = row.getValue("localVersion");
+
+      const [branches, setBranches] = React.useState<string[]>(["foo", "bar"]);
+      const [dialogOpen, setDialogOpen] = React.useState(false);
+
+      const fetchBranches = async () => {
+        const branches = await list_branches(row.original.localPath);
+        console.log(branches);
+        const barnchesWithoutCurrent = branches.filter((branch) => branch != local_version.branchName);
+        setBranches(barnchesWithoutCurrent);
+      }
+
       return (
         <div>
           {
             local_version ? (
               <>
                 <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                  <DropdownMenuTrigger asChild
+                  >
                     <Button
                       variant="notInstalled"
                       size="sm"
                       className="ml-2 text-[10px]"
+                      onClick={fetchBranches}
+                      onMouseEnter={fetchBranches}
                     >
                       {local_version.branchName}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="grid grid-cols-2"
-                      onClick={(e) => {
-                        // キャンセル
+                    <DropdownMenuItem className="grid grid-cols-2">
+                      <form onSubmit={(e: any) => {
                         e.preventDefault();
-                      }}
-                    >
-                      <p className="col-span-3">バージョン変更</p>
-                      <div className="col-span-2 min-w-32">
-                        <Select>
-                          <SelectTrigger>
-                            <SelectValue placeholder="選択..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1">experimental_20240501</SelectItem>
-                            <SelectItem value="2">0.G</SelectItem>
-                            <SelectItem value="3">0.H</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button className="col-span-1"
-                        onClick={() => {
-                          GitCmd("checkout_branch", {
-                            targetDir: row.original.localPath,
-                            targetBranch: "foo",
-                            createIfUnexist: true,
-                          });
-                        }}
-                      >OK</Button>
+                        const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
+                        console.log(selectedBranchName);
+                        GitCmd("checkout_branch", {
+                          targetDir: row.original.localPath,
+                          targetBranch: selectedBranchName,
+                          createIfUnexist: false,
+                        });
+                        table.options.meta?.fetchMods(); // reload table
+                      }}>
+                        <p className="col-span-3">バージョン変更</p>
+                        <div className="col-span-2 min-w-32">
+                          <Select name="selectedVersionSwitchTo">
+                            <SelectTrigger>
+                              <SelectValue placeholder="選択..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {
+                                branches.length > 0
+                                  ? branches.map((branch) => (
+                                    <SelectItem key={branch} value={branch}>
+                                      {branch}
+                                    </SelectItem>
+                                  ))
+                                  : <SelectItem value="dummy" disabled={true}>切替可能な断面がありません</SelectItem>
+                              }
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button type="submit" className="col-span-1">OK</Button>
+                      </form>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={(e) => { e.preventDefault(); }}>
-                      <Dialog>
+                      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                         <DialogTrigger>
                           <div className="flex gap-1"><GitGraphIcon size={16} />新規断面を作成</div>
                         </DialogTrigger>
@@ -262,57 +285,61 @@ export const columns: ColumnDef<Mod>[] = [
                               </p>
                             </DialogDescription>
                           </DialogHeader>
+                          <form>
+                            <div className="flex-none">
+                              <Label htmlFor="newBranchName" className="text-xs">ブランチ名</Label>
+                              <Input name="newBranchName" type="text" id="newBranchName" placeholder="0.G, experimental_20240501 etc..." />
+                            </div>
+                            <div className="flex-none">
+                              <Label htmlFor="zip_file" className="text-xs">zipファイル</Label><br />
+                              <Button
+                                id="zip_file"
+                                onClick={async (e: any) => {
+                                  const selected = await open(
+                                    {
+                                      directory: false,
+                                      multiple: false,
+                                      filters: [{ name: 'Zip', extensions: ['zip'] }],
+                                      defaultPath: await downloadDir()
+                                    }
+                                  );
+                                  if (selected == null || Array.isArray(selected)) {
+                                    popUp("failed", "ファイル選択があやしいです！");
+                                    return
+                                  };
+                                  console.log(selected);
 
-                          <div className="flex-none">
-                            <Label htmlFor="branch_name" className="text-xs">ブランチ名</Label>
-                            <Input type="text" id="branch_name" placeholder="0.G, experimental_20240501 etc..." />
-                          </div>
-                          <div className="flex-none">
-                            <Label htmlFor="zip_file" className="text-xs">zipファイル</Label><br />
-                            <Button
-                              id="zip_file"
-                              onClick={async () => {
-                                const selected = await open(
-                                  {
-                                    directory: false,
-                                    multiple: false,
-                                    filters: [{ name: 'Zip', extensions: ['zip'] }],
-                                    defaultPath: await downloadDir()
+                                  //作業中のデータ削除
+                                  GitCmd("reset_changes", { targetDir: row.original.localPath });
+
+                                  // ブランチを作成, 既存ファイルを削除
+                                  // const input_branch_name = document.getElementById("newBranchName")?.textContent;
+                                  const input_branch_name: string = e.target["newBranchName"].value;
+                                  if (input_branch_name == null) {
+                                    popUp("failed", "ブランチ名が入力されていません！");
+                                    return
                                   }
-                                );
-                                console.log(selected);
+                                  GitCmd("checkout_branch", {
+                                    targetDir: row.original.localPath,
+                                    targetBranch: input_branch_name,
+                                    createIfUnexist: true,
+                                    cleanup: true
+                                  });
 
-                                //reset_hard
-                                GitCmd("reset_changes", { targetDir: row.original.localPath });
-
-                                // ブランチを作成
-                                const input_branch_name = document.getElementById("branch_name")?.textContent;
-                                if (!input_branch_name) {
-                                  popUp("failed", "!");
-                                  return
-                                }
-                                GitCmd("checkout_branch", {
-                                  targetDir: row.original.localPath,
-                                  targetBranch: input_branch_name,
-                                  createIfUnexist: true,
-                                }
-
-                                  // 中身削除->zipファイルを展開->commit
-
-
-
-                                );
-
-                                // GitCmdBase("checkout")("targetdir", "branch_name")
-                                // remove all files from branch
-                                // extract files to branch
-
-                              }}
-                            >Zipファイルを選択する</Button>
-                          </div>
+                                  // zipファイルを展開->commit
+                                  unzipModArchive(
+                                    selected,
+                                    row.original.localPath,
+                                  );
+                                }}
+                              >Zipファイルを選択する</Button>
+                            </div>
+                          </form>
                           <DialogFooter>
                             <Button disabled={true}>OK</Button>
-                            <Button>Cancel</Button>
+                            <Button onClick={
+                              () => {setDialogOpen(false);}
+                            }>Cancel</Button>
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>

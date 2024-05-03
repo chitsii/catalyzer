@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use git2::{Repository, Signature};
+use git2::{Branch, Commit, RebaseOperationType, Repository, Signature};
 use std::fmt::Debug;
 use std::process::Command;
 use tempfile::tempdir;
@@ -228,20 +228,29 @@ fn git_checkout(
     repo: &Repository,
     branch_name: &str,
     create_if_unexist: bool,
+    cleanup: Option<bool>,
 ) -> Result<(), String> {
     println!("Checking out branch {}", branch_name);
 
     let branch = match repo.find_branch(branch_name, git2::BranchType::Local) {
         Ok(branch) => branch,
-        Err(e) => {
+        Err(_e) => {
             if create_if_unexist {
                 let head = repo.head().unwrap();
                 let current_branch = head.name().unwrap().split('/').last().unwrap();
-                git_create_branch(repo, branch_name, current_branch).unwrap();
-                let branch = repo
-                    .find_branch(branch_name, git2::BranchType::Local)
-                    .unwrap();
-                branch
+                let _new_branch = git_create_branch(repo, branch_name, current_branch).unwrap();
+                if cleanup.is_some_and(|x| x) {
+                    // remove all files of the new branch and commit
+                    let mut index = repo.index().unwrap();
+                    index.clear().unwrap();
+                    index.write().unwrap();
+                    if index.is_empty() {
+                        git_commit(repo, "Initial commit").unwrap();
+                    } else {
+                        return Err("Failed to clean up new branch".to_string());
+                    }
+                }
+                return Ok(());
             } else {
                 return Err("Did not find branch that name to checkout".to_string());
             }
@@ -252,19 +261,19 @@ fn git_checkout(
     Ok(())
 }
 
-fn git_create_branch(
-    repo: &Repository,
-    branch_name: &str,
-    base_branch: &str,
-) -> Result<(), String> {
+fn git_create_branch<'a>(
+    repo: &'a Repository,
+    branch_name: &'a str,
+    base_branch: &'a str,
+) -> Result<Branch<'a>, String> {
     println!("Creating branch {} from {}", branch_name, base_branch);
     let base_branch = repo
         .find_branch(base_branch, git2::BranchType::Local)
         .unwrap();
     let base_branch = base_branch.into_reference();
     let base_commit = base_branch.peel_to_commit().unwrap();
-    repo.branch(branch_name, &base_commit, false).unwrap();
-    Ok(())
+    let new_branch = repo.branch(branch_name, &base_commit, false).unwrap();
+    Ok(new_branch)
 }
 
 #[tauri::command]
@@ -328,10 +337,11 @@ fn checkout_branch(
     target_dir: String,
     target_branch: String,
     create_if_unexist: bool,
+    cleanup: Option<bool>,
 ) -> Result<(), String> {
     let repo = git_open(target_dir).unwrap();
 
-    match git_checkout(&repo, &target_branch, create_if_unexist) {
+    match git_checkout(&repo, &target_branch, create_if_unexist, cleanup) {
         Ok(_) => Ok(()),
         Err(e) => Err(e),
     }
@@ -554,19 +564,28 @@ fn get_shallowest_mod_dir(path: &std::path::Path) -> Option<std::path::PathBuf> 
 }
 
 #[tauri::command]
-fn unzip_mod_archive(src: String, dest: String) -> Result<(), String> {
+fn unzip_mod_archive(src: String, dest: String, exists_ok: Option<bool>) -> Result<(), String> {
     let src_path = std::path::PathBuf::from(src);
     let dest_path = std::path::PathBuf::from(dest).with_extension("");
-    if dest_path.exists() {
-        return Err(format!(
-            "Destination directory already exists: {}",
-            dest_path.display()
-        ));
-    }
+
     if !src_path.exists() {
         return Err(format!(
             "Source file does not exist: {}",
             src_path.display()
+        ));
+    }
+
+    if exists_ok.is_some_and(|x| x) {
+        if dest_path.exists() {
+            println!(
+                "Destination directory already exists: {}",
+                dest_path.display()
+            );
+        }
+    } else if dest_path.exists() {
+        return Err(format!(
+            "Destination directory already exists: {}",
+            dest_path.display()
         ));
     }
 

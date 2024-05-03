@@ -8,6 +8,7 @@ type GitArgs = {
   sourceBranch?: string;
   targetBranch?: string;
   createIfUnexist?: boolean;
+  cleanup?: boolean;
 };
 export function GitCmd(command: string, args: GitArgs) {
     invoke<string>(command, args)
@@ -38,6 +39,19 @@ export function removeSymlink(target: string) {
         popUp("failed", err);
       });
 };
+
+export async function list_branches(targetDir: string) {
+  const res = await invoke<string[]>('list_branches', { targetDir: targetDir })
+    .then((response: string[]) => {
+      console.debug(response);
+      return response;
+    })
+    .catch((err) => {
+      console.error(err);
+      popUp("failed", err);
+    });
+    return res ? res : [];
+}
 
 export function createSymlink(source: string, target: string) {
   invoke<string>('create_symlink',
