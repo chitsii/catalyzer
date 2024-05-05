@@ -218,7 +218,6 @@ fn git_checkout(
     repo: &Repository,
     branch_name: &str,
     create_if_unexist: bool,
-    cleanup: Option<bool>,
 ) -> Result<bool, String> {
     println!("Checking out branch {}", branch_name);
 
@@ -226,7 +225,7 @@ fn git_checkout(
         Ok(branch) => {
             let branch = branch.into_reference();
             repo.set_head(branch.name().unwrap()).unwrap();
-            return Ok(false);
+            Ok(false)
         }
         Err(_e) => {
             println!("Branch not found: {}", branch_name);
@@ -237,32 +236,12 @@ fn git_checkout(
                 let new_branch_ref = new_branch.into_reference();
                 repo.set_head(new_branch_ref.name().unwrap()).unwrap();
                 println!("move to the new branch: {}", branch_name);
-
-                // if cleanup.is_some_and(|x| x) {
-                //     git rm -rf * for the new branch
-                //     let mut index = repo.index().unwrap();
-                //     index.clear().unwrap();
-
-                //     // git commit
-                //     let sig = Signature::now("CataclysmLauncher", "Nothing").unwrap();
-                //     let tree_id = index.write_tree().unwrap();
-                //     let tree = repo.find_tree(tree_id).unwrap();
-                //     repo.commit(
-                //         Some("HEAD"),
-                //         &sig,
-                //         &sig,
-                //         "rm all",
-                //         &tree,
-                //         &[&repo.head().unwrap().peel_to_commit().unwrap()],
-                //     )
-                //     .unwrap();
-                // }
-                return Ok(true);
+                Ok(true)
             } else {
-                return Err("Did not find branch that name to checkout".to_string());
+                Err("Did not find branch that name to checkout".to_string())
             }
         }
-    };
+    }
 }
 
 fn git_create_branch<'a>(
@@ -340,7 +319,7 @@ fn checkout_branch(
 ) -> Result<(), String> {
     let repo = git_open(target_dir.clone()).unwrap();
 
-    let has_created = match git_checkout(&repo, &target_branch, create_if_unexist, cleanup) {
+    let has_created = match git_checkout(&repo, &target_branch, create_if_unexist) {
         Ok(has_created) => has_created,
         Err(e) => return Err(e),
     };
@@ -357,6 +336,7 @@ fn checkout_branch(
             }
         }
     }
+    git_reset_hard(&repo).unwrap();
 
     Ok(())
 }
