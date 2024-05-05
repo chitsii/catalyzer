@@ -1,65 +1,35 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use git2::{Branch, Commit, RebaseOperationType, Repository, Signature, Tree};
-use std::fmt::Debug;
 use std::process::Command;
 use tempfile::tempdir;
+
+mod logic;
+use logic::git_cmd::{
+    git_checkout, git_commit, git_init, git_list_branches, git_open, git_reset_hard,
+};
+use logic::utils::{get_modinfo_path, get_shallowest_mod_dir, list_symlinks};
+
+mod model;
+use model::{LocalVersion, Mod, ModInfo};
 
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
-            greet,
             remove_file,
             create_symlink,
-            // list_symlinks,
-            // list_mod_directories,
             init_local_repository,
             commit_changes,
             reset_changes,
             list_branches,
             checkout_branch,
-            show_changes,
+            // show_changes,
             scan_mods,
             show_in_folder,
             unzip_mod_archive,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}!", name)
-}
-
-#[tauri::command]
-fn list_mod_directories(source_dir: String) -> Result<Vec<std::path::PathBuf>, String> {
-    println!("Listing mod directories in {}", source_dir);
-
-    let path = std::path::Path::new(&source_dir);
-
-    if !path.exists() {
-        return Err(format!("Directory does not exist: {}", path.display()));
-    }
-
-    let mut mod_dirs = Vec::new();
-
-    match std::fs::read_dir(path) {
-        Ok(entries) => {
-            for entry in entries {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_dir() {
-                    println!("Mod directory: {}", path.display());
-                    // TODO: Check if directory is a valid mod directory
-                    mod_dirs.push(path);
-                }
-            }
-            Ok(mod_dirs)
-        }
-        Err(e) => Err(format!("Failed to list mod directories: {}", e)),
-    }
 }
 
 #[tauri::command]
@@ -96,167 +66,6 @@ fn remove_file(target_file: String) -> Result<(), String> {
         Ok(_) => Ok(()),
         Err(e) => Err(format!("Failed to remove symlink: {}", e)),
     }
-}
-
-#[tauri::command]
-fn list_symlinks(target_root_dir: String) -> Result<Vec<std::path::PathBuf>, String> {
-    println!("Listing symlinks in {}", target_root_dir);
-
-    let target = std::path::Path::new(&target_root_dir);
-
-    if !target.exists() {
-        return Err(format!(
-            "Target directory does not exist: {}",
-            target.display()
-        ));
-    }
-
-    let mut symlinks = Vec::new();
-
-    match std::fs::read_dir(target) {
-        Ok(entries) => {
-            for entry in entries {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_symlink() {
-                    println!("Symlink: {}", path.display());
-                    symlinks.push(path);
-                }
-            }
-            Ok(symlinks)
-        }
-        Err(e) => Err(format!("Failed to list symlinks: {}", e)),
-    }
-}
-
-fn git_open(target_dir: String) -> Result<Repository, String> {
-    println!("Opening repository at {}", target_dir);
-    match Repository::open(&target_dir) {
-        Ok(repo) => Ok(repo),
-        Err(e) => Err(format!("Failed to open repository: {}", e)),
-    }
-}
-
-fn git_init(target_dir: String) -> Result<Repository, String> {
-    println!("Initializing repository at {}", target_dir);
-    match Repository::init(&target_dir) {
-        Ok(_) => {
-            let repo = git_open(target_dir).unwrap();
-            Ok(repo)
-        }
-        Err(e) => Err(format!("Failed to initialize repository: {}", e)),
-    }
-}
-
-fn git_commit(repo: &Repository, message: &str) -> Result<(), String> {
-    println!("Committing changes to repository");
-
-    let sig = Signature::now("CataclysmLauncher", "Nothing").unwrap();
-
-    match repo.head() {
-        Ok(data) => {
-            let tree_id = {
-                let mut index = repo.index().unwrap();
-                index
-                    .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
-                    .unwrap();
-                index.write_tree().unwrap()
-            };
-            let tree = repo.find_tree(tree_id).unwrap();
-            let head = data.peel_to_commit().unwrap();
-            repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[&head])
-                .unwrap();
-            Ok(())
-        }
-        Err(_) => {
-            println!("No HEAD found, creating initial commit.");
-            let tree_id = {
-                let mut index = repo.index().unwrap();
-                index
-                    .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
-                    .unwrap();
-                index.write_tree().unwrap()
-            };
-            let tree = repo.find_tree(tree_id).unwrap();
-            repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[])
-                .unwrap();
-            Ok(())
-
-            // let tree_id = repo.index().unwrap().write_tree().unwrap();
-            // let tree = repo.find_tree(tree_id).unwrap();
-            // repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[])
-            //     .unwrap();
-            // Ok(())
-        }
-    }
-}
-
-fn git_reset_hard(repo: &Repository) -> Result<(), String> {
-    println!("Resetting repository to HEAD");
-    let head = repo.head().unwrap();
-    let head_commit = head.peel_to_commit().unwrap();
-    let head_object = head_commit.as_object();
-    repo.reset(head_object, git2::ResetType::Hard, None)
-        .unwrap();
-    Ok(())
-}
-
-fn git_list_branches(repo: &Repository) -> Result<Vec<String>, String> {
-    println!("Listing branches in repository");
-    let mut branches = Vec::new();
-    for branch in repo.branches(None).unwrap() {
-        let (branch, _) = branch.unwrap();
-        let branch_name = branch.name().unwrap().unwrap();
-        let branch_name = branch_name.split('/').last().unwrap();
-
-        branches.push(branch_name.to_string());
-    }
-    Ok(branches)
-}
-
-fn git_checkout(
-    repo: &Repository,
-    branch_name: &str,
-    create_if_unexist: bool,
-) -> Result<bool, String> {
-    println!("Checking out branch {}", branch_name);
-
-    match repo.find_branch(branch_name, git2::BranchType::Local) {
-        Ok(branch) => {
-            let branch = branch.into_reference();
-            repo.set_head(branch.name().unwrap()).unwrap();
-            Ok(false)
-        }
-        Err(_e) => {
-            println!("Branch not found: {}", branch_name);
-            if create_if_unexist {
-                let head = repo.head().unwrap();
-                let current_branch = head.name().unwrap().split('/').last().unwrap();
-                let new_branch = git_create_branch(repo, branch_name, current_branch).unwrap();
-                let new_branch_ref = new_branch.into_reference();
-                repo.set_head(new_branch_ref.name().unwrap()).unwrap();
-                println!("move to the new branch: {}", branch_name);
-                Ok(true)
-            } else {
-                Err("Did not find branch that name to checkout".to_string())
-            }
-        }
-    }
-}
-
-fn git_create_branch<'a>(
-    repo: &'a Repository,
-    branch_name: &'a str,
-    base_branch: &'a str,
-) -> Result<Branch<'a>, String> {
-    println!("Creating branch {} from {}", branch_name, base_branch);
-    let base_branch = repo
-        .find_branch(base_branch, git2::BranchType::Local)
-        .unwrap();
-    let base_branch = base_branch.into_reference();
-    let base_commit = base_branch.peel_to_commit().unwrap();
-    let new_branch = repo.branch(branch_name, &base_commit, false).unwrap();
-    Ok(new_branch)
 }
 
 #[tauri::command]
@@ -366,79 +175,25 @@ fn show_changes(target_dir: String) -> Result<Vec<String>, String> {
     Ok(changed_files)
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
-#[serde(untagged)]
-enum StringOrVec {
-    String(String),
-    Vec(Vec<String>),
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-struct ModInfo {
-    ident: Option<String>,
-    id: Option<String>,
-    name: String,
-    authors: Option<StringOrVec>,
-    description: Option<String>,
-    category: Option<String>,
-    dependencies: Option<StringOrVec>,
-    maintainers: Option<StringOrVec>,
-    version: Option<String>,
-} // Todo: Optionを全部につけるんじゃなくて、もっと柔軟にファイル依存でキーを返せるようにする
-
-impl ModInfo {
-    fn from_path(path: &std::path::Path) -> Result<Self, String> {
-        println!("Reading modinfo from {}", path.display());
-        let content = std::fs::read_to_string(path).unwrap();
-        println!("Content: {}", content);
-        let info: Vec<ModInfo> = serde_json::from_str(&content).unwrap_or_else(|e| {
-            println!(
-                "⬛︎⬛︎⬛︎⬛︎ Failed to parse modinfo.json of mod {}. msg: {}",
-                &path.to_string_lossy(),
-                e
-            );
-            Vec::new()
-        });
-        if info.len() != 1 {
-            return Err("Invalid modinfo.json".to_string());
-        }
-        let elem = info.first().unwrap().clone();
-        Ok(elem)
-    }
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct LocalVersion {
-    branch_name: String,
-    last_commit_date: String,
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct Mod {
-    info: ModInfo,
-    local_version: Option<LocalVersion>,
-    is_installed: bool,
-    local_path: String,
-}
-
 #[tauri::command]
 fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String> {
-    let mod_dirs = list_mod_directories(source_dir.clone()).unwrap();
-
     let existing_symlinks = list_symlinks(target_dir.clone()).unwrap();
 
     let mut mods = Vec::new();
-    for mod_dir in mod_dirs {
+
+    let entries = std::fs::read_dir(source_dir.clone()).unwrap();
+    for entry in entries {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let modinfo_path = match get_modinfo_path(&path) {
+            Ok(d) => d,
+            Err(e) => {
+                println!("{:}", e);
+                continue;
+            }
+        };
         // Mod情報取得
-        let mod_info_path = mod_dir.join("modinfo.json");
-        if !mod_info_path.exists() {
-            println!("Failed to open modinfo.json");
-            continue;
-        }
-        let info = match ModInfo::from_path(&mod_info_path) {
+        let info = match ModInfo::from_path(&modinfo_path) {
             Ok(info) => info,
             Err(e) => {
                 println!("Failed to read modinfo.json: {}", e);
@@ -447,7 +202,7 @@ fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String>
         };
 
         // 断面管理情報
-        let res = git_open(mod_dir.display().to_string());
+        let res = git_open(path.display().to_string());
         let local_version = match res {
             Ok(repo) => {
                 let head = repo.head().unwrap();
@@ -469,7 +224,7 @@ fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String>
         };
 
         // インストール状態取得
-        let mod_dir_name = mod_dir.file_name().unwrap();
+        let mod_dir_name = path.file_name().unwrap();
         let is_installed = existing_symlinks
             .iter()
             .any(|path| path.file_name().unwrap() == mod_dir_name);
@@ -477,7 +232,7 @@ fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String>
             info,
             local_version,
             is_installed,
-            local_path: mod_dir.display().to_string(),
+            local_path: path.display().to_string(),
         };
         mods.push(m);
     }
@@ -531,36 +286,6 @@ fn show_in_folder(target_dir: String) {
     //         }
     //     }
     // }
-}
-
-fn is_mod_dir(path: &std::path::Path) -> bool {
-    let modinfo_path = path.join("modinfo.json");
-    modinfo_path.exists()
-}
-
-fn get_shallowest_mod_dir(path: &std::path::Path) -> Option<std::path::PathBuf> {
-    let entries = std::fs::read_dir(path).unwrap();
-    for entry in entries {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        if path.is_dir() {
-            if is_mod_dir(&path) {
-                return Some(path);
-            } else {
-                let res = get_shallowest_mod_dir(&path);
-                if res.is_some() {
-                    return res;
-                }
-            }
-        } else if path
-            .file_name()
-            .unwrap()
-            .eq_ignore_ascii_case("modinfo.json")
-        {
-            return Some(path.parent().unwrap().to_path_buf());
-        }
-    }
-    None
 }
 
 #[tauri::command]
