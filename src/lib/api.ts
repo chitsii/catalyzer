@@ -14,7 +14,7 @@ export function GitCmd(command: string, args: GitArgs) {
     invoke<string>(command, args)
       .then((response) => {
         console.debug(response);
-        popUp("success", `git command success.`);
+        popUp("success", `operation '${command}' succeeded!`);
       })
       .catch((err) => {
         console.error(err);
@@ -89,8 +89,8 @@ export const fetchMods = async (
   return res;
 };
 
-export const unzipModArchive = async (src: string, dest: string) => {
-  invoke<string>('unzip_mod_archive', { src: src, dest: dest, removeNonModFiles: false })
+export const unzipModArchive = async (src: string, dest: string, existsOk: boolean = false) => {
+  invoke<string>('unzip_mod_archive', { src: src, dest: dest, existsOk: existsOk })
     .then((response) => {
       popUp('success', 'Mod archive extracted at ' + dest);
     })

@@ -44,6 +44,8 @@ import { popUp } from "@/lib/utils";
 import { open } from '@tauri-apps/api/dialog';
 import { downloadDir } from '@tauri-apps/api/path';
 import { RowData } from '@tanstack/react-table';
+import { ask } from '@tauri-apps/api/dialog';
+
 declare module '@tanstack/react-table' {
   interface TableMeta<TData extends RowData> {
     fetchMods: (() => void),
@@ -207,6 +209,8 @@ export const columns: ColumnDef<Mod>[] = [
 
       const [branches, setBranches] = React.useState<string[]>(["foo", "bar"]);
       const [dialogOpen, setDialogOpen] = React.useState(false);
+      const [uploadFilePath, setUploadFilePath] = React.useState<string>("");
+      const [newBranchName, setNewBranchName] = React.useState<string>("");
 
       const fetchBranches = async () => {
         const branches = await list_branches(row.original.localPath);
@@ -279,67 +283,96 @@ export const columns: ColumnDef<Mod>[] = [
                             <DialogTitle>新規断面作成ダイアログ</DialogTitle>
                             <DialogDescription>
                               新規のブランチ名とModのzipファイルを選択してください。
-                              <p className="text-xs text-red-600">新規断面を作成すると、現行断面において作業途中のファイルはハードリセットされます！
+                              <span className="text-xs text-red-600">新規断面を作成すると、現行断面において作業途中のファイルはハードリセットされます！
                                 データを削除したくない場合はコミットを行って下さい。
                                 {/* <br/>参考: <a href="https://git-scm.com/book/ja/v2" target="_blank" rel="noreferrer" className="text-xs underline text-primary">Pro Git</a> */}
-                              </p>
+                                <br />
+                              </span>
                             </DialogDescription>
                           </DialogHeader>
                           <form>
                             <div className="flex-none">
                               <Label htmlFor="newBranchName" className="text-xs">ブランチ名</Label>
-                              <Input name="newBranchName" type="text" id="newBranchName" placeholder="0.G, experimental_20240501 etc..." />
+                              <Input name="newBranchName" type="text" id="newBranchName" placeholder="0.G, experimental_20240501 etc..."
+                              onChange={(e)=>{
+                                setNewBranchName(e.target.value);
+                              }} />
+                              <p>{newBranchName}</p>
                             </div>
                             <div className="flex-none">
                               <Label htmlFor="zip_file" className="text-xs">zipファイル</Label><br />
-                              <Button
-                                id="zip_file"
-                                onClick={async (e: any) => {
-                                  const selected = await open(
-                                    {
-                                      directory: false,
-                                      multiple: false,
-                                      filters: [{ name: 'Zip', extensions: ['zip'] }],
-                                      defaultPath: await downloadDir()
-                                    }
-                                  );
-                                  if (selected == null || Array.isArray(selected)) {
-                                    popUp("failed", "ファイル選択があやしいです！");
-                                    return
-                                  };
-                                  console.log(selected);
-
-                                  //作業中のデータ削除
-                                  GitCmd("reset_changes", { targetDir: row.original.localPath });
-
-                                  // ブランチを作成, 既存ファイルを削除
-                                  // const input_branch_name = document.getElementById("newBranchName")?.textContent;
-                                  const input_branch_name: string = e.target["newBranchName"].value;
-                                  if (input_branch_name == null) {
-                                    popUp("failed", "ブランチ名が入力されていません！");
-                                    return
+                              {/* <Input name="zip_file" type="file" id="zip_file" accept=".zip" /> */}
+                              <Button type="button"
+                              onClick={async ()=>{
+                                const selected = await open(
+                                  {
+                                    directory: false,
+                                    multiple: false,
+                                    filters: [{ name: 'Zip', extensions: ['zip'] }],
+                                    defaultPath: await downloadDir()
                                   }
-                                  GitCmd("checkout_branch", {
-                                    targetDir: row.original.localPath,
-                                    targetBranch: input_branch_name,
-                                    createIfUnexist: true,
-                                    cleanup: true
-                                  });
-
-                                  // zipファイルを展開->commit
-                                  unzipModArchive(
-                                    selected,
-                                    row.original.localPath,
-                                  );
-                                }}
-                              >Zipファイルを選択する</Button>
+                                );
+                                if (selected == null || Array.isArray(selected)) {
+                                  return
+                                } else {
+                                  setUploadFilePath(selected);
+                                }
+                              }}
+                              >ファイルを選択...</Button>
+                              <p>{uploadFilePath
+                              ? path.parse(uploadFilePath).base
+                              : "ファイルが選択されていません"}</p>
                             </div>
+                            <Button onClick={
+                              async (e: any) => {
+                                let yes = await ask("create new branch and unzip mod archive?");
+                                if (!yes) return;
+
+                                //作業中のデータ削除
+                                GitCmd("reset_changes", { targetDir: row.original.localPath });
+
+                                // ブランチを作成, 既存ファイルを削除
+                                // const input_branch_name = document.getElementById("newBranchName")?.textContent;
+                                const input_branch_name = newBranchName;
+
+                                if (input_branch_name == null) {
+                                  popUp("failed", "ブランチ名が入力されていません！");
+                                  return
+                                }
+                                GitCmd("checkout_branch", {
+                                  targetDir: row.original.localPath,
+                                  targetBranch: input_branch_name,
+                                  createIfUnexist: true,
+                                  cleanup: true
+                                });
+                                // ToDo:元ブランチのファイルも消えてるっぽい？？
+                                console.debug("checkout done");
+
+                                // zipファイルを展開
+                                unzipModArchive(
+                                  uploadFilePath,
+                                  row.original.localPath,
+                                  true
+                                );
+                                console.debug("unzip done");
+
+                                // commit changes
+                                GitCmd("commit_changes", {
+                                  targetDir: row.original.localPath,
+                                  cleanup: false
+                                });
+                                console.debug("commit done");
+
+                              }
+                            }>
+                              OK
+                            </Button>
                           </form>
                           <DialogFooter>
-                            <Button disabled={true}>OK</Button>
-                            <Button onClick={
+
+                            {/* <Button onClick={
                               () => {setDialogOpen(false);}
-                            }>Cancel</Button>
+                            }>Cancel</Button> */}
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>

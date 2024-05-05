@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use git2::{Branch, Commit, RebaseOperationType, Repository, Signature};
+use git2::{Branch, Commit, RebaseOperationType, Repository, Signature, Tree};
 use std::fmt::Debug;
 use std::process::Command;
 use tempfile::tempdir;
@@ -155,48 +155,38 @@ fn git_commit(repo: &Repository, message: &str) -> Result<(), String> {
 
     match repo.head() {
         Ok(data) => {
-            let current_head = data.peel_to_commit().unwrap();
-            println!("Current HEAD: {}", current_head.id());
-            let head_tree_id = current_head.tree_id();
-            let mut index = repo.index().unwrap();
-            let cb = &mut |path: &std::path::Path, _matched_spec: &[u8]| -> i32 {
-                let status = repo.status_file(path).unwrap();
-                if status.contains(git2::Status::WT_NEW) {
-                    println!("Adding new file: {}", path.display());
-                    0
-                } else if status.contains(git2::Status::WT_MODIFIED) {
-                    println!("Adding modified file: {}", path.display());
-                    0
-                } else if status.contains(git2::Status::WT_DELETED) {
-                    println!("Adding deleted file: {}", path.display());
-                    0
-                } else {
-                    1
-                }
+            let tree_id = {
+                let mut index = repo.index().unwrap();
+                index
+                    .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+                    .unwrap();
+                index.write_tree().unwrap()
             };
-            let cb = Some(cb as &mut git2::IndexMatchedPath);
-            index
-                .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, cb)
+            let tree = repo.find_tree(tree_id).unwrap();
+            let head = data.peel_to_commit().unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[&head])
                 .unwrap();
-            let oid = index.write_tree().unwrap();
-            let tree = repo.find_tree(oid).unwrap();
-            if head_tree_id == tree.id() {
-                git_reset_hard(repo).unwrap();
-                return Err("No changes to commit".to_string());
-            }
-            println!("Committing changes");
-            repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[&current_head])
-                .unwrap();
-            git_reset_hard(repo).unwrap();
             Ok(())
         }
         Err(_) => {
             println!("No HEAD found, creating initial commit.");
-            let tree_id = repo.index().unwrap().write_tree().unwrap();
+            let tree_id = {
+                let mut index = repo.index().unwrap();
+                index
+                    .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+                    .unwrap();
+                index.write_tree().unwrap()
+            };
             let tree = repo.find_tree(tree_id).unwrap();
             repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[])
                 .unwrap();
             Ok(())
+
+            // let tree_id = repo.index().unwrap().write_tree().unwrap();
+            // let tree = repo.find_tree(tree_id).unwrap();
+            // repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[])
+            //     .unwrap();
+            // Ok(())
         }
     }
 }
@@ -229,36 +219,50 @@ fn git_checkout(
     branch_name: &str,
     create_if_unexist: bool,
     cleanup: Option<bool>,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     println!("Checking out branch {}", branch_name);
 
-    let branch = match repo.find_branch(branch_name, git2::BranchType::Local) {
-        Ok(branch) => branch,
+    match repo.find_branch(branch_name, git2::BranchType::Local) {
+        Ok(branch) => {
+            let branch = branch.into_reference();
+            repo.set_head(branch.name().unwrap()).unwrap();
+            return Ok(false);
+        }
         Err(_e) => {
+            println!("Branch not found: {}", branch_name);
             if create_if_unexist {
                 let head = repo.head().unwrap();
                 let current_branch = head.name().unwrap().split('/').last().unwrap();
-                let _new_branch = git_create_branch(repo, branch_name, current_branch).unwrap();
-                if cleanup.is_some_and(|x| x) {
-                    // remove all files of the new branch and commit
-                    let mut index = repo.index().unwrap();
-                    index.clear().unwrap();
-                    index.write().unwrap();
-                    if index.is_empty() {
-                        git_commit(repo, "Initial commit").unwrap();
-                    } else {
-                        return Err("Failed to clean up new branch".to_string());
-                    }
-                }
-                return Ok(());
+                let new_branch = git_create_branch(repo, branch_name, current_branch).unwrap();
+                let new_branch_ref = new_branch.into_reference();
+                repo.set_head(new_branch_ref.name().unwrap()).unwrap();
+                println!("move to the new branch: {}", branch_name);
+
+                // if cleanup.is_some_and(|x| x) {
+                //     git rm -rf * for the new branch
+                //     let mut index = repo.index().unwrap();
+                //     index.clear().unwrap();
+
+                //     // git commit
+                //     let sig = Signature::now("CataclysmLauncher", "Nothing").unwrap();
+                //     let tree_id = index.write_tree().unwrap();
+                //     let tree = repo.find_tree(tree_id).unwrap();
+                //     repo.commit(
+                //         Some("HEAD"),
+                //         &sig,
+                //         &sig,
+                //         "rm all",
+                //         &tree,
+                //         &[&repo.head().unwrap().peel_to_commit().unwrap()],
+                //     )
+                //     .unwrap();
+                // }
+                return Ok(true);
             } else {
                 return Err("Did not find branch that name to checkout".to_string());
             }
         }
     };
-    let branch = branch.into_reference();
-    repo.set_head(branch.name().unwrap()).unwrap();
-    Ok(())
 }
 
 fn git_create_branch<'a>(
@@ -288,14 +292,10 @@ fn init_local_repository(target_dir: String) -> Result<(), String> {
     if git_open(target_dir.clone()).is_ok() {
         return Err(format!("Repository already exists at {}", target_dir));
     }
-
-    let res = git_init(target_dir).unwrap();
-    println!("Repository initialized at {}", res.path().display());
-
-    git_commit(&res, "Initial commit").unwrap();
-
-    // let branches = git_list_branches(&res).unwrap();
-    // println!("Branches: {:?}", branches);
+    let repo = git_init(target_dir).unwrap();
+    println!("Repository initialized at {}", repo.path().display());
+    git_commit(&repo, "Initial commit").unwrap();
+    git_reset_hard(&repo).unwrap();
     Ok(())
 }
 
@@ -304,7 +304,6 @@ fn commit_changes(target_dir: String, message: Option<String>) -> Result<(), Str
     let now = chrono::Local::now().to_string();
     let message = message.unwrap_or_else(|| format!("Changes committed at {}", now));
 
-    // let repo = git_open(target_dir).unwrap();
     let repo = match git_open(target_dir) {
         Ok(repo) => repo,
         Err(e) => return Err(e),
@@ -339,12 +338,27 @@ fn checkout_branch(
     create_if_unexist: bool,
     cleanup: Option<bool>,
 ) -> Result<(), String> {
-    let repo = git_open(target_dir).unwrap();
+    let repo = git_open(target_dir.clone()).unwrap();
 
-    match git_checkout(&repo, &target_branch, create_if_unexist, cleanup) {
-        Ok(_) => Ok(()),
-        Err(e) => Err(e),
+    let has_created = match git_checkout(&repo, &target_branch, create_if_unexist, cleanup) {
+        Ok(has_created) => has_created,
+        Err(e) => return Err(e),
+    };
+
+    if has_created && cleanup.is_some_and(|x| x) {
+        let entries = std::fs::read_dir(target_dir).unwrap();
+        for entry in entries {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if path.is_dir() && (!path.file_name().unwrap().eq_ignore_ascii_case(".git")) {
+                std::fs::remove_dir_all(&path).unwrap();
+            } else {
+                std::fs::remove_file(&path).unwrap_or_else(|_| println!("{:?}", path.clone()))
+            }
+        }
     }
+
+    Ok(())
 }
 
 /// return changed files
@@ -558,6 +572,12 @@ fn get_shallowest_mod_dir(path: &std::path::Path) -> Option<std::path::PathBuf> 
                     return res;
                 }
             }
+        } else if path
+            .file_name()
+            .unwrap()
+            .eq_ignore_ascii_case("modinfo.json")
+        {
+            return Some(path.parent().unwrap().to_path_buf());
         }
     }
     None
@@ -578,7 +598,7 @@ fn unzip_mod_archive(src: String, dest: String, exists_ok: Option<bool>) -> Resu
     if exists_ok.is_some_and(|x| x) {
         if dest_path.exists() {
             println!(
-                "Destination directory already exists: {}",
+                "Destination already exists, so we merge them: {}",
                 dest_path.display()
             );
         }
@@ -603,8 +623,20 @@ fn unzip_mod_archive(src: String, dest: String, exists_ok: Option<bool>) -> Resu
             // if None, remove tmp_dir and return error
             match mod_dir {
                 Some(mod_dir) => {
-                    // copy the mod directory to the destination
-                    std::fs::rename(mod_dir, dest_path).unwrap();
+                    // if dest_path exists, overwrite (merge) the mod directory.
+                    if exists_ok.is_some_and(|x| x) && dest_path.exists() {
+                        println!("Merging mod directory to {}", dest_path.display());
+                        let entries = std::fs::read_dir(&mod_dir).unwrap();
+                        for entry in entries {
+                            let entry = entry.unwrap();
+                            let path = entry.path();
+                            let dest_path = dest_path.join(path.file_name().unwrap());
+                            std::fs::rename(&path, &dest_path).unwrap();
+                        }
+                    } else {
+                        // copy the mod directory to the destination
+                        std::fs::rename(mod_dir, dest_path).unwrap();
+                    }
                 }
                 None => {
                     // remove tmp dir and return error
