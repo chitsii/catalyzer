@@ -8,7 +8,10 @@ mod logic;
 use logic::git_cmd::{
     git_checkout, git_commit, git_init, git_list_branches, git_open, git_reset_hard,
 };
-use logic::utils::{get_modinfo_path, get_shallowest_mod_dir, list_symlinks};
+use logic::utils::{
+    copy_dir_all, get_modinfo_path, get_shallowest_mod_dir, list_symlinks, remove_dir_all,
+};
+use logic::zip::fix_zip_fname_encoding;
 
 mod model;
 use model::{LocalVersion, Mod, ModInfo};
@@ -16,7 +19,7 @@ use model::{LocalVersion, Mod, ModInfo};
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
-            remove_file,
+            remove_symlink,
             create_symlink,
             init_local_repository,
             commit_changes,
@@ -53,7 +56,7 @@ fn create_symlink(source_dir: String, target_dir: String) -> Result<(), String> 
 }
 
 #[tauri::command]
-fn remove_file(target_file: String) -> Result<(), String> {
+fn remove_symlink(target_file: String) -> Result<(), String> {
     println!("Unlinking symlink at {}", target_file);
     let target = std::path::Path::new(&target_file);
     if !target.exists() {
@@ -313,12 +316,26 @@ fn unzip_mod_archive(src: String, dest: String, exists_ok: Option<bool>) -> Resu
             dest_path.display()
         ));
     }
+    let tmp_dir_zip = tempdir().unwrap();
+    let tmp_dir_zip_path = tmp_dir_zip.path();
+    println!("tmp zip dir {}", tmp_dir_zip_path.display());
 
-    let archive: Vec<u8> = std::fs::read(src_path).unwrap();
+    // src_pathのファイル名の文字コードを修正
+    // temp_dir/{srcのファイル名}に修正版のzipファイルを作成
+    let filename = src_path.file_name().unwrap().to_str().unwrap();
+    let fixed_src_path = fix_zip_fname_encoding(
+        src_path.display().to_string(),
+        tmp_dir_zip_path.join(filename).display().to_string(),
+    )
+    .map_err(|e| format!("Failed to fix encoding of ZIP archive: {}", e))?;
+    println!("Fixed zip file created: {}", fixed_src_path);
+
+    let archive: Vec<u8> = std::fs::read(fixed_src_path).unwrap();
     let archive = std::io::Cursor::new(archive);
 
     let tmp_dir = tempdir().unwrap();
     let tmp_dir_path = tmp_dir.path();
+    println!("tmp extract mod to {}", tmp_dir_zip_path.display());
 
     match zip_extract::extract(archive, tmp_dir_path, true) {
         Ok(_) => {
@@ -330,14 +347,10 @@ fn unzip_mod_archive(src: String, dest: String, exists_ok: Option<bool>) -> Resu
                 Some(mod_dir) => {
                     // if dest_path exists, overwrite (merge) the mod directory.
                     if exists_ok.is_some_and(|x| x) && dest_path.exists() {
+                        println!("Removing existing directory: {}", dest_path.display());
+                        remove_dir_all(&dest_path, ".git").unwrap();
                         println!("Merging mod directory to {}", dest_path.display());
-                        let entries = std::fs::read_dir(&mod_dir).unwrap();
-                        for entry in entries {
-                            let entry = entry.unwrap();
-                            let path = entry.path();
-                            let dest_path = dest_path.join(path.file_name().unwrap());
-                            std::fs::rename(&path, &dest_path).unwrap();
-                        }
+                        copy_dir_all(&mod_dir, &dest_path, ".git").unwrap();
                     } else {
                         // copy the mod directory to the destination
                         std::fs::rename(mod_dir, dest_path).unwrap();

@@ -35,8 +35,8 @@ export const popUp = (title: "success" | "failed", msg: string) => {
     {
       description: msg,
       position: 'top-right',
-      duration: 3000,
-      closeButton: true,
+      // duration: 3000,
+      // closeButton: true,
     }
   );
 }

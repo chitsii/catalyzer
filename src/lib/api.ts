@@ -27,7 +27,7 @@ export function openLocalDir(targetDir: string) {
 };
 
 export function removeSymlink(target: string) {
-  invoke<string>('remove_file', { targetFile: target })
+  invoke<string>('remove_symlink', { targetFile: target })
     .then((response) => {
       console.debug(response);
       console.info('symlink removed!');
