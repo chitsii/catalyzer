@@ -1,8 +1,8 @@
-"use client"
-import React from "react";
-import { ColumnDef } from "@tanstack/react-table";
-import { GitGraphIcon } from "lucide-react";
+"use client";
 
+import React from "react";
+import { ColumnDef, RowData } from "@tanstack/react-table";
+import { GitGraphIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,21 +13,6 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import path from "path";
-// import {
-//   ContextMenu,
-//   ContextMenuCheckboxItem,
-//   ContextMenuContent,
-//   ContextMenuItem,
-//   ContextMenuLabel,
-//   ContextMenuRadioGroup,
-//   ContextMenuRadioItem,
-//   ContextMenuSeparator,
-//   ContextMenuShortcut,
-//   ContextMenuSub,
-//   ContextMenuSubContent,
-//   ContextMenuSubTrigger,
-//   ContextMenuTrigger,
-// } from "@/components/ui/context-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,18 +31,9 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isNonEmptyStringOrArray } from "@/lib/utils";
+import { isNonEmptyStringOrArray, popUp } from "@/lib/utils";
 import {
   createSymlink,
   removeSymlink,
@@ -66,10 +42,8 @@ import {
   list_branches,
   unzipModArchive
 } from "@/lib/api";
-import { popUp } from "@/lib/utils";
 import { open } from '@tauri-apps/api/dialog';
 import { downloadDir } from '@tauri-apps/api/path';
-import { RowData } from '@tanstack/react-table';
 import { ask } from '@tauri-apps/api/dialog';
 
 declare module '@tanstack/react-table' {
@@ -363,7 +337,6 @@ export const columns: ColumnDef<Mod>[] = [
                                 GitCmd("reset_changes", { targetDir: row.original.localPath });
 
                                 // ブランチを作成, 既存ファイルを削除
-                                // const input_branch_name = document.getElementById("newBranchName")?.textContent;
                                 const input_branch_name = newBranchName;
 
                                 if (input_branch_name == null) {
@@ -387,8 +360,7 @@ export const columns: ColumnDef<Mod>[] = [
 
                                 // commit changes
                                 GitCmd("commit_changes", { targetDir: row.original.localPath });
-                                console.debug("commit done");
-
+                                GitCmd("reset_hard", { targetDir: row.original.localPath });
                               }
                             }>
                               OK
@@ -416,9 +388,7 @@ export const columns: ColumnDef<Mod>[] = [
                       N/A
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                  // align="end"
-                  >
+                  <DropdownMenuContent>
                     <DropdownMenuItem
                       onClick={() => {
                         console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
@@ -452,15 +422,13 @@ export const columns: ColumnDef<Mod>[] = [
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
+                className="text-xs"
                 variant={isInstalled ? "installed" : "notInstalled"}
-                size="sm"
               >
                 {isInstalled ? "Installed" : "Not Installed"}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-            // align="end"
-            >
+            <DropdownMenuContent>
               <DropdownMenuItem onClick={
                 () => {
                   const targetDir = table.options.meta?.gameModDir;

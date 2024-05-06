@@ -13,10 +13,14 @@ import {
 } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorThemeSelector } from "@/components/theme-seletor";
-import { ModsTable } from "@/components/datatable/mod-table/table-mods";
-import {
-  useAtom,
-} from 'jotai'
+import dynamic from "next/dynamic";
+
+// import { ModsTable } from "@/components/datatable/mod-table/table-mods";
+const ModsTable = dynamic(
+  () => import("@/components/datatable/mod-table/table-mods").then((mod) => mod.ModsTable),
+  { ssr: false }
+);
+import { useAtom } from 'jotai';
 import {
   modDataDirPath,
   gameModDirPath,
@@ -26,7 +30,6 @@ import {
   // mods as modsAtom,
   store as AtomStore,
 } from "@/components/atoms";
-import { appWindow } from "@tauri-apps/api/window";
 import { ask } from '@tauri-apps/api/dialog';
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 
@@ -34,41 +37,52 @@ import { LocalPathForm } from "@/components/input-card";
 import { popUp } from "@/lib/utils";
 import { unzipModArchive } from "@/lib/api";
 
+const setUpDropEvent = async () => {
+  if (typeof window === 'undefined') return
+  import("@tauri-apps/api/window").then((mod) => {
+    mod.appWindow.onFileDropEvent(async (ev) => {
+      console.log(ev); // Debug
+      if (ev.payload.type !== 'drop') {
+        return;
+      }
+      const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
+      if (!does_install) {
+        return;
+      }
+      const [filepath] = ev.payload.paths;
+      const modDataDir = AtomStore.get(modDataDirPath)
 
-appWindow.onFileDropEvent(async (ev) => {
-  // console.log(ev); // Debug
-  if (ev.payload.type !== 'drop') {
-    return;
-  }
-  const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
-  if (!does_install) {
-    return;
-  }
-  const [filepath] = ev.payload.paths;
-  const modDataDir = AtomStore.get(modDataDirPath)
-
-  if (path.extname(filepath) === '.zip') {
-    unzipModArchive(
-      filepath,
-      path.join(modDataDir, path.basename(filepath))
-    );
-    return;
-  }
-  else if (path.parse(filepath).dir === modDataDir) {
-    popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
-  }
-  else {
-    popUp(
-      'failed',
-      `Handling ${path.extname(filepath) ? path.extname(filepath) : 'directory'} is not supported yet. Please drop .zip file.`
-    );
-  }
-})
+      if (path.extname(filepath) === '.zip') {
+        unzipModArchive(
+          filepath,
+          path.join(modDataDir, path.basename(filepath))
+        );
+        return;
+      }
+      else if (path.parse(filepath).dir === modDataDir) {
+        popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
+      }
+      else {
+        popUp(
+          'failed',
+          `Handling ${path.extname(filepath) ? path.extname(filepath) : 'directory'} is not supported yet. Please drop .zip file.`
+        );
+      }
+    })
+  })
+};
 
 
 export default function Home() {
   const [{ data, isPending, isError }] = useAtom(modsQ);
   const [_, refresh] = useAtom(refreshMods);
+
+  useEffect(() => {
+    const setUpDropEventHander = async () => {
+      await setUpDropEvent();
+    }
+    setUpDropEventHander();
+  }, []);
 
   return (
     <main>
@@ -78,8 +92,8 @@ export default function Home() {
         </div>
         <div className="w-full">
           <Tabs
-          defaultValue="mods"
-          className="w-full h-full">
+            defaultValue="mods"
+            className="w-full h-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="mods" className="text-lg"
                 onClick={() => {
@@ -164,14 +178,14 @@ export default function Home() {
 
                 }
               }>
-              <div className="grid gap-4 text-lg">
-                <select name="selectedGameVersion">
-                  <option value="cdda">Cataclysm: Dark Days Ahead</option>
-                  <option value="cdda_experimental">Stable builds</option>
-                  <option value="cdda_launcher">Experimentsl builds</option>
-                </select>
-              </div>
-              <button type="submit">Submit</button>
+                <div className="grid gap-4 text-lg">
+                  <select name="selectedGameVersion">
+                    <option value="cdda">Cataclysm: Dark Days Ahead</option>
+                    <option value="cdda_experimental">Stable builds</option>
+                    <option value="cdda_launcher">Experimentsl builds</option>
+                  </select>
+                </div>
+                <button type="submit">Submit</button>
               </form>
             </TabsContent>
             <TabsContent value="releases">

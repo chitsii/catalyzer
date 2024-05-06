@@ -4,6 +4,12 @@ import React from "react";
 import { gameModDirPath, refreshMods } from "@/components/atoms";
 import { useAtomValue, useAtom } from "jotai";
 import { Mod, columns } from "./columns";
+
+// import dynamic from "next/dynamic";
+// const columns = dynamic(
+//   () => import("./columns").then((mod) => mod.columns), { ssr: false }
+// );
+
 import { DataTable } from "./data-table";
 
 export type getModsProps = {

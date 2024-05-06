@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { fetch } from "@tauri-apps/api/http";
 import { GithubRelease } from "@/lib/types/github-release";
