@@ -8,7 +8,6 @@ type GitArgs = {
   sourceBranch?: string;
   targetBranch?: string;
   createIfUnexist?: boolean;
-  cleanup?: boolean;
 };
 export function GitCmd(command: string, args: GitArgs) {
     invoke<string>(command, args)

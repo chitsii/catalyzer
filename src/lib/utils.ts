@@ -26,7 +26,6 @@ export function isNonEmptyStringOrArray(value: unknown): value is string | strin
 
 
 import { toast } from "sonner"
-import { invoke } from "@tauri-apps/api/tauri";
 
 export const popUp = (title: "success" | "failed", msg: string) => {
   console.info(msg);
@@ -35,6 +34,7 @@ export const popUp = (title: "success" | "failed", msg: string) => {
     {
       description: msg,
       position: 'top-right',
+      className: "z-50",
       // duration: 3000,
       // closeButton: true,
     }

@@ -14,12 +14,38 @@ import {
 } from "@/components/ui/select"
 import path from "path";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator
-} from "@/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuCheckboxItem,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
+
+// import {
+//   ContextMenu,
+//   ContextMenuContent,
+//   ContextMenuItem,
+//   ContextMenuTrigger,
+//   ContextMenuSeparator
+// } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -224,8 +250,8 @@ export const columns: ColumnDef<Mod>[] = [
           {
             local_version ? (
               <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild
+                <ContextMenu>
+                  <ContextMenuTrigger asChild
                   >
                     <Button
                       variant="notInstalled"
@@ -236,9 +262,9 @@ export const columns: ColumnDef<Mod>[] = [
                     >
                       {local_version.branchName}
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem className="grid grid-cols-2">
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuLabel className="grid grid-cols-2">
                       <form onSubmit={(e: any) => {
                         e.preventDefault();
                         const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
@@ -271,9 +297,9 @@ export const columns: ColumnDef<Mod>[] = [
                         </div>
                         <Button type="submit" className="col-span-1">OK</Button>
                       </form>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); }}>
+                    </ContextMenuLabel>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onClick={(e) => { e.preventDefault(); }}>
                       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                         <DialogTrigger>
                           <div className="flex gap-1"><GitGraphIcon size={16} />新規断面を作成</div>
@@ -285,7 +311,6 @@ export const columns: ColumnDef<Mod>[] = [
                               新規のブランチ名とModのzipファイルを選択してください。
                               <span className="text-xs text-red-600">新規断面を作成すると、現行断面において作業途中のファイルはハードリセットされます！
                                 データを削除したくない場合はコミットを行って下さい。
-                                {/* <br/>参考: <a href="https://git-scm.com/book/ja/v2" target="_blank" rel="noreferrer" className="text-xs underline text-primary">Pro Git</a> */}
                                 <br />
                               </span>
                             </DialogDescription>
@@ -293,35 +318,35 @@ export const columns: ColumnDef<Mod>[] = [
                           <form>
                             <div className="flex-none">
                               <Label htmlFor="newBranchName" className="text-xs">ブランチ名</Label>
-                              <Input name="newBranchName" type="text" id="newBranchName" placeholder="0.G, experimental_20240501 etc..."
-                              onChange={(e)=>{
-                                setNewBranchName(e.target.value);
-                              }} />
+                              <Input name="newBranchName" type="email" id="newBranchName" placeholder="0.G, experimental_20240501 etc..."
+                                onChange={async (e) => {
+                                  setNewBranchName(e.target.value);
+                                }}
+                              />
                               <p>{newBranchName}</p>
                             </div>
                             <div className="flex-none">
                               <Label htmlFor="zip_file" className="text-xs">zipファイル</Label><br />
-                              {/* <Input name="zip_file" type="file" id="zip_file" accept=".zip" /> */}
                               <Button type="button"
-                              onClick={async ()=>{
-                                const selected = await open(
-                                  {
-                                    directory: false,
-                                    multiple: false,
-                                    filters: [{ name: 'Zip', extensions: ['zip'] }],
-                                    defaultPath: await downloadDir()
+                                onClick={async () => {
+                                  const selected = await open(
+                                    {
+                                      directory: false,
+                                      multiple: false,
+                                      filters: [{ name: 'Zip', extensions: ['zip'] }],
+                                      defaultPath: await downloadDir()
+                                    }
+                                  );
+                                  if (selected == null || Array.isArray(selected)) {
+                                    return
+                                  } else {
+                                    setUploadFilePath(selected);
                                   }
-                                );
-                                if (selected == null || Array.isArray(selected)) {
-                                  return
-                                } else {
-                                  setUploadFilePath(selected);
-                                }
-                              }}
+                                }}
                               >ファイルを選択...</Button>
                               <p>{uploadFilePath
-                              ? path.parse(uploadFilePath).base
-                              : "ファイルが選択されていません"}</p>
+                                ? path.parse(uploadFilePath).base
+                                : "ファイルが選択されていません"}</p>
                             </div>
                             <Button onClick={
                               async (e: any) => {
@@ -343,9 +368,7 @@ export const columns: ColumnDef<Mod>[] = [
                                   targetDir: row.original.localPath,
                                   targetBranch: input_branch_name,
                                   createIfUnexist: true,
-                                  cleanup: true
                                 });
-                                // ToDo:元ブランチのファイルも消えてるっぽい？？
                                 console.debug("checkout done");
 
                                 // zipファイルを展開
@@ -357,10 +380,7 @@ export const columns: ColumnDef<Mod>[] = [
                                 console.debug("unzip done");
 
                                 // commit changes
-                                GitCmd("commit_changes", {
-                                  targetDir: row.original.localPath,
-                                  cleanup: false
-                                });
+                                GitCmd("commit_changes", { targetDir: row.original.localPath });
                                 console.debug("commit done");
 
                               }
@@ -376,11 +396,9 @@ export const columns: ColumnDef<Mod>[] = [
                           </DialogFooter>
                         </DialogContent>
                       </Dialog>
-
-
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
 
                 {/* <p className="text-xs font-semibold text-muted-foreground">ブランチ</p>
                 <p className="text-xs text-muted-foreground">{local_version.branchName}</p>
@@ -389,8 +407,8 @@ export const columns: ColumnDef<Mod>[] = [
               </>
             ) : (
               <>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+                <ContextMenu>
+                  <ContextMenuTrigger asChild>
                     <Button
                       variant="notInstalled"
                       size="sm"
@@ -398,9 +416,11 @@ export const columns: ColumnDef<Mod>[] = [
                     >
                       N/A
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
+                  </ContextMenuTrigger>
+                  <ContextMenuContent
+                  // align="end"
+                  >
+                    <ContextMenuItem
                       onClick={() => {
                         console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
                         const localPath = row.original.localPath;
@@ -412,9 +432,9 @@ export const columns: ColumnDef<Mod>[] = [
                       }}
                     >
                       <div className="flex gap-1"><GitGraphIcon size={16} />断面管理を始める</div>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               </>
             )
           }
@@ -430,17 +450,19 @@ export const columns: ColumnDef<Mod>[] = [
       const isInstalled: boolean = row.getValue("isInstalled");
       return (
         <>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
               <Button
                 variant={isInstalled ? "installed" : "notInstalled"}
                 size="sm"
               >
                 {isInstalled ? "Installed" : "Not Installed"}
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={
+            </ContextMenuTrigger>
+            <ContextMenuContent
+            // align="end"
+            >
+              <ContextMenuItem onClick={
                 () => {
                   const targetDir = table.options.meta?.gameModDir;
                   const base = path.parse(row.original.localPath).base;
@@ -464,9 +486,9 @@ export const columns: ColumnDef<Mod>[] = [
                 }
               }>
                 {isInstalled ? "Uninstall" : "Install"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         </>
       )
     }
