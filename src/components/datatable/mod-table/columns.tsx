@@ -13,21 +13,29 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import path from "path";
+// import {
+//   ContextMenu,
+//   ContextMenuCheckboxItem,
+//   ContextMenuContent,
+//   ContextMenuItem,
+//   ContextMenuLabel,
+//   ContextMenuRadioGroup,
+//   ContextMenuRadioItem,
+//   ContextMenuSeparator,
+//   ContextMenuShortcut,
+//   ContextMenuSub,
+//   ContextMenuSubContent,
+//   ContextMenuSubTrigger,
+//   ContextMenuTrigger,
+// } from "@/components/ui/context-menu";
 import {
-  ContextMenu,
-  ContextMenuCheckboxItem,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuLabel,
-  ContextMenuRadioGroup,
-  ContextMenuRadioItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuSub,
-  ContextMenuSubContent,
-  ContextMenuSubTrigger,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu"
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Drawer,
   DrawerClose,
@@ -38,14 +46,6 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-
-// import {
-//   ContextMenu,
-//   ContextMenuContent,
-//   ContextMenuItem,
-//   ContextMenuTrigger,
-//   ContextMenuSeparator
-// } from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -250,21 +250,19 @@ export const columns: ColumnDef<Mod>[] = [
           {
             local_version ? (
               <>
-                <ContextMenu>
-                  <ContextMenuTrigger asChild
-                  >
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       variant="notInstalled"
                       size="sm"
                       className="ml-2 text-[10px]"
-                      onClick={fetchBranches}
                       onMouseEnter={fetchBranches}
                     >
                       {local_version.branchName}
                     </Button>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent>
-                    <ContextMenuLabel className="grid grid-cols-2">
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuLabel>
                       <form onSubmit={(e: any) => {
                         e.preventDefault();
                         const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
@@ -276,11 +274,12 @@ export const columns: ColumnDef<Mod>[] = [
                         });
                         table.options.meta?.fetchMods(); // reload table
                       }}>
-                        <p className="col-span-3">バージョン変更</p>
-                        <div className="col-span-2 min-w-32">
+                        <p>バージョン変更</p>
+                        <div className="grid grid-cols-3 gap-2">
+                        <div className="col-span-2 min-w-[120px]">
                           <Select name="selectedVersionSwitchTo">
                             <SelectTrigger>
-                              <SelectValue placeholder="選択..." />
+                              <SelectValue placeholder="切り替え先..." />
                             </SelectTrigger>
                             <SelectContent>
                               {
@@ -296,34 +295,41 @@ export const columns: ColumnDef<Mod>[] = [
                           </Select>
                         </div>
                         <Button type="submit" className="col-span-1">OK</Button>
+                        </div>
                       </form>
-                    </ContextMenuLabel>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={(e) => { e.preventDefault(); }}>
-                      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                        <DialogTrigger>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={(e) => { e.preventDefault(); }}>
+                      <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
+                        <DrawerTrigger>
                           <div className="flex gap-1"><GitGraphIcon size={16} />新規断面を作成</div>
-                        </DialogTrigger>
-                        <DialogContent onInteractOutside={(e) => { e.preventDefault(); }}>
-                          <DialogHeader>
-                            <DialogTitle>新規断面作成ダイアログ</DialogTitle>
-                            <DialogDescription>
+                        </DrawerTrigger>
+                        <DrawerContent onInteractOutside={(e) => { e.preventDefault(); }}>
+                          <DrawerHeader>
+                            <DrawerTitle>新規断面作成: {row.original.info.name}</DrawerTitle>
+                            <DrawerDescription>
                               新規のブランチ名とModのzipファイルを選択してください。
-                              <span className="text-xs text-red-600">新規断面を作成すると、現行断面において作業途中のファイルはハードリセットされます！
+                              <span className="text-xs text-red-600">
+                                新規断面を作成すると、現行断面において作業途中のファイルはハードリセットされます！
                                 データを削除したくない場合はコミットを行って下さい。
                                 <br />
                               </span>
-                            </DialogDescription>
-                          </DialogHeader>
+                            </DrawerDescription>
+                          </DrawerHeader>
+                          <div className="flex place-content-center">
                           <form>
                             <div className="flex-none">
                               <Label htmlFor="newBranchName" className="text-xs">ブランチ名</Label>
-                              <Input name="newBranchName" type="email" id="newBranchName" placeholder="0.G, experimental_20240501 etc..."
+                              <Input
+                                type="text"
+                                autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
+                                name="newBranchName" id="newBranchName" placeholder="0.G, experimental_20240501 etc..."
+                                className="w-[450px]"
                                 onChange={async (e) => {
-                                  setNewBranchName(e.target.value);
+                                    setNewBranchName(e.target.value);
                                 }}
                               />
-                              <p>{newBranchName}</p>
+                              <p className="text-sm">{"> "}{newBranchName}</p>
                             </div>
                             <div className="flex-none">
                               <Label htmlFor="zip_file" className="text-xs">zipファイル</Label><br />
@@ -388,27 +394,20 @@ export const columns: ColumnDef<Mod>[] = [
                               OK
                             </Button>
                           </form>
-                          <DialogFooter>
-
-                            {/* <Button onClick={
-                              () => {setDialogOpen(false);}
-                            }>Cancel</Button> */}
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-
-                {/* <p className="text-xs font-semibold text-muted-foreground">ブランチ</p>
-                <p className="text-xs text-muted-foreground">{local_version.branchName}</p>
-                <p className="text-xs font-semibold text-muted-foreground">最終編集日</p>
-                <p className="text-xs text-muted-foreground">{local_version.lastCommitDate}</p> */}
+                          </div>
+                          <DrawerFooter>
+                            <DrawerClose>Cancel</DrawerClose>
+                          </DrawerFooter>
+                        </DrawerContent>
+                      </Drawer>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             ) : (
               <>
-                <ContextMenu>
-                  <ContextMenuTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       variant="notInstalled"
                       size="sm"
@@ -416,11 +415,11 @@ export const columns: ColumnDef<Mod>[] = [
                     >
                       N/A
                     </Button>
-                  </ContextMenuTrigger>
-                  <ContextMenuContent
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
                   // align="end"
                   >
-                    <ContextMenuItem
+                    <DropdownMenuItem
                       onClick={() => {
                         console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
                         const localPath = row.original.localPath;
@@ -432,9 +431,9 @@ export const columns: ColumnDef<Mod>[] = [
                       }}
                     >
                       <div className="flex gap-1"><GitGraphIcon size={16} />断面管理を始める</div>
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </>
             )
           }
@@ -450,19 +449,19 @@ export const columns: ColumnDef<Mod>[] = [
       const isInstalled: boolean = row.getValue("isInstalled");
       return (
         <>
-          <ContextMenu>
-            <ContextMenuTrigger asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant={isInstalled ? "installed" : "notInstalled"}
                 size="sm"
               >
                 {isInstalled ? "Installed" : "Not Installed"}
               </Button>
-            </ContextMenuTrigger>
-            <ContextMenuContent
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
             // align="end"
             >
-              <ContextMenuItem onClick={
+              <DropdownMenuItem onClick={
                 () => {
                   const targetDir = table.options.meta?.gameModDir;
                   const base = path.parse(row.original.localPath).base;
@@ -486,37 +485,11 @@ export const columns: ColumnDef<Mod>[] = [
                 }
               }>
                 {isInstalled ? "Uninstall" : "Install"}
-              </ContextMenuItem>
-            </ContextMenuContent>
-          </ContextMenu>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </>
       )
     }
   },
-  // {
-  //   id: "select",
-  //   header: ({ table }) =>
-  // {
-  // table.options.meta?.fetchMods();
-  // }
-  // (
-  // <Checkbox
-  //   checked={
-  //     table.getIsAllPageRowsSelected() ||
-  //     (table.getIsSomePageRowsSelected() && "indeterminate")
-  //   }
-  //   onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-  //   aria-label="Select all"
-  // />
-  // ),
-  //   cell: ({ row }) => (
-  //     <Checkbox
-  //       checked={row.getIsSelected()}
-  //       onCheckedChange={(value) => row.toggleSelected(!!value)}
-  //       aria-label="Select row"
-  //     />
-  //   ),
-  //   enableSorting: false,
-  //   enableHiding: false,
-  // },
 ]

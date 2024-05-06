@@ -85,6 +85,7 @@ export function DataTable<TData, TValue>({
         <div className="w-full flex items-center py-4 justify-self-start">
           <Input
             placeholder="Search mods..."
+            autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
             value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
             onChange={(event) =>
               table.getColumn("name")?.setFilterValue(event.target.value)

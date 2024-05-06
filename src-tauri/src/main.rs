@@ -127,7 +127,7 @@ fn checkout_branch(
     target_dir: String,
     target_branch: String,
     create_if_unexist: bool,
-    cleanup: Option<bool>,
+    // cleanup: Option<bool>,
 ) -> Result<(), String> {
     let repo = git_open(target_dir.clone()).unwrap();
 
@@ -136,18 +136,18 @@ fn checkout_branch(
         Err(e) => return Err(e),
     };
 
-    if has_created && cleanup.is_some_and(|x| x) {
-        let entries = std::fs::read_dir(target_dir).unwrap();
-        for entry in entries {
-            let entry = entry.unwrap();
-            let path = entry.path();
-            if path.is_dir() && (!path.file_name().unwrap().eq_ignore_ascii_case(".git")) {
-                std::fs::remove_dir_all(&path).unwrap();
-            } else {
-                std::fs::remove_file(&path).unwrap_or_else(|_| println!("{:?}", path.clone()))
-            }
-        }
-    }
+    // if has_created && cleanup.is_some_and(|x| x) {
+    //     let entries = std::fs::read_dir(target_dir).unwrap();
+    //     for entry in entries {
+    //         let entry = entry.unwrap();
+    //         let path = entry.path();
+    //         if path.is_dir() && (!path.file_name().unwrap().eq_ignore_ascii_case(".git")) {
+    //             std::fs::remove_dir_all(&path).unwrap();
+    //         } else {
+    //             std::fs::remove_file(&path).unwrap_or_else(|_| println!("{:?}", path.clone()))
+    //         }
+    //     }
+    // }
     git_reset_hard(&repo).unwrap();
 
     Ok(())
