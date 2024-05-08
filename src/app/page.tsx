@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, ReactNode } from "react";
 import { createId } from '@paralleldrive/cuid2';
 import Link from "next/link";
 import path from "path";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -12,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -19,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CheckIcon, MoreHorizontal, PencilIcon, Trash2Icon, XIcon } from 'lucide-react'
+import { Input } from "@/components/ui/input";
+import { Menu, CheckIcon, MoreHorizontal, PencilIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,21 +30,20 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogClose,
   DialogHeader,
   DialogContent,
   DialogDescription,
-  DialogPortal,
+  // DialogPortal,
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog'
@@ -49,11 +51,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorThemeSelector } from "@/components/theme-seletor";
 import dynamic from "next/dynamic";
 
-// import { ModsTable } from "@/components/datatable/mod-table/table-mods";
-const ModsTable = dynamic(
-  () => import("@/components/datatable/mod-table/table-mods").then((mod) => mod.ModsTable),
-  { ssr: false }
-);
+import { ModsTable } from "@/components/datatable/mod-table/table-mods";
+// const ModsTable = dynamic(
+//   () => import("@/components/datatable/mod-table/table-mods").then((mod) => mod.ModsTable),
+//   { ssr: false }
+// );
 import { useAtom } from 'jotai';
 import {
   modDataDirPath,
@@ -70,7 +72,164 @@ import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { LocalPathForm } from "@/components/input-card";
 import { popUp } from "@/lib/utils";
 import { unzipModArchive } from "@/lib/api";
-import { profile } from "console";
+import { toast } from "sonner";
+
+
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+
+const profileFormSchema = z.object({
+  name: z.string().min(1).max(45).trim(),
+  gamePath: z.string().min(1).max(255).trim(),
+  modDataDirPath: z.string().min(1).max(255).trim(),
+  gameModDirPath: z.string().min(1).max(255).trim(),
+  branchName: z.string().min(1).max(20).regex(
+    /^[a-zA-Z0-9_\-]+$/,
+    'Invalid branch name. Only alphanumeric characters, hyphen and underscore are allowed.'
+  ).trim(),
+})
+
+
+type ProfileFormProps = {
+  profileList: Profile[]
+  setProfileList: (profileList: Profile[]) => void,
+}
+const ProfileForm = (
+  { profileList, setProfileList }: ProfileFormProps
+) => {
+  const form = useForm<z.infer<typeof profileFormSchema>>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      name: '',
+      gamePath: '',
+      modDataDirPath: '',
+      gameModDirPath: '',
+      branchName: '',
+    }
+  })
+
+  const onSubmit = (values: z.infer<typeof profileFormSchema>) => {
+    // ToDo: Implement
+    console.log(values);
+    const addProfile = (
+      name: string,
+      gamePath: string,
+      modDataDirPath: string,
+      gameModDirPath: string,
+      branchName: string,
+    ) => {
+      const newProfile = {
+        id: createId(),
+        name: name,
+        gamePath: gamePath,
+        modDataDirPath: modDataDirPath,
+        gameModDirPath: gameModDirPath,
+        activatedMods: [],
+        branchName: branchName,
+      } satisfies Profile;
+      setProfileList([...profileList, newProfile]);
+    }
+    addProfile(
+      values.name,
+      values.gamePath,
+      values.modDataDirPath,
+      values.gameModDirPath,
+      values.branchName,
+    );
+    form.reset();
+    popUp('success', 'Profile added successfully');
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
+        <FormField
+          name="name"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-xs">プロファイル名</FormLabel>
+              <FormControl>
+                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
+                  {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          name="gamePath"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm">CDDAフォルダパス</FormLabel>
+              <FormControl>
+                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
+                  {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          name="gameModDirPath"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm">CDDA Modディレクトリ</FormLabel>
+              <FormControl>
+                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
+                  {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          name="modDataDirPath"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm">Modデータディレクトリ</FormLabel>
+              <FormControl>
+                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
+                  {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          name="branchName"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm">断面名称(branch name)</FormLabel>
+              <FormControl>
+                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
+                  {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit">Submit</Button>
+      </form>
+    </Form>
+  )
+}
+
+
 
 const setUpDropEvent = async () => {
   if (typeof window === 'undefined') return
@@ -108,28 +267,13 @@ const setUpDropEvent = async () => {
 };
 
 
-// const mock_profiles: Profile[] = [
-//   {
-//     name: '0.G',
-//     gamePath: '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source',
-//     modDataDirPath: '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source',
-//     gameModDirPath: '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets',
-//     activatedMods: [],
-//     branchName: '0.G',
-//     theme: 'dark'
-//   }
-// ]
-
-
-
-type Props = {
+type DialogItemProps = {
   triggerChildren: ReactNode
   children: ReactNode
   onSelect: () => void
   onOpenChange: (open: boolean) => void
 }
-
-const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: Props) => {
+const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: DialogItemProps) => {
   return (
     <Dialog onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
@@ -143,90 +287,58 @@ const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: Props
           {triggerChildren}
         </DropdownMenuItem>
       </DialogTrigger>
-      <DialogPortal>
-        <DialogContent>
-          {children}
-          <DialogClose asChild>
-            <button className="IconButton" aria-label="Close">
-              <XIcon />
-            </button>
-          </DialogClose>
-        </DialogContent>
-      </DialogPortal>
+      <DialogContent
+        onInteractOutside={(e) => { e.preventDefault(); }}
+      >
+        {children}
+      </DialogContent>
     </Dialog>
   )
 }
-const ProfileSelector = (
-  { currentProfile }: { currentProfile: Profile }
-) => {
-  const [profileList, setProfileList] = useAtom(profiles);
+
+type ProfileSelectorProps = {
+  currentProfile: Profile,
+  setCurrentProfile: (profile: Profile) => void,
+  profileList: Profile[],
+  setProfileList: (profileList: Profile[]) => void,
+  className?: string
+}
+const ProfileSelector = ({
+    currentProfile,
+    setCurrentProfile,
+    profileList,
+    setProfileList,
+    className
+}: ProfileSelectorProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [hasOpenDialog, setHasOpenDialog] = useState(false);
   const dropdownTriggerRef = useRef<null | HTMLButtonElement>(null)
   const focusRef = useRef<null | HTMLButtonElement>(null)
 
-  // ToDo: Remove this
-  useEffect(() => {
-    setProfileList(
-      [
-        {
-          id: createId(),
-          name: '0.G',
-          gamePath: '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source',
-          modDataDirPath: '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source',
-          gameModDirPath: '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets',
-          activatedMods: [],
-          branchName: '0.G',
-          theme: 'dark'
-        }
-      ]
-    )
-
-  }, []);
-
   const handleDialogItemSelect = () => {
     focusRef.current = dropdownTriggerRef.current
   }
-
   const handleDialogItemOpenChange = (open: boolean) => {
     setHasOpenDialog(open)
     if (open === false) {
       setDropdownOpen(false)
     }
   }
-
-  const addProfile = (
-    name: string,
-    gamePath: string,
-    modDataDirPath: string,
-    gameModDirPath: string,
-    branchName: string,
-  ) => {
-    const newProfile = {
-      id: createId(),
-      name: name,
-      gamePath: gamePath,
-      modDataDirPath: modDataDirPath,
-      gameModDirPath: gameModDirPath,
-      activatedMods: [],
-      branchName: branchName,
-    } satisfies Profile;
-    setProfileList([...profileList, newProfile]);
-  }
-  const deleteProfile = (id: string) => {
-    setProfileList(profileList.filter((p) => p.id !== id));
-  }
-  const updateProfile = (id: string, profile: Profile) => {
-    setProfileList(profileList.map((p) => p.id === id ? profile : p));
+  const selectProfile = (id: string) => {
+    const profile = profileList.find((p) => p.id === id);
+    if (profile) {
+      setCurrentProfile(profile);
+    }
   }
 
   return (
     <>
       <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
-        <DropdownMenuTrigger>
-          <Button variant="ghost">
-            <span>Profile: </span>
-            <span className="bg-primary-foreground">{currentProfile.name}</span>
+        <DropdownMenuTrigger asChild>
+          <Button
+            className={cn("flex items-center gap-2", className)}
+            ref={dropdownTriggerRef}>
+            <Menu />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -239,7 +351,7 @@ const ProfileSelector = (
             }
           }}
         >
-          <DropdownMenuLabel>Profiles</DropdownMenuLabel>
+          <DropdownMenuLabel>プロファイル切替</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {
             profileList.length === 0
@@ -250,7 +362,9 @@ const ProfileSelector = (
               :
               profileList.map((profile) => {
                 return (
-                  <DropdownMenuItem key={profile.id}>
+                  <DropdownMenuItem key={profile.id}
+                  onClick={()=>selectProfile(profile.id)}
+                  >
                     <span>{profile.name}</span>
                     <DropdownMenuShortcut>
                       <span>{profile.branchName}</span>
@@ -262,86 +376,47 @@ const ProfileSelector = (
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <span>Add/Edit/Remove</span>
+              <span>...</span>
             </DropdownMenuSubTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuSubContent>
-                <DialogItem
-                  triggerChildren={
-                    <>
-                      <PencilIcon className="mr-4 h-4 w-4" />
-                      <span>Add</span>
-                    </>
-                  }
-                  onSelect={handleDialogItemSelect}
-                  onOpenChange={handleDialogItemOpenChange}
-                >
-                  <DialogTitle className="DialogTitle">Add</DialogTitle>
-                  <DialogDescription className="DialogDescription">
-                    Add a new profile
-                  </DialogDescription>
-                  <form
-                    onSubmit={(e: any) => {
-                      const profileName = e.target['profileName'].value;
-                      const gamePath = e.target['gamePath'].value;
-                      const modDataDirPath = e.target['modDataDirPath'].value;
-                      const gameModDirPath = e.target['gameModDirPath'].value;
-                      const branchName = e.target['branchName'].value;
-                      addProfile(profileName, gamePath, modDataDirPath, gameModDirPath, branchName);
-                      console.log(profileList);
-                      e.preventDefault();
-                    }}>
-                    <input
-                      name="profileName"
-                      type="text"
-                      placeholder="Profile Name"
-                      className="w-full p-2 my-2 border border-gray-300 rounded-md"
-                    />
-                    <input
-                      name="gamePath"
-                      type="text"
-                      placeholder="Game Path"
-                      className="w-full p-2 my-2 border border-gray-300 rounded-md"
-                    />
-                    <input
-                      name="modDataDirPath"
-                      type="text"
-                      placeholder="Mod Data Directory Path"
-                      className="w-full p-2 my-2 border border-gray-300 rounded-md"
-                    />
-                    <input
-                      name="gameModDirPath"
-                      type="text"
-                      placeholder="Game Mod Directory Path"
-                      className="w-full p-2 my-2 border border-gray-300 rounded-md"
-                    />
-                    <input
-                      name="branchName"
-                      type="text"
-                      placeholder="Branch Name"
-                      className="w-full p-2 my-2 border border-gray-300 rounded-md"
-                    />
-                    <Button type="submit">OK</Button>
-                  </form>
-                </DialogItem>
-                <DropdownMenuSeparator />
-                <DialogItem
-                  triggerChildren={
-                    <>
-                      <PencilIcon className="mr-4 h-4 w-4" />
-                      <span>Edit/Remove</span>
-                    </>
-                  }
-                  onSelect={handleDialogItemSelect}
-                  onOpenChange={handleDialogItemOpenChange}
-                >
-                  <DialogTitle className="DialogTitle">Edit/Remove profiles</DialogTitle>
-                  <DialogDescription className="DialogDescription">
-                    Edit or remove profiles
-                  </DialogDescription>
-                </DialogItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuPortal>
+            {/* <DropdownMenuPortal> */}
+            <DropdownMenuSubContent>
+              <DialogItem
+                triggerChildren={
+                  <>
+                    <PencilIcon className="mr-4 h-4 w-4" />
+                    <span>Add Profile</span>
+                  </>
+                }
+                onSelect={handleDialogItemSelect}
+                onOpenChange={handleDialogItemOpenChange}
+              >
+                <DialogTitle className="DialogTitle">Add</DialogTitle>
+                <DialogDescription className="DialogDescription">
+                  Add a new profile
+                </DialogDescription>
+                <ProfileForm
+                  profileList={profileList}
+                  setProfileList={setProfileList}
+                />
+              </DialogItem>
+              <DropdownMenuSeparator />
+              <DialogItem
+                triggerChildren={
+                  <>
+                    <PencilIcon className="mr-4 h-4 w-4" />
+                    <span>Remove Profile</span>
+                  </>
+                }
+                onSelect={handleDialogItemSelect}
+                onOpenChange={handleDialogItemOpenChange}
+              >
+                <DialogTitle className="DialogTitle">Manage Profiles</DialogTitle>
+                <DialogDescription className="DialogDescription">
+                  Edit or remove profiles.
+                </DialogDescription>
+              </DialogItem>
+            </DropdownMenuSubContent>
+            {/* </DropdownMenuPortal> */}
           </DropdownMenuSub>
 
         </DropdownMenuContent>
@@ -350,9 +425,7 @@ const ProfileSelector = (
   )
 }
 
-
 export default function Home() {
-  // const [profileList, setProfileList] = useAtom(profiles);
   const [currentProfile, setCurrentProfile] = useState(
     {
       id: createId(),
@@ -365,6 +438,7 @@ export default function Home() {
       theme: 'dark'
     } as Profile
   );
+  const [profileList, setProfileList] = useAtom(profiles);
 
   const [{ data, isPending, isError }] = useAtom(modsQ);
   const [_, refresh] = useAtom(refreshMods);
@@ -380,10 +454,19 @@ export default function Home() {
     <main>
       {/* <img src={`/app_icon.webp`} className="w-24 h-24"/> */}
       <div className="w-full overflow-hidden select-none bg-muted/40">
-        <div className="w-full h-[100px]">
+        <div className="flex w-full h-[100px] gap-8 p-4 items-center">
           <ProfileSelector
             currentProfile={currentProfile}
+            setCurrentProfile={setCurrentProfile}
+            profileList={profileList}
+            setProfileList={setProfileList}
           />
+          <div className="flex-grow">
+            <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
+            <p className="text-sm text-muted-foreground">Profile: <Badge variant="outline">{currentProfile.name}</Badge></p>
+            <p className="text-[10px] text-muted-foreground">{currentProfile.gamePath}</p>
+
+          </div>
         </div>
         <div className="w-full">
           <Tabs

@@ -33,7 +33,7 @@ export const popUp = (title: "success" | "failed", msg: string) => {
     title.toUpperCase(),
     {
       description: msg,
-      position: 'top-right',
+      // position: 'top-right',
       className: "z-50",
       // duration: 3000,
       // closeButton: true,

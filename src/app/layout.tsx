@@ -8,6 +8,7 @@ import "./globals.css";
 const NotoSansMono = localFont({
   src: "assets/NotoSansMono-VariableFont_wdth,wght.ttf",
   display: "swap",
+  weight: "500 800",
 });
 
 export const metadata: Metadata = {
