@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useRef, ReactNode } from "react";
-import { createId } from '@paralleldrive/cuid2';
 import Link from "next/link";
 import path from "path";
 import { cn } from "@/lib/utils";
@@ -91,14 +90,12 @@ import { useForm } from "react-hook-form";
 const profileFormSchema = z.object({
   name: z.string().min(1).max(45).trim(),
   gamePath: z.string().min(1).max(255).trim(),
-  modDataDirPath: z.string().min(1).max(255).trim(),
-  gameModDirPath: z.string().min(1).max(255).trim(),
+  profilePath: z.string().min(1).max(255).trim(),
   branchName: z.string().min(1).max(20).regex(
     /^[a-zA-Z0-9_\-]+$/,
     'Invalid branch name. Only alphanumeric characters, hyphen and underscore are allowed.'
   ).trim(),
 })
-
 
 type ProfileFormProps = {
   profileList: Profile[]
@@ -112,43 +109,36 @@ const ProfileForm = (
     defaultValues: {
       name: '',
       gamePath: '',
-      modDataDirPath: '',
-      gameModDirPath: '',
+      profilePath: '',
       branchName: '',
     }
-  })
+  });
 
   const onSubmit = (values: z.infer<typeof profileFormSchema>) => {
-    // ToDo: Implement
+    console.log('onSubmit');
     console.log(values);
     const addProfile = (
       name: string,
       gamePath: string,
-      modDataDirPath: string,
-      gameModDirPath: string,
+      rootPath: string,
       branchName: string,
     ) => {
-      const newProfile = {
-        id: createId(),
-        name: name,
-        gamePath: gamePath,
-        modDataDirPath: modDataDirPath,
-        gameModDirPath: gameModDirPath,
-        activatedMods: [],
-        branchName: branchName,
-      } satisfies Profile;
+      const newProfile = new Profile(
+        name,
+        gamePath,
+        rootPath,
+        [],
+        branchName,
+      );
       setProfileList([...profileList, newProfile]);
-    }
-    addProfile(
-      values.name,
-      values.gamePath,
-      values.modDataDirPath,
-      values.gameModDirPath,
-      values.branchName,
-    );
-    form.reset();
-    popUp('success', 'Profile added successfully');
-  }
+      form.reset();
+      popUp('success', 'Profile added successfully');
+      console.log('Profile added successfully', JSON.stringify(newProfile));
+      console.log('length of profileList', profileList.length);
+    };
+    console.log('length of profileList', profileList.length);
+    addProfile(values.name, values.gamePath, values.profilePath, values.branchName);
+  };
 
   return (
     <Form {...form}>
@@ -182,25 +172,11 @@ const ProfileForm = (
           )}
         />
         <FormField
-          name="gameModDirPath"
+          name="profilePath"
           control={form.control}
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-sm">CDDA Modディレクトリ</FormLabel>
-              <FormControl>
-                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
-                  {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          name="modDataDirPath"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-sm">Modデータディレクトリ</FormLabel>
+              <FormLabel className="text-sm">プロファイルデータパス</FormLabel>
               <FormControl>
                 <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
                   {...field} />
@@ -228,8 +204,6 @@ const ProfileForm = (
     </Form>
   )
 }
-
-
 
 const setUpDropEvent = async () => {
   if (typeof window === 'undefined') return
@@ -265,7 +239,6 @@ const setUpDropEvent = async () => {
     })
   })
 };
-
 
 type DialogItemProps = {
   triggerChildren: ReactNode
@@ -304,11 +277,11 @@ type ProfileSelectorProps = {
   className?: string
 }
 const ProfileSelector = ({
-    currentProfile,
-    setCurrentProfile,
-    profileList,
-    setProfileList,
-    className
+  currentProfile,
+  setCurrentProfile,
+  profileList,
+  setProfileList,
+  className
 }: ProfileSelectorProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [hasOpenDialog, setHasOpenDialog] = useState(false);
@@ -363,7 +336,7 @@ const ProfileSelector = ({
               profileList.map((profile) => {
                 return (
                   <DropdownMenuItem key={profile.id}
-                  onClick={()=>selectProfile(profile.id)}
+                    onClick={() => selectProfile(profile.id)}
                   >
                     <span>{profile.name}</span>
                     <DropdownMenuShortcut>
@@ -426,19 +399,10 @@ const ProfileSelector = ({
 }
 
 export default function Home() {
-  const [currentProfile, setCurrentProfile] = useState(
-    {
-      id: createId(),
-      name: '0.G',
-      gamePath: '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source',
-      modDataDirPath: '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source',
-      gameModDirPath: '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets',
-      activatedMods: [],
-      branchName: '0.G',
-      theme: 'dark'
-    } as Profile
-  );
   const [profileList, setProfileList] = useAtom(profiles);
+
+  // TODO: Implement profile selection
+  const [currentProfile, setCurrentProfile] = useState(profileList[0]);
 
   const [{ data, isPending, isError }] = useAtom(modsQ);
   const [_, refresh] = useAtom(refreshMods);
@@ -452,7 +416,6 @@ export default function Home() {
 
   return (
     <main>
-      {/* <img src={`/app_icon.webp`} className="w-24 h-24"/> */}
       <div className="w-full overflow-hidden select-none bg-muted/40">
         <div className="flex w-full h-[100px] gap-8 p-4 items-center">
           <ProfileSelector
@@ -463,8 +426,9 @@ export default function Home() {
           />
           <div className="flex-grow">
             <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
-            <p className="text-sm text-muted-foreground">Profile: <Badge variant="outline">{currentProfile.name}</Badge></p>
-            <p className="text-[10px] text-muted-foreground">{currentProfile.gamePath}</p>
+            <span className="text-sm text-muted-foreground">Active Profile: </span><Badge variant="outline">{currentProfile.name}</Badge>
+            <p className="text-[10px] text-muted-foreground">Game Path: {currentProfile.gamePath}</p>
+            <p className="text-[10px] text-muted-foreground">TODO: config version</p>
 
           </div>
         </div>
@@ -491,10 +455,7 @@ export default function Home() {
             </TabsList>
             <TabsContent value="mods">
               <div className="bg-muted/40">
-                <ModsTable
-                  mods={data!}
-                // setMods={setMods}
-                />
+                <ModsTable mods={data!}/>
               </div>
             </TabsContent>
             <TabsContent value="setting">
@@ -581,5 +542,3 @@ export default function Home() {
     </main >
   );
 }
-
-
