@@ -129,3 +129,82 @@ pub fn git_checkout(
         }
     }
 }
+
+pub mod commands {
+    use super::*;
+
+    #[tauri::command]
+    /// Initialize a git repository at the target directory.
+    pub fn init(target_dir: String) -> Result<(), String> {
+        let target = std::path::Path::new(&target_dir);
+        if !target.exists() {
+            return Err(format!(
+                "Target directory does not exist: {}",
+                target.display()
+            ));
+        }
+        if git_open(target_dir.clone()).is_ok() {
+            return Err(format!("Repository already exists at {}", target_dir));
+        }
+        let repo = git_init(target_dir).unwrap();
+        println!("Repository initialized at {}", repo.path().display());
+        git_commit(&repo, "Initial commit").unwrap();
+        git_reset_hard(&repo).unwrap();
+        Ok(())
+    }
+
+    /// Commit changes in the target directory. (If message is not provided, a default message will be used.)
+    #[tauri::command]
+    pub fn commit_changes(target_dir: String, message: Option<String>) -> Result<(), String> {
+        let now = chrono::Local::now().to_string();
+        let message = message.unwrap_or_else(|| format!("Changes committed at {}", now));
+
+        let repo = match git_open(target_dir) {
+            Ok(repo) => repo,
+            Err(e) => return Err(e),
+        };
+
+        match git_commit(&repo, &message) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// Reset changes in the target directory.
+    #[tauri::command]
+    pub fn reset_changes(target_dir: String) -> Result<(), String> {
+        let repo = git_open(target_dir).unwrap();
+        git_reset_hard(&repo).unwrap();
+        Ok(())
+    }
+
+    /// List branches in the target directory.
+    #[tauri::command]
+    pub fn list_branches(target_dir: String) -> Result<Vec<String>, String> {
+        let repo = git_open(target_dir).unwrap();
+        match git_list_branches(&repo) {
+            Ok(branches) => Ok(branches),
+            Err(e) => Err(format!("Failed to list branches: {}", e)),
+        }
+    }
+
+    /// Checkout a branch in the target directory.
+    /// If the branch does not exist, it will:
+    ///     create one if `create_if_unexist` is true.
+    ///     return Err if`create_if_unexist` is false.
+    #[tauri::command]
+    pub fn checkout(
+        target_dir: String,
+        target_branch: String,
+        create_if_unexist: bool,
+    ) -> Result<(), String> {
+        let repo = git_open(target_dir.clone()).unwrap();
+        let _has_created = match git_checkout(&repo, &target_branch, create_if_unexist) {
+            Ok(has_created) => has_created,
+            Err(e) => return Err(e),
+        };
+        git_reset_hard(&repo).unwrap();
+
+        Ok(())
+    }
+}

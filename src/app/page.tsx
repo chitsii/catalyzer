@@ -60,10 +60,13 @@ import {
   modDataDirPath,
   gameModDirPath,
   refreshMods,
-  modsQ,
-  profiles,
-  Profile,
+  modsAtom,
+  settingAtom,
+  settingAtomTest,
+  // profiles,
+  // Profile,
   store as AtomStore,
+  refreshSettings,
 } from "@/components/atoms";
 import { ask } from '@tauri-apps/api/dialog';
 import { ScrollArea } from "@radix-ui/react-scroll-area";
@@ -71,7 +74,10 @@ import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { LocalPathForm } from "@/components/input-card";
 import { popUp } from "@/lib/utils";
 import { unzipModArchive } from "@/lib/api";
-import { toast } from "sonner";
+
+import { listProfiles, addProfile,
+setProfile, removeProfile
+ } from "@/lib/api";
 
 
 import {
@@ -98,11 +104,13 @@ const profileFormSchema = z.object({
 })
 
 type ProfileFormProps = {
-  profileList: Profile[]
-  setProfileList: (profileList: Profile[]) => void,
+  // profileList: Profile[]
+  // setProfileList: (profileList: Profile[]) => void,
 }
 const ProfileForm = (
-  { profileList, setProfileList }: ProfileFormProps
+  {
+    // profileList, setProfileList
+  }: ProfileFormProps
 ) => {
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
@@ -117,27 +125,17 @@ const ProfileForm = (
   const onSubmit = (values: z.infer<typeof profileFormSchema>) => {
     console.log('onSubmit');
     console.log(values);
-    const addProfile = (
+
+    const handleAddProfile = async (
       name: string,
       gamePath: string,
       rootPath: string,
       branchName: string,
     ) => {
-      const newProfile = new Profile(
-        name,
-        gamePath,
-        rootPath,
-        [],
-        branchName,
-      );
-      setProfileList([...profileList, newProfile]);
+      await addProfile(name, gamePath, rootPath, branchName);
       form.reset();
-      popUp('success', 'Profile added successfully');
-      console.log('Profile added successfully', JSON.stringify(newProfile));
-      console.log('length of profileList', profileList.length);
     };
-    console.log('length of profileList', profileList.length);
-    addProfile(values.name, values.gamePath, values.profilePath, values.branchName);
+    handleAddProfile(values.name, values.gamePath, values.profilePath, values.branchName);
   };
 
   return (
@@ -270,19 +268,18 @@ const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: Dialo
 }
 
 type ProfileSelectorProps = {
-  currentProfile: Profile,
-  setCurrentProfile: (profile: Profile) => void,
-  profileList: Profile[],
-  setProfileList: (profileList: Profile[]) => void,
+  // settings: any, // TODO: type
   className?: string
 }
 const ProfileSelector = ({
-  currentProfile,
-  setCurrentProfile,
-  profileList,
-  setProfileList,
+  // settings,
   className
 }: ProfileSelectorProps) => {
+
+  const [{data: settings}] = useAtom(settingAtomTest);
+  const [_, refresh] = useAtom(refreshSettings);
+  const profileList = settings?.profile ?? [];
+
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [hasOpenDialog, setHasOpenDialog] = useState(false);
   const dropdownTriggerRef = useRef<null | HTMLButtonElement>(null)
@@ -298,12 +295,9 @@ const ProfileSelector = ({
     }
   }
   const selectProfile = (id: string) => {
-    const profile = profileList.find((p) => p.id === id);
-    if (profile) {
-      setCurrentProfile(profile);
-    }
+    setProfile(id);
+    refresh();
   }
-
   return (
     <>
       <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
@@ -333,7 +327,7 @@ const ProfileSelector = ({
                 <span className="text-secondary">No Profiles</span>
               </DropdownMenuItem>
               :
-              profileList.map((profile) => {
+              profileList.map((profile: any) => {
                 return (
                   <DropdownMenuItem key={profile.id}
                     onClick={() => selectProfile(profile.id)}
@@ -368,8 +362,8 @@ const ProfileSelector = ({
                   Add a new profile
                 </DialogDescription>
                 <ProfileForm
-                  profileList={profileList}
-                  setProfileList={setProfileList}
+                  // profileList={profileList}
+                  // setProfileList={setProfileList}
                 />
               </DialogItem>
               <DropdownMenuSeparator />
@@ -398,13 +392,23 @@ const ProfileSelector = ({
   )
 }
 
+
 export default function Home() {
-  const [profileList, setProfileList] = useAtom(profiles);
+  // const [profileList, setProfileList] = useAtom(profiles);
+  // const [{ profileList, isPending, isError }] = useAtom(profiles);
+
+  const [{ data: settingData }] = useAtom(settingAtomTest);
+  const profileList = settingData?.profile ?? [];
+
+  const getActiveProfile = () => {
+    return profileList.find((p) => p.isActive);
+  }
+  const currentProfile = getActiveProfile();
 
   // TODO: Implement profile selection
-  const [currentProfile, setCurrentProfile] = useState(profileList[0]);
+  // const [currentProfile, setCurrentProfile] = useState(profileList[0]);
 
-  const [{ data, isPending, isError }] = useAtom(modsQ);
+  const [{ data: modData }] = useAtom(modsAtom);
   const [_, refresh] = useAtom(refreshMods);
 
   useEffect(() => {
@@ -417,19 +421,45 @@ export default function Home() {
   return (
     <main>
       <div className="w-full overflow-hidden select-none bg-muted/40">
+
+        <Button onClick={
+          async () => {
+            await listProfiles();
+        }}>
+          get profiles
+        </Button>
+
+        <Button onClick={
+          async () => {
+            await addProfile(
+              'test',
+              '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/gameDir/Cataclysm.app',
+              '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/profile',
+              'experimental'
+            );
+          }}>
+          create profile
+        </Button>
+
+
         <div className="flex w-full h-[100px] gap-8 p-4 items-center">
           <ProfileSelector
-            currentProfile={currentProfile}
-            setCurrentProfile={setCurrentProfile}
-            profileList={profileList}
-            setProfileList={setProfileList}
+            // currentProfile={currentProfile}
+            // setCurrentProfile={setCurrentProfile}
+            // profileList={profileList}
+            // setProfileList={setProfileList}
           />
           <div className="flex-grow">
             <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
-            <span className="text-sm text-muted-foreground">Active Profile: </span><Badge variant="outline">{currentProfile.name}</Badge>
-            <p className="text-[10px] text-muted-foreground">Game Path: {currentProfile.gamePath}</p>
-            <p className="text-[10px] text-muted-foreground">TODO: config version</p>
-
+            {
+              currentProfile && (
+                <>
+                <span className="text-sm text-muted-foreground">Active Profile: </span><Badge variant="outline">{currentProfile.name}</Badge>
+                <p className="text-[10px] text-muted-foreground">Game Path: {currentProfile.gamePath}</p>
+                <p className="text-[10px] text-muted-foreground">TODO: config version</p>
+                </>
+              )
+            }
           </div>
         </div>
         <div className="w-full">
@@ -455,7 +485,7 @@ export default function Home() {
             </TabsList>
             <TabsContent value="mods">
               <div className="bg-muted/40">
-                <ModsTable mods={data!}/>
+                <ModsTable mods={modData!}/>
               </div>
             </TabsContent>
             <TabsContent value="setting">

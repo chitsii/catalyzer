@@ -4,12 +4,17 @@ import { Atom, atom, PrimitiveAtom, useAtom } from 'jotai';
 import { createStore, Provider } from 'jotai';
 import { atomWithStorage } from 'jotai/utils'
 import { fetchMods } from "@/lib/api";
-import { atomWithQuery, atomWithSuspenseQuery } from 'jotai-tanstack-query';
+import { atomWithSuspenseQuery } from 'jotai-tanstack-query';
+import { atomWithQuery } from 'jotai-tanstack-query';
+import { atomWithMutation } from 'jotai-tanstack-query';
 import path from 'path';
+import { listProfiles, getSettings } from "@/lib/api";
+
 import { createId } from '@paralleldrive/cuid2';
 
 import { exists, BaseDirectory } from '@tauri-apps/api/fs';
 import { configDir } from '@tauri-apps/api/path';
+import { useCallback } from 'react';
 
 // atomWithStorage
 // ToDo: Remove this
@@ -38,46 +43,87 @@ class ProfilePath {
     this.gfx = path.join(root, 'gfx');
   }
 }
+// class Profile {
+//   id: string;
+//   name: string;
+//   gamePath: string;
+//   // modDataDirPath: string;
+//   profilePath: ProfilePath;
+//   activeMods: string[];
+//   branchName: string;
+//   theme?: string;
 
-class Profile {
+//   constructor(
+//     name: string,
+//     gamePath: string,
+//     profilePath: string,
+//     activeMods: string[],
+//     branchName: string,
+//     theme?: string,
+//   ) {
+//     this.id = createId();
+//     this.name = name;
+//     this.gamePath = gamePath;
+//     this.profilePath = new ProfilePath(profilePath);
+//     this.activeMods = activeMods;
+//     this.branchName = branchName;
+//     this.theme = theme;
+//   }
+// }
+
+type Profile = {
   id: string;
   name: string;
   gamePath: string;
-  // modDataDirPath: string;
   profilePath: ProfilePath;
   activeMods: string[];
   branchName: string;
   theme?: string;
-
-  constructor(
-    name: string,
-    gamePath: string,
-    profilePath: string,
-    activeMods: string[],
-    branchName: string,
-    theme?: string,
-  ) {
-    this.id = createId();
-    this.name = name;
-    this.gamePath = gamePath;
-    this.profilePath = new ProfilePath(profilePath);
-    this.activeMods = activeMods;
-    this.branchName = branchName;
-    this.theme = theme;
-  }
+  isActive?: boolean;
 }
 
-const defaultProfile = new Profile(
-  'default',
-  '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/gameDir/Cataclysm.app',
-  '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/profile',
-  [],
-  'experimental',
-  'dark',
+type Settings = {
+  language: string;
+  profile: Profile[];
+}
+
+const refreshSettingState = atom(0);
+const refreshSettings = atom((get) => get(refreshSettingState), (get, set) => {
+  set(refreshSettingState, (c) => c + 1);
+});
+const settingAtom = atomWithSuspenseQuery(
+  (get) => ({
+    queryKey: [get(refreshSettingState)],
+    queryFn: async () => {
+      const res = await getSettings();
+      return res;
+    }
+  })
 );
 
+const settingAtomTest = atomWithQuery(
+  (get) => ({
+    queryKey: [get(refreshSettingState)],
+    queryFn: async () => {
+      const res = await getSettings();
+      return res;
+    }
+  })
+);
+
+
+// const defaultProfile = new Profile(
+//   'default',
+//   '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/gameDir/Cataclysm.app',
+//   '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/profile',
+//   [],
+//   'experimental',
+//   'dark',
+// );
+
 // const profiles = atomWithStorage<Profile[]>('profiles', [defaultProfile]);
-const profiles = atom<Profile[]>([defaultProfile]);
+// const profiles = atom<Profile[]>([defaultProfile]);
+
 
 const modDataDirPath = atomWithStorage('modDataDir', defaultModDataDir);
 const gameModDirPath = atomWithStorage('gameModDir', defaultGameModDir);
@@ -87,8 +133,8 @@ const refreshState = atom(0);
 const refreshMods = atom((get) => get(refreshState), (get, set) => {
   set(refreshState, (c) => c + 1);
 });
-const modsQ = atomWithSuspenseQuery((get) => ({
-  queryKey: [get(refreshState), get(modDataDirPath), get(gameModDirPath)],
+const modsAtom = atomWithSuspenseQuery((get) => ({
+  queryKey: ['mods', get(refreshState), get(modDataDirPath), get(gameModDirPath)],
   queryFn: async (func) => {
     const res = await fetchMods(get(modDataDirPath), get(gameModDirPath));
     return res ? res : [];
@@ -97,11 +143,18 @@ const modsQ = atomWithSuspenseQuery((get) => ({
 
 
 export {
-  profiles,
-  modsQ,
+  // profiles,
+  settingAtom,
+  settingAtomTest,
+  refreshSettings,
+  modsAtom,
   refreshMods,
   modDataDirPath,
   gameModDirPath,
-  Profile,
+  // Profile,
   store
+}
+export type {
+  // Profile,
+  Settings
 }
