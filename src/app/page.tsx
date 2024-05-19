@@ -13,13 +13,6 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Input } from "@/components/ui/input";
 import { Menu, CheckIcon, MoreHorizontal, PencilIcon, Trash2Icon, XIcon } from 'lucide-react'
 import { Button } from "@/components/ui/button";
@@ -48,9 +41,9 @@ import {
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorThemeSelector } from "@/components/theme-seletor";
-import dynamic from "next/dynamic";
 
 import { ModsTable } from "@/components/datatable/mod-table/table-mods";
+import CSR from "@/components/csr/csr";
 // const ModsTable = dynamic(
 //   () => import("@/components/datatable/mod-table/table-mods").then((mod) => mod.ModsTable),
 //   { ssr: false }
@@ -63,9 +56,9 @@ import {
   modsAtom,
   settingAtom,
   // profiles,
-  // Profile,
+  Profile,
   store as AtomStore,
-  refreshSettings,
+  refreshSettingAtom,
 } from "@/components/atoms";
 import { ask } from '@tauri-apps/api/dialog';
 import { ScrollArea } from "@radix-ui/react-scroll-area";
@@ -204,38 +197,69 @@ const ProfileForm = (
 }
 
 const setUpDropEvent = async () => {
-  if (typeof window === 'undefined') return
-  import("@tauri-apps/api/window").then((mod) => {
-    mod.appWindow.onFileDropEvent(async (ev) => {
-      console.log(ev); // Debug
-      if (ev.payload.type !== 'drop') {
-        return;
-      }
-      const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
-      if (!does_install) {
-        return;
-      }
-      const [filepath] = ev.payload.paths;
-      const modDataDir = AtomStore.get(modDataDirPath)
+  const window = await import("@tauri-apps/api/window");
+  const { appWindow } = window;
+  appWindow.onFileDropEvent(async (ev) => {
+    console.log(ev); // Debug
+    if (ev.payload.type !== 'drop') {
+      return;
+    }
+    const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
+    if (!does_install) {
+      return;
+    }
+    const [filepath] = ev.payload.paths;
+    const modDataDir = AtomStore.get(modDataDirPath)
 
-      if (path.extname(filepath) === '.zip') {
-        unzipModArchive(
-          filepath,
-          path.join(modDataDir, path.basename(filepath))
-        );
-        return;
-      }
-      else if (path.parse(filepath).dir === modDataDir) {
-        popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
-      }
-      else {
-        popUp(
-          'failed',
-          `Handling ${path.extname(filepath) ? path.extname(filepath) : 'directory'} is not supported yet. Please drop .zip file.`
-        );
-      }
-    })
+    if (path.extname(filepath) === '.zip') {
+      unzipModArchive(
+        filepath,
+        path.join(modDataDir, path.basename(filepath))
+      );
+      return;
+    }
+    else if (path.parse(filepath).dir === modDataDir) {
+      popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
+    }
+    else {
+      popUp(
+        'failed',
+        `Handling ${path.extname(filepath) ? path.extname(filepath) : 'directory'} is not supported yet. Please drop .zip file.`
+      );
+    }
   })
+
+  // import("@tauri-apps/api/window").then((mod) => {
+  //   mod.appWindow.onFileDropEvent(async (ev) => {
+  //     console.log(ev); // Debug
+  //     if (ev.payload.type !== 'drop') {
+  //       return;
+  //     }
+  //     const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
+  //     if (!does_install) {
+  //       return;
+  //     }
+  //     const [filepath] = ev.payload.paths;
+  //     const modDataDir = AtomStore.get(modDataDirPath)
+
+  //     if (path.extname(filepath) === '.zip') {
+  //       unzipModArchive(
+  //         filepath,
+  //         path.join(modDataDir, path.basename(filepath))
+  //       );
+  //       return;
+  //     }
+  //     else if (path.parse(filepath).dir === modDataDir) {
+  //       popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
+  //     }
+  //     else {
+  //       popUp(
+  //         'failed',
+  //         `Handling ${path.extname(filepath) ? path.extname(filepath) : 'directory'} is not supported yet. Please drop .zip file.`
+  //       );
+  //     }
+  //   })
+  // })
 };
 
 type DialogItemProps = {
@@ -277,7 +301,7 @@ const ProfileSelector = ({
 }: ProfileSelectorProps) => {
 
   const [{ data: settings }] = useAtom(settingAtom);
-  const [_, refresh] = useAtom(refreshSettings);
+  const [_, refresh] = useAtom(refreshSettingAtom);
   const profileList = settings?.profile ?? [];
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -399,11 +423,14 @@ export default function Home() {
 
   const [{ data: settingData }] = useAtom(settingAtom);
   const profileList = settingData?.profile ?? [];
+  const [__, refreshSettings] = useAtom(refreshSettingAtom);
 
   const getActiveProfile = () => {
-    return profileList.find((p) => p.isActive);
+    console.log(profileList);
+    const res = profileList.find((p) => p.is_active);
+    return res;
   }
-  const currentProfile = getActiveProfile();
+  const currentProfile: Profile | undefined = getActiveProfile();
 
   // TODO: Implement profile selection
   // const [currentProfile, setCurrentProfile] = useState(profileList[0]);
@@ -441,13 +468,18 @@ export default function Home() {
           create profile
         </Button>
 
-        <Button onClick={
-          async () => {
-            await removeProfile('k6mtrlfltg736w26glep8vsh');
-          }}>
-          remove profile
+        <Button onClick={async ()=> {
+          const a = await getActiveProfile();
+          console.log(a);
+        }}>
+          get active profile
         </Button>
 
+        <Button onClick={async ()=> {
+          await refreshSettings();
+        }}>
+        refresh settings
+        </Button>
 
 
         <div className="flex w-full h-[100px] gap-8 p-4 items-center">
@@ -460,12 +492,16 @@ export default function Home() {
           <div className="flex-grow">
             <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
             {
-              currentProfile && (
+              currentProfile
+              ? (
                 <>
                   <span className="text-sm text-muted-foreground">Active Profile: </span><Badge variant="outline">{currentProfile.name}</Badge>
-                  <p className="text-[10px] text-muted-foreground">Game Path: {currentProfile.gamePath}</p>
+                  <p className="text-[10px] text-muted-foreground">Game Path: {currentProfile.game_path}</p>
                   <p className="text-[10px] text-muted-foreground">TODO: config version</p>
                 </>
+              )
+              : (
+                <span className="text-sm text-muted-foreground">No Active Profile</span>
               )
             }
           </div>
@@ -476,9 +512,7 @@ export default function Home() {
             className="w-full h-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="mods" className="text-lg"
-                onClick={() => {
-                  refresh();
-                }}
+                onClick={() => {refresh();}}
               >
                 Mod一覧
               </TabsTrigger>

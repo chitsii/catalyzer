@@ -42,9 +42,7 @@ import {
   list_branches,
   unzipModArchive
 } from "@/lib/api";
-import { open } from '@tauri-apps/api/dialog';
-import { downloadDir } from '@tauri-apps/api/path';
-import { ask } from '@tauri-apps/api/dialog';
+import { open, ask } from '@tauri-apps/api/dialog';
 
 declare module '@tanstack/react-table' {
   interface TableMeta<TData extends RowData> {
@@ -309,6 +307,9 @@ export const columns: ColumnDef<Mod>[] = [
                               <Label htmlFor="zip_file" className="text-xs">zipファイル</Label><br />
                               <Button type="button"
                                 onClick={async () => {
+                                  const pathModule = await import('@tauri-apps/api/path');
+                                  const { downloadDir } = pathModule;
+
                                   const selected = await open(
                                     {
                                       directory: false,

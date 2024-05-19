@@ -10,19 +10,35 @@ import { atomWithMutation } from 'jotai-tanstack-query';
 import path from 'path';
 import { listProfiles, getSettings } from "@/lib/api";
 
-import { createId } from '@paralleldrive/cuid2';
-
-import { exists, BaseDirectory } from '@tauri-apps/api/fs';
-import { configDir } from '@tauri-apps/api/path';
-import { useCallback } from 'react';
 
 // atomWithStorage
 // ToDo: Remove this
 const defaultModDataDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source";
 const defaultGameModDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets";
 
+// class ProfilePath {
+//   root: string;
+//   mods: string;
+//   config: string;
+//   font: string;
+//   save: string;
+//   sound: string;
+//   gfx: string;
+//   constructor(root: string) {
+//     if (!root) {
+//       throw new Error('root path is required');
+//     }
+//     this.root = root;
+//     this.mods = path.join(root, 'mods');
+//     this.config = path.join(root, 'config');
+//     this.font = path.join(root, 'font');
+//     this.save = path.join(root, 'save');
+//     this.sound = path.join(root, 'sound');
+//     this.gfx = path.join(root, 'gfx');
+//   }
+// }
 
-class ProfilePath {
+type ProfilePath = {
   root: string;
   mods: string;
   config: string;
@@ -30,56 +46,17 @@ class ProfilePath {
   save: string;
   sound: string;
   gfx: string;
-  constructor(root: string) {
-    if (!root) {
-      throw new Error('root path is required');
-    }
-    this.root = root;
-    this.mods = path.join(root, 'mods');
-    this.config = path.join(root, 'config');
-    this.font = path.join(root, 'font');
-    this.save = path.join(root, 'save');
-    this.sound = path.join(root, 'sound');
-    this.gfx = path.join(root, 'gfx');
-  }
 }
-// class Profile {
-//   id: string;
-//   name: string;
-//   gamePath: string;
-//   // modDataDirPath: string;
-//   profilePath: ProfilePath;
-//   activeMods: string[];
-//   branchName: string;
-//   theme?: string;
-
-//   constructor(
-//     name: string,
-//     gamePath: string,
-//     profilePath: string,
-//     activeMods: string[],
-//     branchName: string,
-//     theme?: string,
-//   ) {
-//     this.id = createId();
-//     this.name = name;
-//     this.gamePath = gamePath;
-//     this.profilePath = new ProfilePath(profilePath);
-//     this.activeMods = activeMods;
-//     this.branchName = branchName;
-//     this.theme = theme;
-//   }
-// }
 
 type Profile = {
   id: string;
   name: string;
-  gamePath: string;
-  profilePath: ProfilePath;
-  activeMods: string[];
-  branchName: string;
+  game_path: string;
+  profile_path: ProfilePath;
+  active_mods: string[];
+  branch_name: string;
   theme?: string;
-  isActive?: boolean;
+  is_active?: boolean;
 }
 
 type Settings = {
@@ -88,20 +65,10 @@ type Settings = {
 }
 
 const refreshSettingState = atom(0);
-const refreshSettings = atom((get) => get(refreshSettingState), (get, set) => {
+const refreshSettingAtom = atom((get) => get(refreshSettingState), (get, set) => {
   set(refreshSettingState, (c) => c + 1);
 });
 const settingAtom = atomWithSuspenseQuery(
-  (get) => ({
-    queryKey: [get(refreshSettingState)],
-    queryFn: async () => {
-      const res = await getSettings();
-      return res;
-    }
-  })
-);
-
-const settingAtomTest = atomWithQuery(
   (get) => ({
     queryKey: [get(refreshSettingState)],
     queryFn: async () => {
@@ -145,8 +112,7 @@ const modsAtom = atomWithSuspenseQuery((get) => ({
 export {
   // profiles,
   settingAtom,
-  settingAtomTest,
-  refreshSettings,
+  refreshSettingAtom,
   modsAtom,
   refreshMods,
   modDataDirPath,
@@ -155,6 +121,6 @@ export {
   store
 }
 export type {
-  // Profile,
+  Profile,
   Settings
 }
