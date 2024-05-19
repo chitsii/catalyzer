@@ -72,7 +72,6 @@ import {
   setProfile, removeProfile
 } from "@/lib/api";
 
-
 import {
   Form,
   FormControl,
@@ -228,38 +227,6 @@ const setUpDropEvent = async () => {
       );
     }
   })
-
-  // import("@tauri-apps/api/window").then((mod) => {
-  //   mod.appWindow.onFileDropEvent(async (ev) => {
-  //     console.log(ev); // Debug
-  //     if (ev.payload.type !== 'drop') {
-  //       return;
-  //     }
-  //     const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
-  //     if (!does_install) {
-  //       return;
-  //     }
-  //     const [filepath] = ev.payload.paths;
-  //     const modDataDir = AtomStore.get(modDataDirPath)
-
-  //     if (path.extname(filepath) === '.zip') {
-  //       unzipModArchive(
-  //         filepath,
-  //         path.join(modDataDir, path.basename(filepath))
-  //       );
-  //       return;
-  //     }
-  //     else if (path.parse(filepath).dir === modDataDir) {
-  //       popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
-  //     }
-  //     else {
-  //       popUp(
-  //         'failed',
-  //         `Handling ${path.extname(filepath) ? path.extname(filepath) : 'directory'} is not supported yet. Please drop .zip file.`
-  //       );
-  //     }
-  //   })
-  // })
 };
 
 type DialogItemProps = {
@@ -483,27 +450,20 @@ export default function Home() {
 
 
         <div className="flex w-full h-[100px] gap-8 p-4 items-center">
-          <ProfileSelector
-          // currentProfile={currentProfile}
-          // setCurrentProfile={setCurrentProfile}
-          // profileList={profileList}
-          // setProfileList={setProfileList}
-          />
+          <ProfileSelector/>
           <div className="flex-grow">
+            <CSR>
             <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
             {
-              currentProfile
-              ? (
+              currentProfile && (
                 <>
                   <span className="text-sm text-muted-foreground">Active Profile: </span><Badge variant="outline">{currentProfile.name}</Badge>
                   <p className="text-[10px] text-muted-foreground">Game Path: {currentProfile.game_path}</p>
                   <p className="text-[10px] text-muted-foreground">TODO: config version</p>
                 </>
               )
-              : (
-                <span className="text-sm text-muted-foreground">No Active Profile</span>
-              )
             }
+            </CSR>
           </div>
         </div>
         <div className="w-full">

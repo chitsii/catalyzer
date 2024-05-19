@@ -1,15 +1,10 @@
 "use client";
 
 import React from "react";
+import CSR from "@/components/csr/csr";
 import { gameModDirPath, refreshMods } from "@/components/atoms";
 import { useAtomValue, useAtom } from "jotai";
 import { Mod, columns } from "./columns";
-
-// import dynamic from "next/dynamic";
-// const columns = dynamic(
-//   () => import("./columns").then((mod) => mod.columns), { ssr: false }
-// );
-
 import { DataTable } from "./data-table";
 
 export type getModsProps = {
@@ -21,14 +16,16 @@ function ModsTable({ mods }: getModsProps) {
   const [_, refresh] = useAtom(refreshMods);
 
   return (
-    <div className="container mx-auto">
-      <DataTable
-        columns={columns}
-        data={mods}
-        fetchMods={refresh}
-        gameModDir={gameModDir}
-      />
-    </div>
+    <CSR>
+      <div className="container mx-auto">
+        <DataTable
+          columns={columns}
+          data={mods}
+          fetchMods={refresh}
+          gameModDir={gameModDir}
+        />
+      </div>
+    </CSR>
   )
 }
 

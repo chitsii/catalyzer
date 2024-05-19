@@ -28,9 +28,7 @@ export default function RootLayout(
           defaultTheme="dark"
           enableSystem
         >
-          {/* <CSR> */}
           {children}
-          {/* </CSR> */}
         </ThemeProvider>
         <Toaster />
       </body>

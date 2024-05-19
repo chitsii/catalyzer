@@ -2,7 +2,6 @@ import { Mod } from "@/components/datatable/mod-table/columns";
 import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
 import React from "react";
 import { popUp } from "@/lib/utils";
-// import { Profile } from "@/components/atoms";
 import { createId } from "@paralleldrive/cuid2";
 
 
