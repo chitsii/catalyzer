@@ -79,8 +79,7 @@ impl Settings {
             Self::default()
         } else {
             let mut settings = Self::default();
-            settings.read_file();
-            settings
+            settings.read_file()
         }
     }
     // pub fn set_language(&mut self, new_lang: String) {
@@ -139,9 +138,14 @@ impl Config for Settings {
         let config_root = get_config_root();
         let config_file = config_root.join(SETTINGS_FILENAME);
         let input = fs::read_to_string(config_file).unwrap();
-        let deserialized: Self = serde_json::from_str(&input).unwrap();
-        // let deserialized: Self = toml::from_str(&input).unwrap();
-        deserialized
+        let deserialized: Result<Settings, serde_yaml::Error> = serde_yaml::from_str(&input);
+        match deserialized {
+            Ok(settings) => settings,
+            Err(_) => {
+                println!("Error: Failed to read config file");
+                self.clone()
+            }
+        }
     }
 }
 
