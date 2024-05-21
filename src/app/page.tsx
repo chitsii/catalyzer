@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Menu, CheckIcon, MoreHorizontal, PencilIcon, Trash2Icon, XIcon } from 'lucide-react'
+import { Menu, CheckIcon, MoreHorizontal, PencilIcon, Trash2Icon, XIcon, Edit2Icon, Edit3, LucideNetwork, LucideExternalLink } from 'lucide-react'
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -44,10 +44,7 @@ import { ColorThemeSelector } from "@/components/theme-seletor";
 
 import { ModsTable } from "@/components/datatable/mod-table/table-mods";
 import CSR from "@/components/csr/csr";
-// const ModsTable = dynamic(
-//   () => import("@/components/datatable/mod-table/table-mods").then((mod) => mod.ModsTable),
-//   { ssr: false }
-// );
+
 import { useAtom } from 'jotai';
 import {
   modDataDirPath,
@@ -69,7 +66,8 @@ import { unzipModArchive } from "@/lib/api";
 
 import {
   listProfiles, addProfile,
-  setProfile, removeProfile
+  setProfile, removeProfile,
+  editProfile
 } from "@/lib/api";
 
 import {
@@ -81,37 +79,46 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { z } from "zod";
+import { boolean, z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 const profileFormSchema = z.object({
   name: z.string().min(1).max(45).trim(),
-  gamePath: z.string().min(1).max(255).trim(),
-  profilePath: z.string().min(1).max(255).trim(),
-  branchName: z.string().min(1).max(20).regex(
+  game_path: z.string().min(1).max(255).trim(),
+  profile_path: z.string().min(1).max(255).trim(),
+  branch_name: z.string().min(1).max(20).regex(
     /^[a-zA-Z0-9_\-]+$/,
     'Invalid branch name. Only alphanumeric characters, hyphen and underscore are allowed.'
   ).trim(),
 })
 
 type ProfileFormProps = {
-  // profileList: Profile[]
-  // setProfileList: (profileList: Profile[]) => void,
+  targetProfile?: Profile,
+  handleDialogItemOpenChange: (open: boolean) => void
 }
-const ProfileForm = (
-  {
-    // profileList, setProfileList
-  }: ProfileFormProps
-) => {
+const ProfileForm = ({
+  targetProfile,
+  handleDialogItemOpenChange
+ }: ProfileFormProps) => {
+
+  const [_, refresh] = useAtom(refreshSettingAtom);
+
+  const defaultValues = targetProfile ? {
+    name: targetProfile.name,
+    game_path: targetProfile.game_path,
+    profile_path: targetProfile.profile_path.root,
+    branch_name: targetProfile.branch_name,
+  } : {
+    name: '',
+    game_path: '',
+    profile_path: '',
+    branch_name: '',
+  };
+
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
-    defaultValues: {
-      name: '',
-      gamePath: '',
-      profilePath: '',
-      branchName: '',
-    }
+    defaultValues: defaultValues,
   });
 
   const onSubmit = (values: z.infer<typeof profileFormSchema>) => {
@@ -127,7 +134,32 @@ const ProfileForm = (
       await addProfile(name, gamePath, rootPath, branchName);
       form.reset();
     };
-    handleAddProfile(values.name, values.gamePath, values.profilePath, values.branchName);
+
+    const handleEditProfile = async (
+      id: string,
+      name: string,
+      gamePath: string,
+      rootPath: string,
+      branchName: string,
+    ) => {
+      await editProfile(id, name, gamePath, rootPath, branchName);
+      form.reset();
+    }
+
+    targetProfile
+      ? handleEditProfile(
+        targetProfile.id,
+        values.name,
+        values.game_path,
+        values.profile_path,
+        values.branch_name
+      )
+      : handleAddProfile(
+        values.name,
+        values.game_path,
+        values.profile_path,
+        values.branch_name
+      );
   };
 
   return (
@@ -148,7 +180,7 @@ const ProfileForm = (
           )}
         />
         <FormField
-          name="gamePath"
+          name="game_path"
           control={form.control}
           render={({ field }) => (
             <FormItem>
@@ -162,7 +194,7 @@ const ProfileForm = (
           )}
         />
         <FormField
-          name="profilePath"
+          name="profile_path"
           control={form.control}
           render={({ field }) => (
             <FormItem>
@@ -176,11 +208,15 @@ const ProfileForm = (
           )}
         />
         <FormField
-          name="branchName"
+          disabled={!!targetProfile}
+          name="branch_name"
           control={form.control}
           render={({ field }) => (
             <FormItem>
               <FormLabel className="text-sm">断面名称(branch name)</FormLabel>
+              <FormDescription className="text-xs">
+                ※プロファイルの断面名(Gitのブランチ名)として使用されるため、一度設定した断面名は変更できません。
+              </FormDescription>
               <FormControl>
                 <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
                   {...field} />
@@ -189,7 +225,20 @@ const ProfileForm = (
             </FormItem>
           )}
         />
-        <Button type="submit">Submit</Button>
+        <Button
+        type="submit"
+        onClick={async () => {
+          // check submit is valid
+          const isValid = await form.trigger();
+          if (!isValid) return;
+
+          // refetch settings
+          await refresh();
+          // close dialog
+          handleDialogItemOpenChange(false);
+        }}
+
+        >Submit</Button>
       </form>
     </Form>
   )
@@ -240,7 +289,6 @@ const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: Dialo
     <Dialog onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <DropdownMenuItem
-          className="p-3"
           onSelect={event => {
             event.preventDefault()
             onSelect && onSelect()
@@ -259,11 +307,9 @@ const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: Dialo
 }
 
 type ProfileSelectorProps = {
-  // settings: any, // TODO: type
   className?: string
 }
 const ProfileSelector = ({
-  // settings,
   className
 }: ProfileSelectorProps) => {
 
@@ -285,10 +331,11 @@ const ProfileSelector = ({
       setDropdownOpen(false)
     }
   }
-  const selectProfile = (id: string) => {
+  const selectProfile = async (id: string) => {
     setProfile(id);
-    refresh();
+    await refresh();
   }
+
   return (
     <>
       <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
@@ -309,7 +356,7 @@ const ProfileSelector = ({
             }
           }}
         >
-          <DropdownMenuLabel>プロファイル切替</DropdownMenuLabel>
+          <DropdownMenuLabel>プロファイルを選択</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {
             profileList.length === 0
@@ -322,8 +369,12 @@ const ProfileSelector = ({
                 return (
                   <DropdownMenuItem key={profile.id}
                     onClick={() => selectProfile(profile.id)}
+                    className="flex items-center px-3 text-sm text-primary text-sm grid grid-cols-2"
                   >
-                    <span>{profile.name}</span>
+                    { profile.is_active ? <CheckIcon className="mx-4 h-4 w-4 col-span-1" /> : <div className="col-span-1"></div> }
+                    <span className="col-span-1">
+                      {profile.name}
+                    </span>
                     <DropdownMenuShortcut>
                       <span>{profile.branchName}</span>
                     </DropdownMenuShortcut>
@@ -334,47 +385,121 @@ const ProfileSelector = ({
           <DropdownMenuSeparator />
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <span>...</span>
+              <span>編集</span>
             </DropdownMenuSubTrigger>
-            {/* <DropdownMenuPortal> */}
             <DropdownMenuSubContent>
               <DialogItem
                 triggerChildren={
                   <>
-                    <PencilIcon className="mr-4 h-4 w-4" />
-                    <span>Add Profile</span>
+                    <LucideExternalLink className="mr-4 h-4 w-4" />
+                    <span>新規追加</span>
                   </>
                 }
                 onSelect={handleDialogItemSelect}
                 onOpenChange={handleDialogItemOpenChange}
               >
-                <DialogTitle className="DialogTitle">Add</DialogTitle>
+                <DialogTitle className="DialogTitle">新規追加</DialogTitle>
                 <DialogDescription className="DialogDescription">
-                  Add a new profile
+                  プロファイルを新規追加します。
                 </DialogDescription>
                 <ProfileForm
-                // profileList={profileList}
-                // setProfileList={setProfileList}
+                  handleDialogItemOpenChange={handleDialogItemOpenChange}
                 />
               </DialogItem>
               <DropdownMenuSeparator />
-              <DialogItem
-                triggerChildren={
+              {/* プロファイル更新 ==== */}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
                   <>
-                    <PencilIcon className="mr-4 h-4 w-4" />
-                    <span>Remove Profile</span>
+                    <Edit3 className="mr-4 h-4 w-4" />
+                    <span>更新</span>
                   </>
-                }
-                onSelect={handleDialogItemSelect}
-                onOpenChange={handleDialogItemOpenChange}
-              >
-                <DialogTitle className="DialogTitle">Manage Profiles</DialogTitle>
-                <DialogDescription className="DialogDescription">
-                  Edit or remove profiles.
-                </DialogDescription>
-              </DialogItem>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {
+                    profileList.map((profile: any) => {
+                      // default profile is not editable.
+                      // if (profile.id === 'default')  return null;
+
+                      return (
+                        <DialogItem
+                        triggerChildren={
+                          <>
+                            <PencilIcon className="mr-4 h-4 w-4" />
+                            <span>{profile.name}</span>
+                          </>
+                        }
+                        onSelect={handleDialogItemSelect}
+                        onOpenChange={handleDialogItemOpenChange}
+                      >
+                        <DialogTitle className="DialogTitle">Add</DialogTitle>
+                        <DialogDescription className="DialogDescription">
+                          プロファイルを更新します。
+                        </DialogDescription>
+                        <ProfileForm
+                          handleDialogItemOpenChange={handleDialogItemOpenChange}
+                          targetProfile={profile}
+                        />
+                      </DialogItem>
+                      )
+                    })
+                  }
+                </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                {/* === */}
+
+              <DropdownMenuSeparator />
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <>
+                    <Trash2Icon className="mr-4 h-4 w-4 text-destructive" />
+                    <span className="text-destructive">削除</span>
+                  </>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                  {
+                    profileList.map((profile: any) => {
+                      // default profile is not removable.
+                      if (profile.id === 'default')  return null;
+
+                      return (
+                        <DialogItem
+                          key={profile.id}
+                          triggerChildren={
+                            <>
+                              <Trash2Icon className="mr-4 h-4 w-4" />
+                              <span>{profile.name}</span>
+                            </>
+                          }
+                          onSelect={() => {}}
+                          onOpenChange={handleDialogItemOpenChange}
+                        >
+                          <DialogTitle className="DialogTitle">プロファイル削除</DialogTitle>
+                          <DialogDescription>
+                            <p>本当に以下のプロファイルを削除しますか？</p>
+                            <div className="p-4">
+                              <ul className="list-disc">
+                                <li className="text-destructive text-xs">Name: {profile.name}</li>
+                                <li className="text-destructive text-xs">Game Path: {profile.game_path}</li>
+                                <li className="text-destructive text-xs">Active: {JSON.stringify(!!profile.is_active)}</li>
+                                <li className="text-destructive text-xs">(Unique ID: {profile.id})</li>
+                              </ul>
+                            </div>
+                          </DialogDescription>
+                          <Button onClick={async () => {
+                            removeProfile(profile.id);
+                            // refresh settings
+                            await refresh();
+                            // close dialog
+                            handleDialogItemOpenChange(false);
+                            }}>Remove</Button>
+                        </DialogItem>
+                      )
+                    })
+                  }
+                </DropdownMenuSubContent>
+                </DropdownMenuSub>
             </DropdownMenuSubContent>
-            {/* </DropdownMenuPortal> */}
           </DropdownMenuSub>
 
         </DropdownMenuContent>
@@ -435,34 +560,35 @@ export default function Home() {
           create profile
         </Button>
 
-        <Button onClick={async ()=> {
+        <Button onClick={async () => {
           const a = await getActiveProfile();
           console.log(a);
         }}>
           get active profile
         </Button>
 
-        <Button onClick={async ()=> {
+        <Button onClick={async () => {
           await refreshSettings();
         }}>
-        refresh settings
+          refresh settings
         </Button>
 
 
         <div className="flex w-full h-[100px] gap-8 p-4 items-center">
-          <ProfileSelector/>
+          <ProfileSelector />
           <div className="flex-grow">
             <CSR>
-            <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
-            {
-              currentProfile && (
-                <>
-                  <span className="text-sm text-muted-foreground">Active Profile: </span><Badge variant="outline">{currentProfile.name}</Badge>
-                  <p className="text-[10px] text-muted-foreground">Game Path: {currentProfile.game_path}</p>
-                  <p className="text-[10px] text-muted-foreground">TODO: config version</p>
-                </>
-              )
-            }
+              <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
+              {
+                currentProfile && (
+                  <>
+                    <span className="text-sm text-muted-foreground">Active Profile: </span><Badge variant="outline">{currentProfile.name}</Badge>
+                    <p className="text-[10px] text-muted-foreground">Game Path: {currentProfile.game_path}</p>
+                    <p className="text-[10px] text-muted-foreground">Profile Path: {currentProfile.profile_path.root}</p>
+                    <p className="text-[10px] text-muted-foreground">Branch Name: {currentProfile.branch_name}</p>
+                  </>
+                )
+              }
             </CSR>
           </div>
         </div>
@@ -472,7 +598,7 @@ export default function Home() {
             className="w-full h-full">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="mods" className="text-lg"
-                onClick={() => {refresh();}}
+                onClick={() => { refresh(); }}
               >
                 Mod一覧
               </TabsTrigger>

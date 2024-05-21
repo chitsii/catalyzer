@@ -75,6 +75,8 @@ export const fetchMods = async (
   gameModDir: string,
   setMods?: React.Dispatch<React.SetStateAction<Mod[]>>
 ) => {
+  if (typeof window === "undefined") return [];
+
   const res = await invoke<Mod[]>('scan_mods', { sourceDir: modDataDir, targetDir: gameModDir })
     .then((response) => {
       console.log(response);
@@ -86,10 +88,11 @@ export const fetchMods = async (
     .catch((err) => {
       console.error(err);
     });
-  return res;
+  return res ? res : [];
 };
 
 export const unzipModArchive = async (src: string, dest: string, existsOk: boolean = false) => {
+  if (typeof window === "undefined") return;
   invoke<string>('unzip_mod_archive', { src: src, dest: dest, existsOk: existsOk })
     .then((response) => {
       popUp('success', 'Mod archive extracted at ' + dest);
@@ -137,6 +140,8 @@ export const addProfile = async (
 import { Settings } from "@/components/atoms";
 
 export const getSettings = async () => {
+  if (typeof window === "undefined") return { language: 'ja', profile: [] };
+
   const res = await invoke<Settings>('get_settings')
     .then((response) => {
       console.log(response);
@@ -160,6 +165,31 @@ export const setProfile = async (profileId: string) => {
 
 export const removeProfile = async (profileId: string) => {
   invoke<string>('remove_profile', { profileId: profileId })
+    .then((response) => {
+      popUp('success', response);
+    })
+    .catch((err) => {
+      popUp('failed', err);
+    });
+}
+
+export const editProfile = async (
+  profileId: string,
+  name: string,
+  gamePath: string,
+  profilePath: string,
+  branchName: string,
+  theme?: string
+) => {
+  const args: InvokeArgs = {
+    profileId: profileId,
+    name: name,
+    gamePath: gamePath,
+    profilePath: profilePath,
+    branchName: branchName,
+    theme: theme,
+  };
+  invoke<string>('edit_profile', args)
     .then((response) => {
       popUp('success', response);
     })

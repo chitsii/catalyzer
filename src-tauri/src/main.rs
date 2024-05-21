@@ -45,6 +45,7 @@ fn main() {
             profile::commands::list_profiles,
             profile::commands::add_profile,
             profile::commands::remove_profile,
+            profile::commands::edit_profile,
             profile::commands::set_active_profile,
             profile::commands::get_active_profile,
         ])

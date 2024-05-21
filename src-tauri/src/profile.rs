@@ -237,4 +237,32 @@ pub mod commands {
         let settings = state.settings.lock().unwrap();
         Ok(settings.get_active_profile().clone())
     }
+
+    #[tauri::command]
+    pub async fn edit_profile(
+        state: tauri::State<'_, AppState>,
+        profile_id: String,
+        name: String,
+        game_path: String,
+        profile_path: String,
+        branch_name: String,
+        theme: Option<String>,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().unwrap();
+        let index = settings
+            .profile
+            .iter()
+            .position(|x| x.id == profile_id)
+            .unwrap();
+        settings.profile[index].name = name;
+        settings.profile[index].game_path = PathBuf::from(game_path);
+        settings.profile[index].profile_path = ProfilePath::new(PathBuf::from(profile_path));
+        settings.profile[index].branch_name = branch_name;
+
+        if let Some(theme) = theme {
+            settings.profile[index].theme = theme;
+        }
+        settings.write_file();
+        Ok(())
+    }
 }

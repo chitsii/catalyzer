@@ -5,38 +5,12 @@ import { createStore, Provider } from 'jotai';
 import { atomWithStorage } from 'jotai/utils'
 import { fetchMods } from "@/lib/api";
 import { atomWithSuspenseQuery } from 'jotai-tanstack-query';
-import { atomWithQuery } from 'jotai-tanstack-query';
-import { atomWithMutation } from 'jotai-tanstack-query';
-import path from 'path';
-import { listProfiles, getSettings } from "@/lib/api";
-
+import { getSettings } from "@/lib/api";
 
 // atomWithStorage
 // ToDo: Remove this
 const defaultModDataDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source";
 const defaultGameModDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets";
-
-// class ProfilePath {
-//   root: string;
-//   mods: string;
-//   config: string;
-//   font: string;
-//   save: string;
-//   sound: string;
-//   gfx: string;
-//   constructor(root: string) {
-//     if (!root) {
-//       throw new Error('root path is required');
-//     }
-//     this.root = root;
-//     this.mods = path.join(root, 'mods');
-//     this.config = path.join(root, 'config');
-//     this.font = path.join(root, 'font');
-//     this.save = path.join(root, 'save');
-//     this.sound = path.join(root, 'sound');
-//     this.gfx = path.join(root, 'gfx');
-//   }
-// }
 
 type ProfilePath = {
   root: string;
@@ -64,17 +38,28 @@ type Settings = {
   profile: Profile[];
 }
 
+declare global {
+  interface Window {
+    invoke: any;
+    popUp: any;
+    createId: any;
+  }
+}
+
+
 const refreshSettingState = atom(0);
 const refreshSettingAtom = atom((get) => get(refreshSettingState), (get, set) => {
   set(refreshSettingState, (c) => c + 1);
 });
 const settingAtom = atomWithSuspenseQuery(
   (get) => ({
+    enabled: typeof window !== "undefined",
     queryKey: [get(refreshSettingState)],
     queryFn: async () => {
-      const res = await getSettings();
-      return res;
-    }
+      return getSettings();
+    },
+    staleTime: Infinity,
+    refetchOnMount: "always",
   })
 );
 
@@ -101,11 +86,13 @@ const refreshMods = atom((get) => get(refreshState), (get, set) => {
   set(refreshState, (c) => c + 1);
 });
 const modsAtom = atomWithSuspenseQuery((get) => ({
+  enabled: typeof window === "undefined",
   queryKey: ['mods', get(refreshState), get(modDataDirPath), get(gameModDirPath)],
-  queryFn: async (func) => {
-    const res = await fetchMods(get(modDataDirPath), get(gameModDirPath));
-    return res ? res : [];
+  queryFn: async () => {
+    return fetchMods(get(modDataDirPath), get(gameModDirPath));
   },
+  staleTime: Infinity,
+  refetchOnMount: "always",
 }))
 
 
