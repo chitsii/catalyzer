@@ -40,14 +40,15 @@ impl ModInfo {
     }
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalVersion {
     pub branch_name: String,
     pub last_commit_date: String,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+// #[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Mod {
     pub info: ModInfo,

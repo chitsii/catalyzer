@@ -1,6 +1,6 @@
 use git2::{Branch, Repository, Signature};
 
-pub fn git_open(target_dir: String) -> Result<Repository, String> {
+pub fn open(target_dir: String) -> Result<Repository, String> {
     println!("Opening repository at {}", target_dir);
     match Repository::open(&target_dir) {
         Ok(repo) => Ok(repo),
@@ -8,18 +8,18 @@ pub fn git_open(target_dir: String) -> Result<Repository, String> {
     }
 }
 
-pub fn git_init(target_dir: String) -> Result<Repository, String> {
+fn init(target_dir: String) -> Result<Repository, String> {
     println!("Initializing repository at {}", target_dir);
     match Repository::init(&target_dir) {
         Ok(_) => {
-            let repo = git_open(target_dir).unwrap();
+            let repo = open(target_dir).unwrap();
             Ok(repo)
         }
         Err(e) => Err(format!("Failed to initialize repository: {}", e)),
     }
 }
 
-pub fn git_commit(repo: &Repository, message: &str) -> Result<(), String> {
+fn commit(repo: &Repository, message: &str) -> Result<(), String> {
     println!("Committing changes to repository");
 
     let sig = Signature::now("CataclysmLauncher", "Nothing").unwrap();
@@ -62,7 +62,7 @@ pub fn git_commit(repo: &Repository, message: &str) -> Result<(), String> {
     }
 }
 
-pub fn git_reset_hard(repo: &Repository) -> Result<(), String> {
+fn reset_hard(repo: &Repository) -> Result<(), String> {
     println!("Resetting repository to HEAD");
     let head = repo.head().unwrap();
     let head_commit = head.peel_to_commit().unwrap();
@@ -72,7 +72,7 @@ pub fn git_reset_hard(repo: &Repository) -> Result<(), String> {
     Ok(())
 }
 
-pub fn git_list_branches(repo: &Repository) -> Result<Vec<String>, String> {
+pub fn list_branches(repo: &Repository) -> Result<Vec<String>, String> {
     println!("Listing branches in repository");
     let mut branches = Vec::new();
     for branch in repo.branches(None).unwrap() {
@@ -100,11 +100,7 @@ fn git_create_branch<'a>(
     Ok(new_branch)
 }
 
-pub fn git_checkout(
-    repo: &Repository,
-    branch_name: &str,
-    create_if_unexist: bool,
-) -> Result<bool, String> {
+fn checkout(repo: &Repository, branch_name: &str, create_if_unexist: bool) -> Result<bool, String> {
     println!("Checking out branch {}", branch_name);
 
     match repo.find_branch(branch_name, git2::BranchType::Local) {
@@ -135,7 +131,7 @@ pub mod commands {
 
     #[tauri::command]
     /// Initialize a git repository at the target directory.
-    pub fn init(target_dir: String) -> Result<(), String> {
+    pub fn git_init(target_dir: String) -> Result<(), String> {
         let target = std::path::Path::new(&target_dir);
         if !target.exists() {
             return Err(format!(
@@ -143,28 +139,28 @@ pub mod commands {
                 target.display()
             ));
         }
-        if git_open(target_dir.clone()).is_ok() {
+        if open(target_dir.clone()).is_ok() {
             return Err(format!("Repository already exists at {}", target_dir));
         }
-        let repo = git_init(target_dir).unwrap();
+        let repo = init(target_dir).unwrap();
         println!("Repository initialized at {}", repo.path().display());
-        git_commit(&repo, "Initial commit").unwrap();
-        git_reset_hard(&repo).unwrap();
+        commit(&repo, "Initial commit").unwrap();
+        reset_hard(&repo).unwrap();
         Ok(())
     }
 
     /// Commit changes in the target directory. (If message is not provided, a default message will be used.)
     #[tauri::command]
-    pub fn commit_changes(target_dir: String, message: Option<String>) -> Result<(), String> {
+    pub fn git_commit_changes(target_dir: String, message: Option<String>) -> Result<(), String> {
         let now = chrono::Local::now().to_string();
         let message = message.unwrap_or_else(|| format!("Changes committed at {}", now));
 
-        let repo = match git_open(target_dir) {
+        let repo = match open(target_dir) {
             Ok(repo) => repo,
             Err(e) => return Err(e),
         };
 
-        match git_commit(&repo, &message) {
+        match commit(&repo, &message) {
             Ok(_) => Ok(()),
             Err(e) => Err(e),
         }
@@ -172,17 +168,17 @@ pub mod commands {
 
     /// Reset changes in the target directory.
     #[tauri::command]
-    pub fn reset_changes(target_dir: String) -> Result<(), String> {
-        let repo = git_open(target_dir).unwrap();
-        git_reset_hard(&repo).unwrap();
+    pub fn git_reset_changes(target_dir: String) -> Result<(), String> {
+        let repo = open(target_dir).unwrap();
+        reset_hard(&repo).unwrap();
         Ok(())
     }
 
     /// List branches in the target directory.
     #[tauri::command]
-    pub fn list_branches(target_dir: String) -> Result<Vec<String>, String> {
-        let repo = git_open(target_dir).unwrap();
-        match git_list_branches(&repo) {
+    pub fn git_list_branches(target_dir: String) -> Result<Vec<String>, String> {
+        let repo = open(target_dir).unwrap();
+        match list_branches(&repo) {
             Ok(branches) => Ok(branches),
             Err(e) => Err(format!("Failed to list branches: {}", e)),
         }
@@ -193,17 +189,17 @@ pub mod commands {
     ///     create one if `create_if_unexist` is true.
     ///     return Err if`create_if_unexist` is false.
     #[tauri::command]
-    pub fn checkout(
+    pub fn git_checkout(
         target_dir: String,
         target_branch: String,
         create_if_unexist: bool,
     ) -> Result<(), String> {
-        let repo = git_open(target_dir.clone()).unwrap();
-        let _has_created = match git_checkout(&repo, &target_branch, create_if_unexist) {
+        let repo = open(target_dir.clone()).unwrap();
+        let _has_created = match checkout(&repo, &target_branch, create_if_unexist) {
             Ok(has_created) => has_created,
             Err(e) => return Err(e),
         };
-        git_reset_hard(&repo).unwrap();
+        reset_hard(&repo).unwrap();
 
         Ok(())
     }

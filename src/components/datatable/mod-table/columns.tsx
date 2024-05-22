@@ -200,7 +200,7 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "localVersion",
-    header: "Version For",
+    header: "Version",
     size: 50,
     cell: ({ row, table }) => {
       const local_version: LocalVersion = row.getValue("localVersion");
@@ -239,7 +239,7 @@ export const columns: ColumnDef<Mod>[] = [
                         e.preventDefault();
                         const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
                         console.log(selectedBranchName);
-                        GitCmd("checkout_branch", {
+                        GitCmd("git_checkout", {
                           targetDir: row.original.localPath,
                           targetBranch: selectedBranchName,
                           createIfUnexist: false,
@@ -335,7 +335,7 @@ export const columns: ColumnDef<Mod>[] = [
                                 if (!yes) return;
 
                                 //作業中のデータ削除
-                                GitCmd("reset_changes", { targetDir: row.original.localPath });
+                                GitCmd("git_reset_changes", { targetDir: row.original.localPath });
 
                                 // ブランチを作成, 既存ファイルを削除
                                 const input_branch_name = newBranchName;
@@ -344,7 +344,7 @@ export const columns: ColumnDef<Mod>[] = [
                                   popUp("failed", "ブランチ名が入力されていません！");
                                   return
                                 }
-                                GitCmd("checkout_branch", {
+                                GitCmd("git_checkout", {
                                   targetDir: row.original.localPath,
                                   targetBranch: input_branch_name,
                                   createIfUnexist: true,
@@ -360,8 +360,8 @@ export const columns: ColumnDef<Mod>[] = [
                                 console.debug("unzip done");
 
                                 // commit changes
-                                GitCmd("commit_changes", { targetDir: row.original.localPath });
-                                GitCmd("reset_hard", { targetDir: row.original.localPath });
+                                GitCmd("git_commit_changes", { targetDir: row.original.localPath });
+                                GitCmd("git_reset_changes", { targetDir: row.original.localPath });
                               }
                             }>
                               OK
@@ -394,7 +394,7 @@ export const columns: ColumnDef<Mod>[] = [
                       onClick={() => {
                         console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
                         const localPath = row.original.localPath;
-                        GitCmd("init_local_repository", { targetDir: localPath });
+                        GitCmd("git_init", { targetDir: localPath });
 
                         // reload table
                         const f = table.options.meta?.fetchMods;

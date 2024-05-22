@@ -22,8 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { openLocalDir} from "@/lib/api";
 import { DataTablePagination } from "@/components/datatable/pagenation";
-
+import { openModData } from "@/lib/api";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -134,7 +136,16 @@ export function DataTable<TData, TValue>({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
+                  Modがありません。
+                  <Button
+                  variant="ghost"
+                  className="text-primary underline hover:mouse-pointer"
+                  onClick={()=>{
+                    openModData();
+                  }}
+                  >
+                    追加しますか？
+                  </Button>
                 </TableCell>
               </TableRow>
             )}

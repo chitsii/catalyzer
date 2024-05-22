@@ -13,9 +13,9 @@ mod model;
 use model::{LocalVersion, Mod, ModInfo};
 
 mod git;
-use git::git_open;
+use git::open;
 mod profile;
-use profile::AppState;
+use profile::{AppState, Profile};
 mod symlink;
 mod zip;
 
@@ -32,21 +32,22 @@ fn main() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             scan_mods,
-            show_in_folder,
-            symlink::commands::create,
-            symlink::commands::remove,
+            open_dir,
+            open_mod_data,
+            symlink::commands::create_symlink,
+            symlink::commands::remove_symlink,
             zip::commands::unzip_mod_archive,
-            git::commands::init,
-            git::commands::commit_changes,
-            git::commands::reset_changes,
-            git::commands::list_branches,
-            git::commands::checkout,
+            git::commands::git_init,
+            git::commands::git_commit_changes,
+            git::commands::git_reset_changes,
+            git::commands::git_list_branches,
+            git::commands::git_checkout,
             profile::commands::get_settings,
             profile::commands::list_profiles,
             profile::commands::add_profile,
             profile::commands::remove_profile,
             profile::commands::edit_profile,
-            profile::commands::set_active_profile,
+            profile::commands::set_profile_active,
             profile::commands::get_active_profile,
         ])
         .run(tauri::generate_context!())
@@ -54,12 +55,26 @@ fn main() {
 }
 
 #[tauri::command]
-fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String> {
-    let existing_symlinks = list_symlinks(target_dir.clone()).unwrap();
+fn scan_mods(state: tauri::State<'_, AppState>) -> Result<Vec<Mod>, String> {
+    let setting = state.get_settings();
+    println!("setting {:?}", setting);
+    let mod_data_dir = &setting.mod_data_path;
+    // let profile = &setting.get_active_profile();
+    let game_mod_dir = &setting.game_config_path.get_mod_dir();
+    // let game_mod_dir = profile.get_mod_dir();
+
+    if !mod_data_dir.exists() {
+        // create
+        // mod_data_dir.mkdir().unwrap();
+        return Err("Mod data directory does not exist".to_string());
+    } else if !game_mod_dir.exists() {
+        return Err("Game mod directory does not exist".to_string());
+    }
+
+    let existing_symlinks = list_symlinks(game_mod_dir.to_string_lossy().to_string()).unwrap();
 
     let mut mods = Vec::new();
-
-    let entries = std::fs::read_dir(source_dir.clone()).unwrap();
+    let entries = std::fs::read_dir(mod_data_dir.clone()).unwrap();
     for entry in entries {
         let entry = entry.unwrap();
         let path = entry.path();
@@ -80,7 +95,7 @@ fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String>
         };
 
         // 断面管理情報
-        let res = git_open(path.display().to_string());
+        let res = open(path.display().to_string());
         let local_version = match res {
             Ok(repo) => {
                 let head = repo.head().unwrap();
@@ -114,12 +129,14 @@ fn scan_mods(source_dir: String, target_dir: String) -> Result<Vec<Mod>, String>
         };
         mods.push(m);
     }
-    // println!("Mods: {:?}", mods);
+
+    // update state
+    state.update_current_mod_status(mods.clone());
     Ok(mods)
 }
 
 #[tauri::command]
-fn show_in_folder(target_dir: String) {
+fn open_dir(target_dir: String) {
     #[cfg(target_os = "windows")]
     {
         Command::new("explorer")
@@ -130,7 +147,8 @@ fn show_in_folder(target_dir: String) {
     #[cfg(target_os = "macos")]
     {
         Command::new("open")
-            .args(["-R", &target_dir])
+            // .args(["-R", &target_dir])
+            .args([&target_dir])
             .spawn()
             .unwrap();
     }
@@ -164,4 +182,10 @@ fn show_in_folder(target_dir: String) {
             }
         }
     }
+}
+
+#[tauri::command]
+fn open_mod_data(state: tauri::State<'_, AppState>) {
+    let setting = state.get_settings();
+    open_dir(setting.mod_data_path.to_string_lossy().to_string());
 }

@@ -7,17 +7,18 @@ import { useEffect, useState } from 'react';
 import { cn } from "@/lib/utils";
 
 
-const Icon = ({type}: { type: string | undefined }) => {
-  if (type === 'light') {
-    return <Sun className="size-6" />;
-  } else if (type === 'system') {
-    return <Eclipse className="size-6" />;
-  } else if (type === 'dark' ) {
-    return <Moon className="size-6" />;
-  } else if (type === 'yukari') {
-    return <Gem className="size-6" />;
-  } else {
-    return <Gem className="size-6" />;
+const ColorThemeIcon = ({type}: { type: string | undefined }) => {
+  switch (type) {
+    case 'light':
+      return <Sun className="size-6" />;
+    case 'system':
+      return <Eclipse className="size-6" />;
+    case 'dark':
+      return <Moon className="size-6" />;
+    case 'yukari':
+      return <Gem className="size-6" />;
+    default:
+      return <Gem className="size-6" />;
   }
 };
 
@@ -25,7 +26,6 @@ const ColorThemeSelector = () => {
 
   const [mounted, setMounted] = useState(false);
   const { theme, resolvedTheme, themes, setTheme } = useTheme();
-  // console.log(themes); // Debug
 
   useEffect(() => {
     setMounted(true);
@@ -44,10 +44,11 @@ const ColorThemeSelector = () => {
       <DropdownMenu.Trigger asChild>
         <button
           aria-label="カラーテーマを選択する"
-          className="rounded border p-2 text-foreground"
+          className="rounded border p-2 text-foreground flex items-center gap-2 hover:bg-secondary capitalize"
           type="button"
         >
-          <Icon type={theme}/>
+          <ColorThemeIcon type={theme}/>
+          <p className="text-sm">{theme}</p>
         </button>
       </DropdownMenu.Trigger>
 
@@ -67,7 +68,7 @@ const ColorThemeSelector = () => {
                 key={item}
                 onClick={() => setTheme(item)}
               >
-                <Icon type={item}/>
+                <ColorThemeIcon type={item}/>
                 <span className="capitalize">{item}</span>
                 {item === theme && <span className="sr-only">（選択中）</span>}
               </DropdownMenu.Item>

@@ -1,6 +1,6 @@
 pub mod commands {
     #[tauri::command]
-    pub fn create(source_dir: String, target_dir: String) -> Result<(), String> {
+    pub fn create_symlink(source_dir: String, target_dir: String) -> Result<(), String> {
         println!("Creating symlink from {} to {}", source_dir, target_dir);
 
         let source = std::path::Path::new(&source_dir);
@@ -20,7 +20,7 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub fn remove(target_file: String) -> Result<(), String> {
+    pub fn remove_symlink(target_file: String) -> Result<(), String> {
         println!("Unlinking symlink at {}", target_file);
         let target = std::path::Path::new(&target_file);
         if !target.exists() {

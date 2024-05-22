@@ -11,7 +11,15 @@ type GitArgs = {
   targetBranch?: string;
   createIfUnexist?: boolean;
 };
-export function GitCmd(command: string, args: GitArgs) {
+
+type Command =
+"git_init" |
+"git_commit_changes" |
+"git_reset_changes" |
+"git_list_branches" |
+"git_checkout";
+
+export function GitCmd(command: Command, args: GitArgs) {
   invoke<string>(command, args)
     .then((response) => {
       console.debug(response);
@@ -24,7 +32,11 @@ export function GitCmd(command: string, args: GitArgs) {
 };
 
 export function openLocalDir(targetDir: string) {
-  invoke<string>("show_in_folder", { targetDir: targetDir });
+  invoke<string>("open_dir", { targetDir: targetDir });
+};
+
+export function openModData() {
+  invoke<string>("open_mod_data");
 };
 
 export function removeSymlink(target: string) {
@@ -70,25 +82,18 @@ export function createSymlink(source: string, target: string) {
     });
 };
 
-export const fetchMods = async (
-  modDataDir: string,
-  gameModDir: string,
-  setMods?: React.Dispatch<React.SetStateAction<Mod[]>>
-) => {
-  if (typeof window === "undefined") return [];
-
-  const res = await invoke<Mod[]>('scan_mods', { sourceDir: modDataDir, targetDir: gameModDir })
+export const fetchMods = async () => {
+  // if (typeof window === "undefined") return [];
+  const res = await invoke<Mod[]>('scan_mods')
     .then((response) => {
-      console.log(response);
-      if (setMods) {
-        setMods(response);
-      }
+      console.log('fetchMods', response);
       return response;
     })
     .catch((err) => {
       console.error(err);
+      throw new Error(err);
     });
-  return res ? res : [];
+  return res;
 };
 
 export const unzipModArchive = async (src: string, dest: string, existsOk: boolean = false) => {
@@ -116,17 +121,11 @@ export const listProfiles = async () => {
 export const addProfile = async (
   name: string,
   gamePath: string,
-  profilePath: string,
-  branchName: string,
-  theme?: string
 ) => {
   const args: InvokeArgs = {
     id: createId(),
     name: name,
     gamePath: gamePath,
-    profilePath: profilePath,
-    branchName: branchName,
-    theme: theme,
   };
   invoke<string>('add_profile', args)
     .then((response) => {
@@ -140,21 +139,22 @@ export const addProfile = async (
 import { Settings } from "@/components/atoms";
 
 export const getSettings = async () => {
-  if (typeof window === "undefined") return { language: 'ja', profile: [] };
-
+  // if (typeof window === "undefined") return { language: 'ja', profile: [] };
   const res = await invoke<Settings>('get_settings')
     .then((response) => {
-      console.log(response);
+      console.log('getSetting', response);
       return response;
     })
     .catch((err) => {
       console.error(err);
+      throw new Error(err);
     });
-  return res ? res : { language: 'en', profile: [] };
+    return res
+  // return res ? res : { language: 'ja', mod_data_path: '', game_config_path: '', profiles: [] };
 }
 
-export const setProfile = async (profileId: string) => {
-  invoke<string>('set_active_profile', { profileId: profileId })
+export const setProfileActive = async (profileId: string) => {
+  invoke<string>('set_profile_active', { profileId: profileId })
     .then((response) => {
       popUp('success', response);
     })
@@ -177,17 +177,11 @@ export const editProfile = async (
   profileId: string,
   name: string,
   gamePath: string,
-  profilePath: string,
-  branchName: string,
-  theme?: string
 ) => {
   const args: InvokeArgs = {
     profileId: profileId,
     name: name,
     gamePath: gamePath,
-    profilePath: profilePath,
-    branchName: branchName,
-    theme: theme,
   };
   invoke<string>('edit_profile', args)
     .then((response) => {

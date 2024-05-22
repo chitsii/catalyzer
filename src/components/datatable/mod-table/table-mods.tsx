@@ -2,8 +2,9 @@
 
 import React from "react";
 import CSR from "@/components/csr/csr";
-import { gameModDirPath, refreshMods } from "@/components/atoms";
+import { activeProfileAtom, settingAtom, refreshModsAtom } from "@/components/atoms";
 import { useAtomValue, useAtom } from "jotai";
+import { selectAtom } from "jotai/utils";
 import { Mod, columns } from "./columns";
 import { DataTable } from "./data-table";
 
@@ -12,8 +13,8 @@ export type getModsProps = {
 }
 
 function ModsTable({ mods }: getModsProps) {
-  const gameModDir = useAtomValue(gameModDirPath);
-  const [_, refresh] = useAtom(refreshMods);
+  const [{ data: settings }] = useAtom(settingAtom);
+  const [_, refresh] = useAtom(refreshModsAtom);
 
   return (
     <CSR>
@@ -22,7 +23,7 @@ function ModsTable({ mods }: getModsProps) {
           columns={columns}
           data={mods}
           fetchMods={refresh}
-          gameModDir={gameModDir}
+          gameModDir={settings.game_config_path.mods}
         />
       </div>
     </CSR>

@@ -53,7 +53,7 @@
     /* hsl(342deg 19% 20%) */
     /* 51 33% 80%; */
     .yukari {
-      --background: 240,11%,14%;
+      --background: 240, 11%, 14%;
       --foreground: 51 33% 80%;
       --card: 24 9.8% 10%;
       --card-foreground: 51 33% 80%;
@@ -61,10 +61,10 @@
       --popover-foreground: 0 0% 95%;
       --primary: 327deg 53% 63%;
       --primary-foreground: 342 20% 10%;
-      --secondary: 288,17%,18%;
+      --secondary: 288, 17%, 18%;
       --secondary-foreground: 342 19% 20%;
-      --muted: 341,20%,20%;
-      --muted-foreground: 341,28%,75%;
+      --muted: 341, 20%, 20%;
+      --muted-foreground: 341, 28%, 75%;
       --accent: 9 13% 19%;
       --accent-foreground: 29 95% 60%;
       --destructive: 0 84.2% 60.2%;

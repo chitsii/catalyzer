@@ -47,9 +47,7 @@ import CSR from "@/components/csr/csr";
 
 import { useAtom } from 'jotai';
 import {
-  modDataDirPath,
-  gameModDirPath,
-  refreshMods,
+  refreshModsAtom,
   modsAtom,
   settingAtom,
   // profiles,
@@ -63,10 +61,11 @@ import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { LocalPathForm } from "@/components/input-card";
 import { popUp } from "@/lib/utils";
 import { unzipModArchive } from "@/lib/api";
+import { openLocalDir } from "@/lib/api";
 
 import {
   listProfiles, addProfile,
-  setProfile, removeProfile,
+  setProfileActive, removeProfile,
   editProfile
 } from "@/lib/api";
 
@@ -85,12 +84,12 @@ import { useForm } from "react-hook-form";
 
 const profileFormSchema = z.object({
   name: z.string().min(1).max(45).trim(),
-  game_path: z.string().min(1).max(255).trim(),
-  profile_path: z.string().min(1).max(255).trim(),
-  branch_name: z.string().min(1).max(20).regex(
-    /^[a-zA-Z0-9_\-]+$/,
-    'Invalid branch name. Only alphanumeric characters, hyphen and underscore are allowed.'
-  ).trim(),
+  game_path: z.string().max(255).trim(),
+  // profile_path: z.string().min(1).max(255).trim(),
+  // branch_name: z.string().min(1).max(20).regex(
+  //   /^[a-zA-Z0-9_\-]+$/,
+  //   'Invalid branch name. Only alphanumeric characters, hyphen and underscore are allowed.'
+  // ).trim(),
 })
 
 type ProfileFormProps = {
@@ -100,20 +99,16 @@ type ProfileFormProps = {
 const ProfileForm = ({
   targetProfile,
   handleDialogItemOpenChange
- }: ProfileFormProps) => {
+}: ProfileFormProps) => {
 
   const [_, refresh] = useAtom(refreshSettingAtom);
 
   const defaultValues = targetProfile ? {
     name: targetProfile.name,
-    game_path: targetProfile.game_path,
-    profile_path: targetProfile.profile_path.root,
-    branch_name: targetProfile.branch_name,
+    game_path: targetProfile.game_path || '',
   } : {
     name: '',
     game_path: '',
-    profile_path: '',
-    branch_name: '',
   };
 
   const form = useForm<z.infer<typeof profileFormSchema>>({
@@ -121,17 +116,15 @@ const ProfileForm = ({
     defaultValues: defaultValues,
   });
 
-  const onSubmit = (values: z.infer<typeof profileFormSchema>) => {
+  const onSubmit = async (values: z.infer<typeof profileFormSchema>) => {
     console.log('onSubmit');
     console.log(values);
 
     const handleAddProfile = async (
       name: string,
       gamePath: string,
-      rootPath: string,
-      branchName: string,
     ) => {
-      await addProfile(name, gamePath, rootPath, branchName);
+      await addProfile(name, gamePath);
       form.reset();
     };
 
@@ -139,10 +132,8 @@ const ProfileForm = ({
       id: string,
       name: string,
       gamePath: string,
-      rootPath: string,
-      branchName: string,
     ) => {
-      await editProfile(id, name, gamePath, rootPath, branchName);
+      await editProfile(id, name, gamePath);
       form.reset();
     }
 
@@ -151,15 +142,14 @@ const ProfileForm = ({
         targetProfile.id,
         values.name,
         values.game_path,
-        values.profile_path,
-        values.branch_name
       )
       : handleAddProfile(
         values.name,
         values.game_path,
-        values.profile_path,
-        values.branch_name
       );
+
+    await refresh(); // refresh settings
+    handleDialogItemOpenChange(false); // close dialog
   };
 
   return (
@@ -184,7 +174,7 @@ const ProfileForm = ({
           control={form.control}
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-sm">CDDAフォルダパス</FormLabel>
+              <FormLabel className="text-sm">CDDAパス</FormLabel>
               <FormControl>
                 <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
                   {...field} />
@@ -193,7 +183,7 @@ const ProfileForm = ({
             </FormItem>
           )}
         />
-        <FormField
+        {/* <FormField
           name="profile_path"
           control={form.control}
           render={({ field }) => (
@@ -224,19 +214,14 @@ const ProfileForm = ({
               <FormMessage />
             </FormItem>
           )}
-        />
+        /> */}
         <Button
-        type="submit"
-        onClick={async () => {
-          // check submit is valid
-          const isValid = await form.trigger();
-          if (!isValid) return;
-
-          // refetch settings
-          await refresh();
-          // close dialog
-          handleDialogItemOpenChange(false);
-        }}
+          type="submit"
+          onClick={async () => {
+            // check submit is valid
+            const isValid = await form.trigger();
+            if (!isValid) return;
+          }}
 
         >Submit</Button>
       </form>
@@ -257,7 +242,13 @@ const setUpDropEvent = async () => {
       return;
     }
     const [filepath] = ev.payload.paths;
-    const modDataDir = AtomStore.get(modDataDirPath)
+
+    const [{ data: settings }] = useAtom(settingAtom);
+    const modDataDir = settings.mod_data_path;
+    if (!modDataDir) {
+      popUp('failed', 'Somehow Mod Directory is not set.');
+      return;
+    }
 
     if (path.extname(filepath) === '.zip') {
       unzipModArchive(
@@ -315,7 +306,7 @@ const ProfileSelector = ({
 
   const [{ data: settings }] = useAtom(settingAtom);
   const [_, refresh] = useAtom(refreshSettingAtom);
-  const profileList = settings?.profile ?? [];
+  const profileList = settings.profiles;
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [hasOpenDialog, setHasOpenDialog] = useState(false);
@@ -332,7 +323,7 @@ const ProfileSelector = ({
     }
   }
   const selectProfile = async (id: string) => {
-    setProfile(id);
+    await setProfileActive(id);
     await refresh();
   }
 
@@ -371,7 +362,7 @@ const ProfileSelector = ({
                     onClick={() => selectProfile(profile.id)}
                     className="flex items-center px-3 text-sm text-primary text-sm grid grid-cols-2"
                   >
-                    { profile.is_active ? <CheckIcon className="mx-4 h-4 w-4 col-span-1" /> : <div className="col-span-1"></div> }
+                    {profile.is_active ? <CheckIcon className="mx-4 h-4 w-4 col-span-1" /> : <div className="col-span-1"></div>}
                     <span className="col-span-1">
                       {profile.name}
                     </span>
@@ -417,36 +408,43 @@ const ProfileSelector = ({
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   {
-                    profileList.map((profile: any) => {
-                      // default profile is not editable.
-                      // if (profile.id === 'default')  return null;
+                    profileList.filter((profile) => profile.id !== 'default').length === 0
+                      ?
+                      <DropdownMenuItem>
+                        <span className="text-muted-foreground">項目無し</span>
+                      </DropdownMenuItem>
+                      :
+                      profileList.map((profile) => {
+                        // default profile is not editable.
+                        if (profile.id === 'default') return null;
 
-                      return (
-                        <DialogItem
-                        triggerChildren={
-                          <>
-                            <PencilIcon className="mr-4 h-4 w-4" />
-                            <span>{profile.name}</span>
-                          </>
-                        }
-                        onSelect={handleDialogItemSelect}
-                        onOpenChange={handleDialogItemOpenChange}
-                      >
-                        <DialogTitle className="DialogTitle">Add</DialogTitle>
-                        <DialogDescription className="DialogDescription">
-                          プロファイルを更新します。
-                        </DialogDescription>
-                        <ProfileForm
-                          handleDialogItemOpenChange={handleDialogItemOpenChange}
-                          targetProfile={profile}
-                        />
-                      </DialogItem>
-                      )
-                    })
+                        return (
+                          <DialogItem
+                            key={profile.id}
+                            triggerChildren={
+                              <>
+                                <PencilIcon className="mr-4 h-4 w-4" />
+                                <span>{profile.name}</span>
+                              </>
+                            }
+                            onSelect={handleDialogItemSelect}
+                            onOpenChange={handleDialogItemOpenChange}
+                          >
+                            <DialogTitle className="DialogTitle">Add</DialogTitle>
+                            <DialogDescription className="DialogDescription">
+                              プロファイルを更新します。
+                            </DialogDescription>
+                            <ProfileForm
+                              handleDialogItemOpenChange={handleDialogItemOpenChange}
+                              targetProfile={profile}
+                            />
+                          </DialogItem>
+                        )
+                      })
                   }
                 </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                {/* === */}
+              </DropdownMenuSub>
+              {/* === */}
 
               <DropdownMenuSeparator />
               <DropdownMenuSub>
@@ -458,47 +456,53 @@ const ProfileSelector = ({
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   {
-                    profileList.map((profile: any) => {
-                      // default profile is not removable.
-                      if (profile.id === 'default')  return null;
+                    profileList.filter((profile) => profile.id !== 'default').length === 0
+                      ?
+                      <DropdownMenuItem>
+                        <span className="text-muted-foreground">項目無し</span>
+                      </DropdownMenuItem>
+                      :
+                      profileList.map((profile: any) => {
+                        // default profile is not removable.
+                        if (profile.id === 'default') return null;
 
-                      return (
-                        <DialogItem
-                          key={profile.id}
-                          triggerChildren={
-                            <>
-                              <Trash2Icon className="mr-4 h-4 w-4" />
-                              <span>{profile.name}</span>
-                            </>
-                          }
-                          onSelect={() => {}}
-                          onOpenChange={handleDialogItemOpenChange}
-                        >
-                          <DialogTitle className="DialogTitle">プロファイル削除</DialogTitle>
-                          <DialogDescription>
-                            <p>本当に以下のプロファイルを削除しますか？</p>
-                            <div className="p-4">
-                              <ul className="list-disc">
-                                <li className="text-destructive text-xs">Name: {profile.name}</li>
-                                <li className="text-destructive text-xs">Game Path: {profile.game_path}</li>
-                                <li className="text-destructive text-xs">Active: {JSON.stringify(!!profile.is_active)}</li>
-                                <li className="text-destructive text-xs">(Unique ID: {profile.id})</li>
-                              </ul>
-                            </div>
-                          </DialogDescription>
-                          <Button onClick={async () => {
-                            removeProfile(profile.id);
-                            // refresh settings
-                            await refresh();
-                            // close dialog
-                            handleDialogItemOpenChange(false);
+                        return (
+                          <DialogItem
+                            key={profile.id}
+                            triggerChildren={
+                              <>
+                                <Trash2Icon className="mr-4 h-4 w-4" />
+                                <span>{profile.name}</span>
+                              </>
+                            }
+                            onSelect={() => { }}
+                            onOpenChange={handleDialogItemOpenChange}
+                          >
+                            <DialogTitle className="DialogTitle">プロファイル削除</DialogTitle>
+                            <DialogDescription>
+                              <p>本当に以下のプロファイルを削除しますか？</p>
+                              <div className="p-4">
+                                <ul className="list-disc">
+                                  <li className="text-destructive text-xs">Name: {profile.name}</li>
+                                  <li className="text-destructive text-xs">Game Path: {profile.game_path}</li>
+                                  <li className="text-destructive text-xs">Active: {JSON.stringify(!!profile.is_active)}</li>
+                                  <li className="text-destructive text-xs">(Unique ID: {profile.id})</li>
+                                </ul>
+                              </div>
+                            </DialogDescription>
+                            <Button onClick={async () => {
+                              removeProfile(profile.id);
+                              // refresh settings
+                              await refresh();
+                              // close dialog
+                              handleDialogItemOpenChange(false);
                             }}>Remove</Button>
-                        </DialogItem>
-                      )
-                    })
+                          </DialogItem>
+                        )
+                      })
                   }
                 </DropdownMenuSubContent>
-                </DropdownMenuSub>
+              </DropdownMenuSub>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
 
@@ -514,11 +518,12 @@ export default function Home() {
   // const [{ profileList, isPending, isError }] = useAtom(profiles);
 
   const [{ data: settingData }] = useAtom(settingAtom);
-  const profileList = settingData?.profile ?? [];
+  const profileList = settingData.profiles;
+  // const profileList = settingData?.profile ?? [];
   const [__, refreshSettings] = useAtom(refreshSettingAtom);
 
   const getActiveProfile = () => {
-    console.log(profileList);
+    // console.log(profileList);
     const res = profileList.find((p) => p.is_active);
     return res;
   }
@@ -528,7 +533,7 @@ export default function Home() {
   // const [currentProfile, setCurrentProfile] = useState(profileList[0]);
 
   const [{ data, isPending, isError }] = useAtom(modsAtom);
-  const [_, refresh] = useAtom(refreshMods);
+  const [_, refresh] = useAtom(refreshModsAtom);
 
   useEffect(() => {
     const setUpDropEventHander = async () => {
@@ -540,40 +545,6 @@ export default function Home() {
   return (
     <main>
       <div className="w-full overflow-hidden select-none bg-muted/40">
-
-        <Button onClick={
-          async () => {
-            await listProfiles();
-          }}>
-          get profiles
-        </Button>
-
-        <Button onClick={
-          async () => {
-            await addProfile(
-              'test',
-              '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/gameDir/Cataclysm.app',
-              '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/profile',
-              'experimental'
-            );
-          }}>
-          create profile
-        </Button>
-
-        <Button onClick={async () => {
-          const a = await getActiveProfile();
-          console.log(a);
-        }}>
-          get active profile
-        </Button>
-
-        <Button onClick={async () => {
-          await refreshSettings();
-        }}>
-          refresh settings
-        </Button>
-
-
         <div className="flex w-full h-[100px] gap-8 p-4 items-center">
           <ProfileSelector />
           <div className="flex-grow">
@@ -582,10 +553,23 @@ export default function Home() {
               {
                 currentProfile && (
                   <>
-                    <span className="text-sm text-muted-foreground">Active Profile: </span><Badge variant="outline">{currentProfile.name}</Badge>
-                    <p className="text-[10px] text-muted-foreground">Game Path: {currentProfile.game_path}</p>
-                    <p className="text-[10px] text-muted-foreground">Profile Path: {currentProfile.profile_path.root}</p>
-                    <p className="text-[10px] text-muted-foreground">Branch Name: {currentProfile.branch_name}</p>
+                    <span className="text-sm text-muted-foreground">Active Profile: </span>
+                      <Badge
+                        // variant="ghost"
+                        variant="outline"
+                        // size="icon"
+                        className="hover:mouse-pointer hover:bg-primary hover:text-white cursor-pointer"
+                        onClick={() => {
+                            openLocalDir(currentProfile.profile_path.root);
+                        }}>
+                          {currentProfile.name}
+                      </Badge>
+                    <ul className="list-none px-4">
+                      {
+                        !!currentProfile.game_path &&
+                        <li className="text-[10px] text-muted-foreground">Game Path: {currentProfile.game_path}</li>
+                      }
+                    </ul>
                   </>
                 )
               }
@@ -607,9 +591,9 @@ export default function Home() {
                 className="text-lg"
               >設定
               </TabsTrigger>
-              <TabsTrigger value="games">
-                Games
-              </TabsTrigger>
+              {/* <TabsTrigger value="debug">
+                debug
+              </TabsTrigger> */}
             </TabsList>
             <TabsContent value="mods">
               <div className="bg-muted/40">
@@ -625,65 +609,56 @@ export default function Home() {
                   <nav
                     className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0"
                   >
-                    <Link href="#mod_management_setting" className="font-semibold text-primary">
-                      Mod管理
+                    <Link href="#theme_setting"
+                      className="font-semibold text-primary">
+                      カラーテーマ
                     </Link>
-                    <Link href="#theme_setting" className="font-semibold text-primary">
-                      配色
-                    </Link>
+                    {/* <Link href="#language_setting"
+                      className="font-semibold text-primary">
+                      言語
+                    </Link> */}
                   </nav>
                   <ScrollArea>
-                    <div className="grid gap-2" id="mod_management_setting">
-                      <p className="font-bold text-xl">Mod管理</p>
-                      <LocalPathForm
-                        title="Mod保存先"
-                        description="Modの集中管理用の任意のディレクトリ"
-                        inputAtom={modDataDirPath}
-                      />
-                      <LocalPathForm
-                        title="ゲームのMod読み込み先"
-                        description="ゲームがModを読み込むディレクトリ"
-                        inputAtom={gameModDirPath}
-                      />
-                    </div>
-                    <br />
-                    <div className="grid gap-2" id="theme_setting">
-                      <p className="font-bold text-xl">配色</p>
-                      <Card>
-                        <CardHeader>
-                          <CardTitle>配色</CardTitle>
-                          <CardDescription>
-                            配色を選択します
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <ColorThemeSelector />
-                        </CardContent>
-                      </Card>
-                    </div>
+                    <Card id="theme_setting" className="border-none">
+                      <CardHeader>
+                        <CardTitle>カラーテーマ</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ColorThemeSelector />
+                      </CardContent>
+                    </Card>
+                    {/* <Card id="theme_setting" className="border-none">
+                      <CardHeader>
+                        <CardTitle>言語</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        TODO
+                      </CardContent>
+                    </Card> */}
+
                   </ScrollArea>
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="games">
-              <form onSubmit={
-                (e: any) => {
-                  e.preventDefault();
-                  console.log(e.target);
-                  console.log(e.target["selectedGameVersion"].value);
-                  // ToDo: ゲームのバージョンを選択して起動する
+            <TabsContent value="debug">
+              <Button onClick={
+                async () => {
+                  await listProfiles();
+                }}>
+                get profiles
+              </Button>
+              <Button onClick={async () => {
+                const a = await getActiveProfile();
+                console.log(a);
+              }}>
+                get active profile
+              </Button>
 
-                }
-              }>
-                <div className="grid gap-4 text-lg">
-                  <select name="selectedGameVersion">
-                    <option value="cdda">Cataclysm: Dark Days Ahead</option>
-                    <option value="cdda_experimental">Stable builds</option>
-                    <option value="cdda_launcher">Experimentsl builds</option>
-                  </select>
-                </div>
-                <button type="submit">Submit</button>
-              </form>
+              <Button onClick={async () => {
+                await refreshSettings();
+              }}>
+                refresh settings
+              </Button>
             </TabsContent>
             <TabsContent value="releases">
               <Link

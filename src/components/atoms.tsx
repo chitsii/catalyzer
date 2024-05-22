@@ -1,10 +1,12 @@
 "use client";
 
-import { Atom, atom, PrimitiveAtom, useAtom } from 'jotai';
+import { Atom, atom, PrimitiveAtom, useAtom, useAtomValue } from 'jotai';
 import { createStore, Provider } from 'jotai';
+import { Mod } from "@/components/datatable/mod-table/columns";
 import { atomWithStorage } from 'jotai/utils'
 import { fetchMods } from "@/lib/api";
 import { atomWithSuspenseQuery } from 'jotai-tanstack-query';
+
 import { getSettings } from "@/lib/api";
 
 // atomWithStorage
@@ -12,7 +14,7 @@ import { getSettings } from "@/lib/api";
 const defaultModDataDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source";
 const defaultGameModDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets";
 
-type ProfilePath = {
+type UserDataPaths = {
   root: string;
   mods: string;
   config: string;
@@ -26,26 +28,21 @@ type Profile = {
   id: string;
   name: string;
   game_path: string;
-  profile_path: ProfilePath;
-  active_mods: string[];
-  branch_name: string;
-  theme?: string;
-  is_active?: boolean;
+  profile_path: UserDataPaths;
+  mod_status: Mod[],
+  // mod_data_path: string;
+  // profile_path: ProfilePath;
+  // active_mods: string[];
+  // branch_name: string;
+  is_active: boolean;
 }
 
 type Settings = {
   language: string;
-  profile: Profile[];
-}
-
-declare global {
-  interface Window {
-    invoke: any;
-    popUp: any;
-    createId: any;
-  }
-}
-
+  mod_data_path: string;
+  game_config_path: UserDataPaths;
+  profiles: Profile[];
+};
 
 const refreshSettingState = atom(0);
 const refreshSettingAtom = atom((get) => get(refreshSettingState), (get, set) => {
@@ -62,34 +59,25 @@ const settingAtom = atomWithSuspenseQuery(
     refetchOnMount: "always",
   })
 );
+const activeProfileAtom = atom(
+  async (get) => {
+      const { data: settings } = await get(settingAtom);
+      const res = settings.profiles.find((p) => p.is_active);
+      return res
+  }
+);
 
-
-// const defaultProfile = new Profile(
-//   'default',
-//   '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/gameDir/Cataclysm.app',
-//   '/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/profile',
-//   [],
-//   'experimental',
-//   'dark',
-// );
-
-// const profiles = atomWithStorage<Profile[]>('profiles', [defaultProfile]);
-// const profiles = atom<Profile[]>([defaultProfile]);
-
-
-const modDataDirPath = atomWithStorage('modDataDir', defaultModDataDir);
-const gameModDirPath = atomWithStorage('gameModDir', defaultGameModDir);
 const store = createStore();
 
 const refreshState = atom(0);
-const refreshMods = atom((get) => get(refreshState), (get, set) => {
+const refreshModsAtom = atom((get) => get(refreshState), (get, set) => {
   set(refreshState, (c) => c + 1);
 });
 const modsAtom = atomWithSuspenseQuery((get) => ({
   enabled: typeof window === "undefined",
-  queryKey: ['mods', get(refreshState), get(modDataDirPath), get(gameModDirPath)],
+  queryKey: ['mods', get(refreshState), get(activeProfileAtom)],
   queryFn: async () => {
-    return fetchMods(get(modDataDirPath), get(gameModDirPath));
+    return fetchMods();
   },
   staleTime: Infinity,
   refetchOnMount: "always",
@@ -97,14 +85,11 @@ const modsAtom = atomWithSuspenseQuery((get) => ({
 
 
 export {
-  // profiles,
   settingAtom,
   refreshSettingAtom,
   modsAtom,
-  refreshMods,
-  modDataDirPath,
-  gameModDirPath,
-  // Profile,
+  refreshModsAtom,
+  activeProfileAtom,
   store
 }
 export type {
