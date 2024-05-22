@@ -40,7 +40,8 @@ import {
   GitCmd,
   openLocalDir,
   list_branches,
-  unzipModArchive
+  unzipModArchive,
+  fetchMods
 } from "@/lib/api";
 import { open, ask } from '@tauri-apps/api/dialog';
 
@@ -280,10 +281,9 @@ export const columns: ColumnDef<Mod>[] = [
                           <DrawerHeader>
                             <DrawerTitle>新規断面作成: {row.original.info.name}</DrawerTitle>
                             <DrawerDescription>
-                              新規のブランチ名とModのzipファイルを選択してください。
+                              新規のブランチ名と、データを上書きしたい場合はModのzipファイルを選択してください。
                               <span className="text-xs text-red-600">
-                                新規断面を作成すると、現行断面において作業途中のファイルはハードリセットされます！
-                                データを削除したくない場合はコミットを行って下さい。
+                                新規断面を作成すると、作業途中のファイルはリセットされます！
                                 <br />
                               </span>
                             </DrawerDescription>
@@ -331,7 +331,7 @@ export const columns: ColumnDef<Mod>[] = [
                             </div>
                             <Button onClick={
                               async (e: any) => {
-                                let yes = await ask("create new branch and unzip mod archive?");
+                                let yes = await ask("新規断面を作成しますか？");
                                 if (!yes) return;
 
                                 //作業中のデータ削除
@@ -352,16 +352,24 @@ export const columns: ColumnDef<Mod>[] = [
                                 console.debug("checkout done");
 
                                 // zipファイルを展開
-                                unzipModArchive(
-                                  uploadFilePath,
-                                  row.original.localPath,
-                                  true
-                                );
-                                console.debug("unzip done");
+                                if (!!uploadFilePath) {
+                                  unzipModArchive(
+                                    uploadFilePath,
+                                    row.original.localPath,
+                                    true
+                                  );
+                                  console.debug("unzip done");
 
-                                // commit changes
-                                GitCmd("git_commit_changes", { targetDir: row.original.localPath });
+                                  // commit changes
+                                  GitCmd("git_commit_changes", { targetDir: row.original.localPath });
+                                }
+
                                 GitCmd("git_reset_changes", { targetDir: row.original.localPath });
+
+                                // reload table
+                                table.options.meta?.fetchMods();
+                                // close dialog
+                                setDialogOpen(false);
                               }
                             }>
                               OK

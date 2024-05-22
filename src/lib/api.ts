@@ -53,7 +53,7 @@ export function removeSymlink(target: string) {
 };
 
 export async function list_branches(targetDir: string) {
-  const res = await invoke<string[]>('list_branches', { targetDir: targetDir })
+  const res = await invoke<string[]>('git_list_branches', { targetDir: targetDir })
     .then((response: string[]) => {
       console.debug(response);
       return response;
@@ -139,7 +139,6 @@ export const addProfile = async (
 import { Settings } from "@/components/atoms";
 
 export const getSettings = async () => {
-  // if (typeof window === "undefined") return { language: 'ja', profile: [] };
   const res = await invoke<Settings>('get_settings')
     .then((response) => {
       console.log('getSetting', response);

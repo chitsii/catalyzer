@@ -65,9 +65,9 @@ pub mod commands {
                         // if dest_path exists, overwrite (merge) the mod directory.
                         if exists_ok.is_some_and(|x| x) && dest_path.exists() {
                             println!("Removing existing directory: {}", dest_path.display());
-                            remove_dir_all(&dest_path, ".git").unwrap();
+                            remove_dir_all(&dest_path, Some(".git")).unwrap();
                             println!("Merging mod directory to {}", dest_path.display());
-                            copy_dir_all(&mod_dir, &dest_path, ".git").unwrap();
+                            copy_dir_all(&mod_dir, &dest_path, Some(".git")).unwrap();
                         } else {
                             // copy the mod directory to the destination
                             std::fs::rename(mod_dir, dest_path).unwrap();

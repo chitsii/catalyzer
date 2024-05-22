@@ -59,13 +59,9 @@ fn scan_mods(state: tauri::State<'_, AppState>) -> Result<Vec<Mod>, String> {
     let setting = state.get_settings();
     println!("setting {:?}", setting);
     let mod_data_dir = &setting.mod_data_path;
-    // let profile = &setting.get_active_profile();
     let game_mod_dir = &setting.game_config_path.get_mod_dir();
-    // let game_mod_dir = profile.get_mod_dir();
 
     if !mod_data_dir.exists() {
-        // create
-        // mod_data_dir.mkdir().unwrap();
         return Err("Mod data directory does not exist".to_string());
     } else if !game_mod_dir.exists() {
         return Err("Game mod directory does not exist".to_string());
@@ -131,7 +127,8 @@ fn scan_mods(state: tauri::State<'_, AppState>) -> Result<Vec<Mod>, String> {
     }
 
     // update state
-    state.update_current_mod_status(mods.clone());
+    // state.update_current_mod_status(mods.clone());
+
     Ok(mods)
 }
 

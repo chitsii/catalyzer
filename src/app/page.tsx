@@ -229,45 +229,7 @@ const ProfileForm = ({
   )
 }
 
-const setUpDropEvent = async () => {
-  const window = await import("@tauri-apps/api/window");
-  const { appWindow } = window;
-  appWindow.onFileDropEvent(async (ev) => {
-    console.log(ev); // Debug
-    if (ev.payload.type !== 'drop') {
-      return;
-    }
-    const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
-    if (!does_install) {
-      return;
-    }
-    const [filepath] = ev.payload.paths;
 
-    const [{ data: settings }] = useAtom(settingAtom);
-    const modDataDir = settings.mod_data_path;
-    if (!modDataDir) {
-      popUp('failed', 'Somehow Mod Directory is not set.');
-      return;
-    }
-
-    if (path.extname(filepath) === '.zip') {
-      unzipModArchive(
-        filepath,
-        path.join(modDataDir, path.basename(filepath))
-      );
-      return;
-    }
-    else if (path.parse(filepath).dir === modDataDir) {
-      popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
-    }
-    else {
-      popUp(
-        'failed',
-        `Handling ${path.extname(filepath) ? path.extname(filepath) : 'directory'} is not supported yet. Please drop .zip file.`
-      );
-    }
-  })
-};
 
 type DialogItemProps = {
   triggerChildren: ReactNode
@@ -513,6 +475,48 @@ const ProfileSelector = ({
 }
 
 
+const setUpDropEvent = async () => {
+  const window = await import("@tauri-apps/api/window");
+  const { appWindow } = window;
+  appWindow.onFileDropEvent(async (ev) => {
+    console.log(ev); // Debug
+    if (ev.payload.type !== 'drop') {
+      return;
+    }
+    const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
+    if (!does_install) {
+      return;
+    }
+    const [filepath] = ev.payload.paths;
+
+    const [{ data: settings }] = useAtom(settingAtom);
+    const modDataDir = settings.mod_data_path;
+    if (!modDataDir) {
+      popUp('failed', 'Somehow Mod Directory is not set.');
+      return;
+    }
+
+    if (path.extname(filepath) === '.zip') {
+      unzipModArchive(
+        filepath,
+        path.join(modDataDir, path.basename(filepath))
+      );
+      return;
+    }
+    else if (path.parse(filepath).dir === modDataDir) {
+      popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
+    }
+    else {
+      popUp(
+        'failed',
+        `Handling ${path.extname(filepath) ? path.extname(filepath) : 'directory'} is not supported yet. Please drop .zip file.`
+      );
+    }
+  })
+};
+setUpDropEvent();
+
+
 export default function Home() {
   // const [profileList, setProfileList] = useAtom(profiles);
   // const [{ profileList, isPending, isError }] = useAtom(profiles);
@@ -535,13 +539,6 @@ export default function Home() {
   const [{ data, isPending, isError }] = useAtom(modsAtom);
   const [_, refresh] = useAtom(refreshModsAtom);
 
-  useEffect(() => {
-    const setUpDropEventHander = async () => {
-      await setUpDropEvent();
-    }
-    setUpDropEventHander();
-  }, []);
-
   return (
     <main>
       <div className="w-full overflow-hidden select-none bg-muted/40">
@@ -554,16 +551,14 @@ export default function Home() {
                 currentProfile && (
                   <>
                     <span className="text-sm text-muted-foreground">Active Profile: </span>
-                      <Badge
-                        // variant="ghost"
-                        variant="outline"
-                        // size="icon"
-                        className="hover:mouse-pointer hover:bg-primary hover:text-white cursor-pointer"
-                        onClick={() => {
-                            openLocalDir(currentProfile.profile_path.root);
-                        }}>
-                          {currentProfile.name}
-                      </Badge>
+                    <Badge
+                      variant="outline"
+                      className="hover:mouse-pointer hover:bg-primary hover:text-white cursor-pointer"
+                      onClick={() => {
+                        openLocalDir(currentProfile.profile_path.root);
+                      }}>
+                      {currentProfile.name}
+                    </Badge>
                     <ul className="list-none px-4">
                       {
                         !!currentProfile.game_path &&

@@ -136,7 +136,8 @@ export function DataTable<TData, TValue>({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Modがありません。
+                  Modがありません！
+                  <br/>
                   <Button
                   variant="ghost"
                   className="text-primary underline hover:mouse-pointer"
@@ -144,7 +145,9 @@ export function DataTable<TData, TValue>({
                     openModData();
                   }}
                   >
-                    追加しますか？
+                    <br/>
+                    Mod管理フォルダを開いて追加しましょう。<br/>
+                    ウィンドウにZipファイルをドラッグ＆ドロップしても追加できます。
                   </Button>
                 </TableCell>
               </TableRow>

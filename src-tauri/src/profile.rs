@@ -1,9 +1,11 @@
+use crate::git::commands::git_checkout;
 use crate::logic::utils::{copy_dir_all, remove_dir_all};
 use crate::model::Mod;
+use crate::symlink::commands::{create_symlink, remove_symlink};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::api::path::{app_config_dir, config_dir, data_dir};
 
@@ -95,7 +97,8 @@ impl Profile {
 }
 impl Default for Profile {
     fn default() -> Self {
-        let default = Profile::new("default".to_string(), "default".to_string(), None);
+        let mut default = Profile::new("default".to_string(), "default".to_string(), None);
+        default.is_active = true;
         default.create_dir_if_unexist();
         default
     }
@@ -132,8 +135,9 @@ impl Settings {
     }
     fn remove_profile_dir(&self, profile: &Profile) {
         let profile_dir = &profile.profile_path.root;
+        println!("Removing profile dir: {:?}", profile_dir);
         if profile_dir.exists() {
-            remove_dir_all(profile_dir, "").unwrap();
+            remove_dir_all(profile_dir, None).unwrap();
         }
     }
 
@@ -144,12 +148,12 @@ impl Settings {
         let profile_dir = &profile.profile_path.root;
         let game_config = self.game_config_path.root.clone();
         let paths = [
-            game_config.join("mods"),
             game_config.join("config"),
             game_config.join("font"),
-            game_config.join("save"),
-            game_config.join("sound"),
             game_config.join("gfx"),
+            // game_config.join("save"),
+            // game_config.join("sound"),
+            // game_config.join("mods"),
         ];
         for src_dir in paths.iter() {
             if src_dir.exists() {
@@ -157,7 +161,8 @@ impl Settings {
                 if !dest.exists() {
                     fs::create_dir_all(&dest).unwrap();
                 }
-                copy_dir_all(src_dir, &dest, "").unwrap();
+                println!("Copying {:?} to {:?}", src_dir, dest);
+                copy_dir_all(src_dir, &dest, None).unwrap();
             }
         }
         Ok(())
@@ -199,6 +204,7 @@ impl Settings {
         self.profiles.remove(index); // indexがズレるので最後に呼ぶ
         self.write_file();
     }
+
     pub fn set_active_profile(&mut self, profile_id: String) {
         let index = self
             .profiles
@@ -209,6 +215,39 @@ impl Settings {
             p.is_active = false;
         }
         self.profiles[index].is_active = true;
+
+        // change installation status of mods to active profile
+        let target_profile = &self.profiles[index];
+        for m in target_profile.mod_status.iter() {
+            let src = m.local_path.clone();
+            let dir_name = Path::new(&src).file_name().unwrap();
+            let dest = self.game_config_path.mods.join(dir_name);
+
+            if m.is_installed {
+                if !dest.exists() {
+                    create_symlink(src, dest.to_string_lossy().to_string()).unwrap();
+                }
+            } else if dest.exists() {
+                remove_symlink(dest.to_string_lossy().to_string()).unwrap();
+            }
+        }
+
+        // change branch of each mod to active profile
+        for m in target_profile.mod_status.iter() {
+            let src = m.local_path.clone();
+
+            if let Some(branch_name) = m.local_version.clone().map(|e| e.branch_name.clone()) {
+                match git_checkout(src, branch_name, false) {
+                    Ok(_) => {
+                        println!("Checked out branch");
+                    }
+                    Err(e) => {
+                        println!("Failed to checkout branch: {}", e);
+                    }
+                }
+            }
+        }
+
         self.write_file();
     }
     pub fn get_active_profile(&self) -> Profile {
@@ -286,7 +325,11 @@ pub mod commands {
     #[tauri::command]
     pub async fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings, String> {
         let settings = state.settings.lock().unwrap();
-        Ok(settings.clone())
+        if settings.profiles.is_empty() {
+            Ok(Settings::default())
+        } else {
+            Ok(settings.clone())
+        }
     }
 
     #[tauri::command]

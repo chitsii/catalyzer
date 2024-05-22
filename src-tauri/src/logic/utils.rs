@@ -1,12 +1,21 @@
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-pub fn remove_dir_all(path: impl AsRef<Path>, exclude_pattern: &str) -> io::Result<()> {
+pub fn remove_dir_all(path: impl AsRef<Path>, exclude_pattern: Option<&str>) -> io::Result<()> {
+    if exclude_pattern.is_none() {
+        fs::remove_dir_all(&path)?;
+        return Ok(());
+    }
+    let mut skipped = 0;
     for entry in fs::read_dir(&path)? {
         let entry = entry?;
         let ty = entry.file_type()?;
-        if entry.path().to_string_lossy().contains(exclude_pattern) {
-            continue;
+        if let Some(exclude_pattern) = exclude_pattern {
+            if entry.path().to_string_lossy().contains(exclude_pattern) {
+                println!("Skipping {:?}", entry.path());
+                skipped += 1;
+                continue;
+            }
         }
         println!("Removing {:?}", entry.path());
         if ty.is_dir() {
@@ -15,22 +24,28 @@ pub fn remove_dir_all(path: impl AsRef<Path>, exclude_pattern: &str) -> io::Resu
             fs::remove_file(entry.path())?;
         }
     }
+    if skipped < 0 {
+        fs::remove_dir_all(&path)?;
+    }
     Ok(())
 }
 
 pub fn copy_dir_all(
     src: impl AsRef<Path>,
     dst: impl AsRef<Path>,
-    exclude_pattern: &str,
+    exclude_pattern: Option<&str>,
 ) -> io::Result<()> {
     fs::create_dir_all(&dst)?;
+
     for entry in fs::read_dir(src)? {
         let entry = entry?;
         let ty = entry.file_type()?;
-        if entry.path().to_string_lossy().contains(exclude_pattern) {
-            continue;
-        }
 
+        if let Some(exclude_pattern) = exclude_pattern {
+            if entry.path().to_string_lossy().contains(exclude_pattern) {
+                continue;
+            }
+        }
         if ty.is_dir() {
             copy_dir_all(
                 entry.path(),
