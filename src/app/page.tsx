@@ -65,8 +65,9 @@ import { unzipModArchive } from "@/lib/api";
 import { openLocalDir } from "@/lib/api";
 
 import {
-  listProfiles, addProfile,
-  setProfileActive, removeProfile,
+  addProfile,
+  setProfileActive,
+  removeProfile,
   editProfile
 } from "@/lib/api";
 
@@ -634,12 +635,6 @@ export default function Home() {
               </div>
             </TabsContent>
             <TabsContent value="debug">
-              <Button onClick={
-                async () => {
-                  await listProfiles();
-                }}>
-                get profiles
-              </Button>
               <Button onClick={async () => {
                 const a = await getActiveProfile();
                 console.log(a);

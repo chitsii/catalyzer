@@ -107,17 +107,6 @@ export const unzipModArchive = async (src: string, dest: string, existsOk: boole
     });
 }
 
-export const listProfiles = async () => {
-  const res = await invoke<string[]>('list_profiles')
-    .then((response) => {
-      console.log(response);
-      return response;
-    })
-    .catch((err) => {
-      console.error(err);
-    });
-  return res ? res : [];
-}
 export const addProfile = async (
   name: string,
   gamePath: string,

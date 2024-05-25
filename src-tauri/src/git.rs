@@ -126,12 +126,27 @@ fn checkout(repo: &Repository, branch_name: &str, create_if_unexist: bool) -> Re
     }
 }
 
+pub fn git_checkout_logic(
+    target_dir: String,
+    target_branch: String,
+    create_if_unexist: bool,
+) -> Result<(), String> {
+    let repo = open(target_dir.clone()).unwrap();
+    let _has_created = match checkout(&repo, &target_branch, create_if_unexist) {
+        Ok(has_created) => has_created,
+        Err(e) => return Err(e),
+    };
+    reset_hard(&repo).unwrap();
+    Ok(())
+}
+
 pub mod commands {
     use super::*;
+    use crate::profile::AppState;
 
     #[tauri::command]
     /// Initialize a git repository at the target directory.
-    pub fn git_init(target_dir: String) -> Result<(), String> {
+    pub fn git_init(state: tauri::State<'_, AppState>, target_dir: String) -> Result<(), String> {
         let target = std::path::Path::new(&target_dir);
         if !target.exists() {
             return Err(format!(
@@ -146,6 +161,8 @@ pub mod commands {
         println!("Repository initialized at {}", repo.path().display());
         commit(&repo, "Initial commit").unwrap();
         reset_hard(&repo).unwrap();
+
+        state.refresh_mod_save_mod_status().unwrap();
         Ok(())
     }
 
@@ -190,17 +207,13 @@ pub mod commands {
     ///     return Err if`create_if_unexist` is false.
     #[tauri::command]
     pub fn git_checkout(
+        state: tauri::State<'_, AppState>,
         target_dir: String,
         target_branch: String,
         create_if_unexist: bool,
     ) -> Result<(), String> {
-        let repo = open(target_dir.clone()).unwrap();
-        let _has_created = match checkout(&repo, &target_branch, create_if_unexist) {
-            Ok(has_created) => has_created,
-            Err(e) => return Err(e),
-        };
-        reset_hard(&repo).unwrap();
-
+        git_checkout_logic(target_dir, target_branch, create_if_unexist)?;
+        state.refresh_mod_save_mod_status().unwrap();
         Ok(())
     }
 }

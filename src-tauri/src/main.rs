@@ -1,8 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-
+#![allow(unused_imports)]
 mod prelude {
-    #![allow(unused_imports)]
 
     pub use crate::model::{LocalVersion, Mod, ModInfo};
     pub use crate::profile::AppState;
@@ -54,7 +53,6 @@ fn main() {
             git::commands::git_list_branches,
             git::commands::git_checkout,
             profile::commands::get_settings,
-            profile::commands::list_profiles,
             profile::commands::add_profile,
             profile::commands::remove_profile,
             profile::commands::edit_profile,
@@ -67,11 +65,8 @@ fn main() {
 
 #[tauri::command]
 fn scan_mods(state: tauri::State<'_, AppState>) -> Result<Vec<Mod>, String> {
-    // wait 200ms
-    // std::thread::sleep(std::time::Duration::from_millis(250));
-
-    let mut setting = state.get_settings();
-    let mods = setting.scan_mods().unwrap();
+    let settings = state.get_settings();
+    let mods = settings.scan_mods().unwrap();
     Ok(mods)
 }
 

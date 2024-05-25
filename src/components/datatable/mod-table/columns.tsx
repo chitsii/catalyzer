@@ -452,7 +452,6 @@ export const columns: ColumnDef<Mod>[] = [
 
                   if (isInstalled) {
                     uninstallMod(targetModDir);
-
                   } else {
                     unistallMod(row.original.localPath, targetModDir);
                   }

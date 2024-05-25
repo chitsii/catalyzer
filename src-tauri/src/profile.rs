@@ -4,6 +4,7 @@ use crate::git::commands::git_checkout;
 use crate::logic::utils::{copy_dir_all, remove_dir_all};
 use crate::model::Mod;
 // use crate::symlink::commands::{create_symlink, remove_symlink};
+use crate::git::git_checkout_logic;
 use crate::logic::utils::{get_modinfo_path, list_symlinks};
 use crate::symlink::create_symbolic_link;
 use serde::{Deserialize, Serialize};
@@ -14,10 +15,14 @@ use std::sync::Mutex;
 use tauri::api::path::{app_config_dir, config_dir, data_dir};
 
 const SETTINGS_FILENAME: &str = "setting.yaml";
+
+/// current_exeの親ディレクトリ
 fn get_config_root() -> PathBuf {
     let exe_path = std::env::current_exe().unwrap();
     exe_path.parent().unwrap().to_path_buf()
 }
+
+/// current_exe_dir/Profiles/{ProfileName}
 fn get_profile_dir(profile_name: &str) -> PathBuf {
     let config_root = get_config_root();
     let profile_path = config_root.join("Profiles").join(profile_name);
@@ -56,9 +61,6 @@ impl UserDataPaths {
             gfx: root.join("gfx"),
         }
     }
-    pub fn get_mod_dir(&self) -> PathBuf {
-        self.mods.clone()
-    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -86,11 +88,11 @@ impl Profile {
         let paths = [
             &self.profile_path.root,
             &self.profile_path.mods,
-            &self.profile_path.config,
-            &self.profile_path.font,
+            // &self.profile_path.config,
+            // &self.profile_path.font,
             &self.profile_path.save,
-            &self.profile_path.sound,
-            &self.profile_path.gfx,
+            // &self.profile_path.sound,
+            // &self.profile_path.gfx,
         ];
         for path in paths {
             if !path.exists() {
@@ -117,37 +119,21 @@ pub struct Settings {
 }
 impl Default for Settings {
     fn default() -> Self {
-        let default = Self {
+        Self {
             language: "ja".into(),
             game_config_path: UserDataPaths::new(get_default_game_config_path()),
             mod_data_path: get_config_root().join("ModData"),
             profiles: vec![Profile::default()],
-        };
-        default.write_file();
-
-        default
+        }
     }
 }
 impl Settings {
     fn post_init(&mut self) {
-        // 必須ディレクトリ作成
         self.create_dirs_if_unexist();
 
-        self.refresh_mod_status();
-        // Modの状態を取得
-        // let mods = crate::get_mod_status(&self.game_config_path.mods, &self.mod_data_path);
-        // match mods {
-        //     Ok(mods) => {
-        //         self.save_mod_status();
-        //     }
-        //     Err(e) => {
-        //         println!("Failed to get mod status on initialize: {}", e);
-        //     }
-        // }
-
-        // saveファイルのシンボリックリンクを作成
-        self.switch_save_dir_symlink(&self.get_active_profile())
-            .unwrap();
+        let profile = &self.get_active_profile();
+        self.mutate_state_mod_status(profile).unwrap();
+        self.switch_save_dir_symlink(profile).unwrap();
         self.write_file();
     }
 
@@ -177,20 +163,16 @@ impl Settings {
                 fs::rename(&game_save_dir, backup_dir)?;
             }
         }
-
-        // if game_save_dir
-        //     .symlink_metadata()
-        //     .map(|e| e.file_type().is_symlink())
-        //     .unwrap_or(false)
-        // {
-        //     fs::remove_file(&game_save_dir)?;
-        // }
+        println!(
+            "++++++++Creating symlink: {:?} -> {:?}",
+            profile_save_dir, game_save_dir
+        );
         create_symbolic_link(&profile_save_dir, &game_save_dir)?;
         Ok(())
     }
 
     /// プロファイルの設定を反映する
-    fn sync_mod_stats_to(&self, profile: &Profile) -> Result<()> {
+    fn apply_mod_status(&self, profile: &Profile) -> Result<()> {
         crate::logic::utils::cleanup_symlinks(&self.game_config_path.mods)?;
 
         profile.mod_status.iter().for_each(|m| {
@@ -199,16 +181,21 @@ impl Settings {
                 let dir_name = Path::new(&src).file_name().unwrap();
                 let dest = self.game_config_path.mods.join(dir_name);
                 create_symbolic_link(Path::new(&src), &dest).unwrap();
-
-                if let Some(branch_name) = m.local_version.clone().map(|e| e.branch_name.clone()) {
-                    match git_checkout(src, branch_name, false) {
-                        Ok(_) => (),
-                        Err(e) => {
-                            println!("Failed to checkout branch: {}", e);
-                        }
-                    }
-                }
             }
+            // ローカルブランチがあればチェックアウト
+            println!(
+                "⭐️⭐️⭐️⭐️Checking out branch: {:?}",
+                m.local_version.clone().unwrap().branch_name
+            );
+            git_checkout_logic(
+                m.local_path.clone(),
+                m.local_version.clone().unwrap().branch_name,
+                false,
+            )
+            .unwrap_or(println!(
+                "⭐️⭐️⭐️⭐️Failed to checkout branch: {}",
+                m.local_version.clone().unwrap().branch_name
+            ));
         });
         Ok(())
     }
@@ -262,8 +249,8 @@ impl Settings {
             target_profile.id == profile_id,
             "Failed to set active profile"
         );
-        self.sync_mod_stats_to(&target_profile)?;
-        self.refresh_mod_status()?;
+        self.apply_mod_status(&target_profile)?;
+        self.mutate_state_mod_status(&target_profile)?;
         self.switch_save_dir_symlink(&target_profile)?;
 
         self.write_file();
@@ -355,10 +342,11 @@ impl Settings {
         Ok(mods)
     }
 
-    pub fn refresh_mod_status(&mut self) -> Result<()> {
+    pub fn mutate_state_mod_status(&mut self, profile: &Profile) -> Result<Vec<Mod>> {
         let mods = self.scan_mods()?;
 
-        let active_profile = self.get_active_profile();
+        // let active_profile = self.get_active_profile();
+        let active_profile = profile.clone();
         println!(
             "******Refreshing mod status for profile: {:?}",
             active_profile.name
@@ -375,7 +363,7 @@ impl Settings {
             self.get_active_profile().mod_status.len()
         );
         self.write_file();
-        Ok(())
+        Ok(mods)
     }
 }
 
@@ -422,9 +410,11 @@ impl AppState {
             settings: Mutex::new(Settings::new()),
         }
     }
-    pub fn refresh_mod_status(&self) {
+    pub fn refresh_mod_save_mod_status(&self) -> Result<Vec<Mod>> {
         let mut settings = self.settings.lock().unwrap();
-        settings.refresh_mod_status().unwrap();
+        let profile = settings.get_active_profile();
+        let mods = settings.mutate_state_mod_status(&profile)?;
+        Ok(mods)
     }
 
     pub fn get_settings(&self) -> Settings {
@@ -440,12 +430,6 @@ pub mod commands {
     pub async fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings, String> {
         let settings = state.settings.lock().unwrap();
         Ok(settings.clone())
-    }
-
-    #[tauri::command]
-    pub async fn list_profiles(state: tauri::State<'_, AppState>) -> Result<Vec<Profile>, String> {
-        let settings = state.settings.lock().unwrap();
-        Ok(settings.profiles.clone())
     }
 
     #[tauri::command]
@@ -472,7 +456,7 @@ pub mod commands {
         let current = settings.get_active_profile();
         if current.id == profile_id {
             // switch to default profile
-            settings.set_active_profile("default".to_string());
+            settings.set_active_profile("default".to_string()).unwrap();
         }
         settings.remove_profile(profile_id);
         Ok(())
@@ -484,7 +468,7 @@ pub mod commands {
         profile_id: String,
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().unwrap();
-        settings.set_active_profile(profile_id);
+        settings.set_active_profile(profile_id).unwrap();
         Ok(())
     }
 

@@ -10,13 +10,6 @@ fn remove_file(target: &Path) -> Result<()> {
     Ok(())
 }
 
-fn remove_all_files(target_dir: String) -> Result<()> {
-    let target = std::path::Path::new(&target_dir);
-    std::fs::remove_dir_all(target)?;
-    std::fs::create_dir(target)?;
-    Ok(())
-}
-
 pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> {
     ensure!(
         source_dir.exists() && source_dir.is_dir(),
@@ -44,7 +37,7 @@ pub mod commands {
         create_symbolic_link(Path::new(&source_dir), Path::new(&target_dir))
             .map_err(|e| e.to_string())?;
 
-        state.refresh_mod_status();
+        state.refresh_mod_save_mod_status().unwrap();
         Ok(())
     }
 
@@ -54,7 +47,7 @@ pub mod commands {
         target_file: String,
     ) -> Result<(), String> {
         remove_file(Path::new(&target_file)).map_err(|e| e.to_string())?;
-        state.refresh_mod_status();
+        state.refresh_mod_save_mod_status().unwrap();
         Ok(())
     }
 }
