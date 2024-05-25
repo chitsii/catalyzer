@@ -1,7 +1,11 @@
+use crate::prelude::*;
+
 use crate::git::commands::git_checkout;
 use crate::logic::utils::{copy_dir_all, remove_dir_all};
 use crate::model::Mod;
-use crate::symlink::commands::{create_symlink, remove_symlink};
+// use crate::symlink::commands::{create_symlink, remove_symlink};
+use crate::logic::utils::{get_modinfo_path, list_symlinks};
+use crate::symlink::create_symbolic_link;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
@@ -113,26 +117,102 @@ pub struct Settings {
 }
 impl Default for Settings {
     fn default() -> Self {
-        let default_mod_data_dir = get_config_root().join("ModData");
         let default = Self {
             language: "ja".into(),
             game_config_path: UserDataPaths::new(get_default_game_config_path()),
-            mod_data_path: default_mod_data_dir,
+            mod_data_path: get_config_root().join("ModData"),
             profiles: vec![Profile::default()],
         };
-        default.create_dir_if_unexist();
+        default.write_file();
+
         default
     }
 }
 impl Settings {
-    fn create_dir_if_unexist(&self) {
-        let paths = [&self.mod_data_path];
-        for path in paths {
+    fn post_init(&mut self) {
+        // 必須ディレクトリ作成
+        self.create_dirs_if_unexist();
+
+        self.refresh_mod_status();
+        // Modの状態を取得
+        // let mods = crate::get_mod_status(&self.game_config_path.mods, &self.mod_data_path);
+        // match mods {
+        //     Ok(mods) => {
+        //         self.save_mod_status();
+        //     }
+        //     Err(e) => {
+        //         println!("Failed to get mod status on initialize: {}", e);
+        //     }
+        // }
+
+        // saveファイルのシンボリックリンクを作成
+        self.switch_save_dir_symlink(&self.get_active_profile())
+            .unwrap();
+        self.write_file();
+    }
+
+    fn create_dirs_if_unexist(&self) {
+        let to_create = [&self.mod_data_path];
+        for path in to_create {
             if !path.exists() {
                 fs::create_dir_all(path).unwrap();
             }
         }
     }
+
+    fn switch_save_dir_symlink(&self, profile: &Profile) -> Result<()> {
+        let game_save_dir = self.game_config_path.save.clone();
+        let profile_save_dir = profile.profile_path.save.clone();
+
+        // game_save_dirが通常のディレクトリならrenameする。シンボリックリンクなら消す
+        if game_save_dir.exists() {
+            let meta = game_save_dir.symlink_metadata().unwrap();
+            if meta.file_type().is_symlink() {
+                fs::remove_file(&game_save_dir)?;
+            } else {
+                let backup_dir = game_save_dir.with_file_name(format!(
+                    "save_backup_{}",
+                    chrono::Local::now().format("%Y%m%d%H%M%S")
+                ));
+                fs::rename(&game_save_dir, backup_dir)?;
+            }
+        }
+
+        // if game_save_dir
+        //     .symlink_metadata()
+        //     .map(|e| e.file_type().is_symlink())
+        //     .unwrap_or(false)
+        // {
+        //     fs::remove_file(&game_save_dir)?;
+        // }
+        create_symbolic_link(&profile_save_dir, &game_save_dir)?;
+        Ok(())
+    }
+
+    /// プロファイルの設定を反映する
+    fn sync_mod_stats_to(&self, profile: &Profile) -> Result<()> {
+        crate::logic::utils::cleanup_symlinks(&self.game_config_path.mods)?;
+
+        profile.mod_status.iter().for_each(|m| {
+            if m.is_installed {
+                let src = m.local_path.clone();
+                let dir_name = Path::new(&src).file_name().unwrap();
+                let dest = self.game_config_path.mods.join(dir_name);
+                create_symbolic_link(Path::new(&src), &dest).unwrap();
+
+                if let Some(branch_name) = m.local_version.clone().map(|e| e.branch_name.clone()) {
+                    match git_checkout(src, branch_name, false) {
+                        Ok(_) => (),
+                        Err(e) => {
+                            println!("Failed to checkout branch: {}", e);
+                        }
+                    }
+                }
+            }
+        });
+        Ok(())
+    }
+
     fn remove_profile_dir(&self, profile: &Profile) {
         let profile_dir = &profile.profile_path.root;
         println!("Removing profile dir: {:?}", profile_dir);
@@ -141,54 +221,22 @@ impl Settings {
         }
     }
 
-    fn copy_files_from_game_config(
-        &self,
-        profile: &Profile,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let profile_dir = &profile.profile_path.root;
-        let game_config = self.game_config_path.root.clone();
-        let paths = [
-            game_config.join("config"),
-            game_config.join("font"),
-            game_config.join("gfx"),
-            // game_config.join("save"),
-            // game_config.join("sound"),
-            // game_config.join("mods"),
-        ];
-        for src_dir in paths.iter() {
-            if src_dir.exists() {
-                let dest = profile_dir.join(src_dir.file_name().unwrap());
-                if !dest.exists() {
-                    fs::create_dir_all(&dest).unwrap();
-                }
-                println!("Copying {:?} to {:?}", src_dir, dest);
-                copy_dir_all(src_dir, &dest, None).unwrap();
-            }
-        }
-        Ok(())
-    }
     pub fn new() -> Self {
         let config_file = get_config_root().join(SETTINGS_FILENAME);
         if !config_file.exists() {
-            Self::default()
+            let mut settings = Self::default();
+            settings.post_init();
+            settings
         } else {
             let mut settings = Self::default();
             settings.read_file()
         }
     }
     pub fn add_profile(&mut self, new_profile: Profile) {
-        match self.copy_files_from_game_config(&new_profile) {
-            Ok(_) => {
-                println!("Copied files from game config");
-                self.profiles.push(new_profile);
-                self.write_file();
-            }
-            Err(e) => {
-                println!("Failed to copy files from game config: {}", e);
-                // remove copied files
-                self.remove_profile_dir(&new_profile);
-            }
-        }
+        new_profile.create_dir_if_unexist();
+        self.profiles.push(new_profile.clone());
+        self.set_active_profile(new_profile.id.clone()).unwrap();
+        self.write_file();
     }
     pub fn remove_profile(&mut self, profile_id: String) {
         let index = self
@@ -205,50 +253,21 @@ impl Settings {
         self.write_file();
     }
 
-    pub fn set_active_profile(&mut self, profile_id: String) {
-        let index = self
-            .profiles
-            .iter()
-            .position(|x| x.id == profile_id)
-            .unwrap();
-        for p in self.profiles.iter_mut() {
-            p.is_active = false;
-        }
-        self.profiles[index].is_active = true;
-
-        // change installation status of mods to active profile
-        let target_profile = &self.profiles[index];
-        for m in target_profile.mod_status.iter() {
-            let src = m.local_path.clone();
-            let dir_name = Path::new(&src).file_name().unwrap();
-            let dest = self.game_config_path.mods.join(dir_name);
-
-            if m.is_installed {
-                if !dest.exists() {
-                    create_symlink(src, dest.to_string_lossy().to_string()).unwrap();
-                }
-            } else if dest.exists() {
-                remove_symlink(dest.to_string_lossy().to_string()).unwrap();
-            }
-        }
-
-        // change branch of each mod to active profile
-        for m in target_profile.mod_status.iter() {
-            let src = m.local_path.clone();
-
-            if let Some(branch_name) = m.local_version.clone().map(|e| e.branch_name.clone()) {
-                match git_checkout(src, branch_name, false) {
-                    Ok(_) => {
-                        println!("Checked out branch");
-                    }
-                    Err(e) => {
-                        println!("Failed to checkout branch: {}", e);
-                    }
-                }
-            }
-        }
+    pub fn set_active_profile(&mut self, profile_id: String) -> Result<()> {
+        self.profiles
+            .iter_mut()
+            .for_each(|p| p.is_active = p.id == profile_id);
+        let target_profile = self.get_active_profile();
+        ensure!(
+            target_profile.id == profile_id,
+            "Failed to set active profile"
+        );
+        self.sync_mod_stats_to(&target_profile)?;
+        self.refresh_mod_status()?;
+        self.switch_save_dir_symlink(&target_profile)?;
 
         self.write_file();
+        Ok(())
     }
     pub fn get_active_profile(&self) -> Profile {
         let res = self.profiles.iter().find(|x| x.is_active);
@@ -257,11 +276,106 @@ impl Settings {
             Some(p) => p.clone(),
         }
     }
-    pub fn update_current_mod_status(&mut self, mods: Vec<Mod>) {
-        // let index = self.profiles.iter().position(|x| x.is_active).unwrap();
-        let index = self.profiles.iter().position(|x| x.is_active).unwrap_or(0);
-        self.profiles[index].mod_status = mods;
+
+    pub fn scan_mods(&self) -> Result<Vec<Mod>> {
+        let game_mod_dir = self.game_config_path.mods.clone();
+        let mod_data_dir = self.mod_data_path.clone();
+
+        let mut mods = Vec::new();
+
+        // シンボリックリンクの一覧を取得
+        let existing_symlinks = list_symlinks(game_mod_dir.to_string_lossy().to_string());
+        let existing_symlinks = match existing_symlinks {
+            Ok(data) => data,
+            Err(e) => {
+                println!("Failed to list symlinks: {}", e);
+                ensure!(false, "Failed to list symlinks");
+                unreachable!();
+            }
+        };
+
+        // Modディレクトリを走査
+        let entries = std::fs::read_dir(mod_data_dir)?;
+        for entry in entries {
+            let entry = entry?;
+            let path = entry.path();
+            let modinfo_path = match get_modinfo_path(&path) {
+                Ok(d) => d,
+                Err(e) => {
+                    println!("{:}", e);
+                    continue;
+                }
+            };
+
+            // Mod情報の取得
+            let info = match ModInfo::from_path(&modinfo_path) {
+                Ok(info) => info,
+                Err(e) => {
+                    println!("Failed to read modinfo.json: {}", e);
+                    continue;
+                }
+            };
+
+            // 断面管理情報の取得
+            let res = crate::git::open(path.display().to_string());
+            let local_version = match res {
+                Ok(repo) => {
+                    let head = repo.head()?;
+                    let head_branch = &head.name().unwrap();
+                    let head_branch = head_branch.split('/').last().unwrap();
+                    let last_commit = &head.peel_to_commit().unwrap();
+                    let last_commit_date = last_commit.time().seconds();
+                    let last_commit_date =
+                        chrono::DateTime::<chrono::Utc>::from_timestamp(last_commit_date, 0)
+                            .unwrap();
+                    Some(LocalVersion {
+                        branch_name: head_branch.to_string(),
+                        last_commit_date: last_commit_date.to_string(),
+                    })
+                }
+                Err(e) => {
+                    println!("Failed to open as repository: {}", e);
+                    None
+                }
+            };
+
+            // インストール状態取得
+            let mod_dir_name = path.file_name().unwrap();
+            let is_installed = existing_symlinks
+                .iter()
+                .any(|path| path.file_name().unwrap().eq(mod_dir_name));
+            let m = Mod {
+                info,
+                local_version,
+                is_installed,
+                local_path: path.display().to_string(),
+            };
+            mods.push(m);
+        }
+        Ok(mods)
+    }
+
+    pub fn refresh_mod_status(&mut self) -> Result<()> {
+        let mods = self.scan_mods()?;
+
+        let active_profile = self.get_active_profile();
+        println!(
+            "******Refreshing mod status for profile: {:?}",
+            active_profile.name
+        );
+        println!("******Found {} mods", mods.len());
+
+        self.profiles.iter_mut().for_each(|p| {
+            if p.id.eq(&active_profile.id) {
+                p.mod_status = mods.clone();
+            }
+        });
+        println!(
+            "******Mod status refreshed: {:?}",
+            self.get_active_profile().mod_status.len()
+        );
         self.write_file();
+        Ok(())
     }
 }
 
@@ -282,7 +396,6 @@ impl Config for Settings {
         let mut file = fs::File::create(config_file).unwrap();
         file.write_all(serialized.as_bytes()).unwrap();
     }
-
     fn read_file(&mut self) -> Settings {
         let config_root = get_config_root();
         let config_file = config_root.join(SETTINGS_FILENAME);
@@ -309,10 +422,11 @@ impl AppState {
             settings: Mutex::new(Settings::new()),
         }
     }
-    pub fn update_current_mod_status(&self, mods: Vec<Mod>) {
+    pub fn refresh_mod_status(&self) {
         let mut settings = self.settings.lock().unwrap();
-        settings.update_current_mod_status(mods);
+        settings.refresh_mod_status().unwrap();
     }
+
     pub fn get_settings(&self) -> Settings {
         let settings = self.settings.lock().unwrap();
         settings.clone()
@@ -325,11 +439,7 @@ pub mod commands {
     #[tauri::command]
     pub async fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings, String> {
         let settings = state.settings.lock().unwrap();
-        if settings.profiles.is_empty() {
-            Ok(Settings::default())
-        } else {
-            Ok(settings.clone())
-        }
+        Ok(settings.clone())
     }
 
     #[tauri::command]
@@ -349,6 +459,7 @@ pub mod commands {
 
         let new_profile = Profile::new(id, name, game_path.map(PathBuf::from));
         settings.add_profile(new_profile);
+        settings.write_file();
         Ok(())
     }
 

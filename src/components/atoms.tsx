@@ -67,8 +67,6 @@ const activeProfileAtom = atom(
   }
 );
 
-const store = createStore();
-
 const refreshState = atom(0);
 const refreshModsAtom = atom((get) => get(refreshState), (get, set) => {
   set(refreshState, (c) => c + 1);
@@ -83,6 +81,8 @@ const modsAtom = atomWithSuspenseQuery((get) => ({
   refetchOnMount: "always",
 }))
 
+
+const store = createStore();
 
 export {
   settingAtom,

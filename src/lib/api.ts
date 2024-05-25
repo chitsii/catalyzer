@@ -39,8 +39,8 @@ export function openModData() {
   invoke<string>("open_mod_data");
 };
 
-export function removeSymlink(target: string) {
-  invoke<string>('remove_symlink', { targetFile: target })
+export function uninstallMod(target: string) {
+  invoke<string>('uninstall_mod', { targetFile: target })
     .then((response) => {
       console.debug(response);
       console.info('symlink removed!');
@@ -65,8 +65,8 @@ export async function list_branches(targetDir: string) {
   return res ? res : [];
 }
 
-export function createSymlink(source: string, target: string) {
-  invoke<string>('create_symlink',
+export function unistallMod(source: string, target: string) {
+  invoke<string>('install_mod',
     {
       sourceDir: source,
       targetDir: target

@@ -35,8 +35,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isNonEmptyStringOrArray, popUp } from "@/lib/utils";
 import {
-  createSymlink,
-  removeSymlink,
+  unistallMod,
+  uninstallMod,
   GitCmd,
   openLocalDir,
   list_branches,
@@ -451,10 +451,10 @@ export const columns: ColumnDef<Mod>[] = [
                   const targetModDir = path.join(targetDir, base);
 
                   if (isInstalled) {
-                    removeSymlink(targetModDir);
+                    uninstallMod(targetModDir);
 
                   } else {
-                    createSymlink(row.original.localPath, targetModDir);
+                    unistallMod(row.original.localPath, targetModDir);
                   }
                   // reload table
                   const f = table.options.meta?.fetchMods;

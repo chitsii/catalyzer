@@ -54,6 +54,7 @@ import {
   Profile,
   store as AtomStore,
   refreshSettingAtom,
+  activeProfileAtom,
 } from "@/components/atoms";
 import { ask } from '@tauri-apps/api/dialog';
 import { ScrollArea } from "@radix-ui/react-scroll-area";
@@ -81,6 +82,7 @@ import {
 import { boolean, z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { get } from "http";
 
 const profileFormSchema = z.object({
   name: z.string().min(1).max(45).trim(),
@@ -126,6 +128,7 @@ const ProfileForm = ({
     ) => {
       await addProfile(name, gamePath);
       form.reset();
+      await refresh();
     };
 
     const handleEditProfile = async (
@@ -135,6 +138,7 @@ const ProfileForm = ({
     ) => {
       await editProfile(id, name, gamePath);
       form.reset();
+      await refresh();
     }
 
     targetProfile
@@ -262,7 +266,7 @@ const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: Dialo
 type ProfileSelectorProps = {
   className?: string
 }
-const ProfileSelector = ({
+const ProfileSwitcher = ({
   className
 }: ProfileSelectorProps) => {
 
@@ -489,13 +493,15 @@ const setUpDropEvent = async () => {
     }
     const [filepath] = ev.payload.paths;
 
-    const [{ data: settings }] = useAtom(settingAtom);
+
+    // const [{ data: settings }] = useAtom(settingAtom);
+    const { data: settings } = await AtomStore.get(settingAtom);
+
     const modDataDir = settings.mod_data_path;
     if (!modDataDir) {
       popUp('failed', 'Somehow Mod Directory is not set.');
       return;
     }
-
     if (path.extname(filepath) === '.zip') {
       unzipModArchive(
         filepath,
@@ -504,13 +510,10 @@ const setUpDropEvent = async () => {
       return;
     }
     else if (path.parse(filepath).dir === modDataDir) {
-      popUp('success', 'The file is already in the Mod Directory. If you want to update the mod, please create a new version or manually commit your change.');
+      popUp('success', 'このModは既にインストール済みのようです。更新したい場合、Modの新しい断面を作成してください');
     }
     else {
-      popUp(
-        'failed',
-        `Handling ${path.extname(filepath) ? path.extname(filepath) : 'directory'} is not supported yet. Please drop .zip file.`
-      );
+      popUp( 'failed', 'Unsupported File Type' );
     }
   })
 };
@@ -518,32 +521,27 @@ setUpDropEvent();
 
 
 export default function Home() {
-  // const [profileList, setProfileList] = useAtom(profiles);
-  // const [{ profileList, isPending, isError }] = useAtom(profiles);
-
-  const [{ data: settingData }] = useAtom(settingAtom);
-  const profileList = settingData.profiles;
-  // const profileList = settingData?.profile ?? [];
+  const [{ data: setting }] = useAtom(settingAtom);
+  const profileList = setting.profiles;
   const [__, refreshSettings] = useAtom(refreshSettingAtom);
 
+  const gt = useAtom(activeProfileAtom);
+
   const getActiveProfile = () => {
-    // console.log(profileList);
     const res = profileList.find((p) => p.is_active);
     return res;
   }
   const currentProfile: Profile | undefined = getActiveProfile();
 
-  // TODO: Implement profile selection
-  // const [currentProfile, setCurrentProfile] = useState(profileList[0]);
 
-  const [{ data, isPending, isError }] = useAtom(modsAtom);
+  const [{ data: mods }] = useAtom(modsAtom);
   const [_, refresh] = useAtom(refreshModsAtom);
 
   return (
     <main>
       <div className="w-full overflow-hidden select-none bg-muted/40">
         <div className="flex w-full h-[100px] gap-8 p-4 items-center">
-          <ProfileSelector />
+          <ProfileSwitcher />
           <div className="flex-grow">
             <CSR>
               <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
@@ -592,7 +590,7 @@ export default function Home() {
             </TabsList>
             <TabsContent value="mods">
               <div className="bg-muted/40">
-                <ModsTable mods={data!} />
+                <ModsTable mods={mods!} />
               </div>
             </TabsContent>
             <TabsContent value="setting">

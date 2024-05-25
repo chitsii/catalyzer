@@ -1,37 +1,60 @@
+use crate::prelude::*;
+
+fn remove_file(target: &Path) -> Result<()> {
+    ensure!(
+        target.exists(),
+        "Target directory does not exist: {}",
+        target.display()
+    );
+    std::fs::remove_file(target)?;
+    Ok(())
+}
+
+fn remove_all_files(target_dir: String) -> Result<()> {
+    let target = std::path::Path::new(&target_dir);
+    std::fs::remove_dir_all(target)?;
+    std::fs::create_dir(target)?;
+    Ok(())
+}
+
+pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> {
+    ensure!(
+        source_dir.exists() && source_dir.is_dir(),
+        "Source directory does not exist or is not a directory: {:?}",
+        source_dir
+    );
+    ensure!(
+        !target_dir.exists(),
+        "Target directory already exists: {:?}",
+        target_dir
+    );
+    std::os::unix::fs::symlink(source_dir, target_dir).map_err(anyhow::Error::from)
+}
+
 pub mod commands {
+    use super::*;
+    use crate::profile::AppState;
+
     #[tauri::command]
-    pub fn create_symlink(source_dir: String, target_dir: String) -> Result<(), String> {
-        println!("Creating symlink from {} to {}", source_dir, target_dir);
+    pub fn install_mod(
+        state: tauri::State<'_, AppState>,
+        source_dir: String,
+        target_dir: String,
+    ) -> Result<(), String> {
+        create_symbolic_link(Path::new(&source_dir), Path::new(&target_dir))
+            .map_err(|e| e.to_string())?;
 
-        let source = std::path::Path::new(&source_dir);
-        let target = std::path::Path::new(&target_dir);
-
-        if !source.exists() || !source.is_dir() {
-            return Err(format!("Source is Invalid: {}", source.display()));
-        }
-        if target.exists() {
-            return Err(format!("Target is invalid: {}", target.display()));
-        }
-
-        match std::os::unix::fs::symlink(source, target) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("Failed to create symlink: {}", e)),
-        }
+        state.refresh_mod_status();
+        Ok(())
     }
 
     #[tauri::command]
-    pub fn remove_symlink(target_file: String) -> Result<(), String> {
-        println!("Unlinking symlink at {}", target_file);
-        let target = std::path::Path::new(&target_file);
-        if !target.exists() {
-            return Err(format!(
-                "Target directory does not exist: {}",
-                target.display()
-            ));
-        }
-        match std::fs::remove_file(target) {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("Failed to remove symlink: {}", e)),
-        }
+    pub fn uninstall_mod(
+        state: tauri::State<'_, AppState>,
+        target_file: String,
+    ) -> Result<(), String> {
+        remove_file(Path::new(&target_file)).map_err(|e| e.to_string())?;
+        state.refresh_mod_status();
+        Ok(())
     }
 }
