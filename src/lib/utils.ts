@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { info, warn, trace, error, debug, attachLogger } from 'tauri-plugin-log-api';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -27,16 +28,19 @@ export function isNonEmptyStringOrArray(value: unknown): value is string | strin
 
 import { toast } from "sonner"
 
+
 export const popUp = (title: "success" | "failed", msg: string) => {
-  console.info(msg);
+  if (title === "success") {
+    info(msg);
+  } else if (title === "failed") {
+    error(msg);
+  }
   toast(
     title.toUpperCase(),
     {
       description: msg,
-      // position: 'top-right',
+      position: 'top-right',
       className: "z-50",
-      // duration: 3000,
-      // closeButton: true,
     }
   );
 }

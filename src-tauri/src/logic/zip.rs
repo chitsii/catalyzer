@@ -1,4 +1,4 @@
-use anyhow;
+use crate::prelude::*;
 
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
@@ -14,10 +14,7 @@ use zifu_core::InputZIPArchive;
 /// errors:
 ///  If the input ZIP archive is not a supported type, or if the encoding of the file names in the
 /// input ZIP archive cannot be detected, an error is returned.
-pub fn fix_zip_fname_encoding(
-    file_path: String,
-    output_zip_path: String,
-) -> anyhow::Result<String> {
+pub fn fix_zip_fname_encoding(file_path: String, output_zip_path: String) -> Result<String> {
     let bufr = BufReader::new(File::open(file_path)?);
 
     let mut input_zip_file = InputZIPArchive::new(bufr)?;
@@ -39,7 +36,7 @@ pub fn fix_zip_fname_encoding(
     let best_fit_decoder_index_ = input_zip_file.get_filename_decoder_index(&decoders_list);
     match best_fit_decoder_index_ {
         Some(index) => {
-            println!(
+            debug!(
                 "Detected encoding: {:?}",
                 decoders_list[index].encoding_name()
             );

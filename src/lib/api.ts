@@ -3,6 +3,7 @@ import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
 import React from "react";
 import { popUp } from "@/lib/utils";
 import { createId } from "@paralleldrive/cuid2";
+import { error, info, debug } from "tauri-plugin-log-api";
 
 
 type GitArgs = {
@@ -22,32 +23,32 @@ type Command =
 export function GitCmd(command: Command, args: GitArgs) {
   invoke<string>(command, args)
     .then((response) => {
-      console.debug(response);
-      popUp("success", `operation '${command}' succeeded!`);
+      popUp("success", `'${command}' succeeded!`);
     })
     .catch((err) => {
-      console.error(err);
+      error(err);
       popUp("failed", err);
     });
 };
 
 export function openLocalDir(targetDir: string) {
+  info(`open mod data directory: ${targetDir}`);
   invoke<string>("open_dir", { targetDir: targetDir });
 };
 
 export function openModData() {
+
   invoke<string>("open_mod_data");
 };
 
 export function uninstallMod(target: string) {
   invoke<string>('uninstall_mod', { targetFile: target })
     .then((response) => {
-      console.debug(response);
-      console.info('symlink removed!');
-      // popUp("success", "Removed symblic link.")
+      // debug(response);
+      info(`mod uninstalled: ${target}.`);
     })
     .catch((err) => {
-      console.error(err);
+      error(err);
       popUp("failed", err);
     });
 };
@@ -55,11 +56,11 @@ export function uninstallMod(target: string) {
 export async function list_branches(targetDir: string) {
   const res = await invoke<string[]>('git_list_branches', { targetDir: targetDir })
     .then((response: string[]) => {
-      console.debug(response);
+      // debug(response.join(","));
       return response;
     })
     .catch((err) => {
-      console.error(err);
+      error(err);
       popUp("failed", err);
     });
   return res ? res : [];
@@ -73,11 +74,10 @@ export function unistallMod(source: string, target: string) {
     }
   )
     .then((response) => {
-      console.debug(response);
-      // popUp("success", "Created symbolic link.")
+      // debug(response);
     })
     .catch((err) => {
-      console.error(err);
+      error(err);
       popUp("failed", err);
     });
 };
@@ -86,11 +86,11 @@ export const fetchMods = async () => {
   // if (typeof window === "undefined") return [];
   const res = await invoke<Mod[]>('scan_mods')
     .then((response) => {
-      console.log('fetchMods', response);
+      info(`scan mods. found: ${response.length}`);
       return response;
     })
     .catch((err) => {
-      console.error(err);
+      error(err);
       throw new Error(err);
     });
   return res;
@@ -130,11 +130,11 @@ import { Settings } from "@/components/atoms";
 export const getSettings = async () => {
   const res = await invoke<Settings>('get_settings')
     .then((response) => {
-      console.log('getSetting', response);
+      info(`refresh settings.`);
       return response;
     })
     .catch((err) => {
-      console.error(err);
+      error(err);
       throw new Error(err);
     });
     return res
@@ -178,4 +178,16 @@ export const editProfile = async (
     .catch((err) => {
       popUp('failed', err);
     });
+}
+
+export const tailLog = async () => {
+  const res = await invoke<string[]>('tail_log')
+    .then((response) => {
+      info("read log file.");
+      return response;
+    })
+    .catch((err) => {
+      error(err);
+    });
+  return res ? res : [];
 }

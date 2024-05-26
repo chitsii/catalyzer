@@ -38,12 +38,12 @@ pub fn remove_dir_all(path: impl AsRef<Path>, exclude_pattern: Option<&str>) -> 
         let ty = entry.file_type()?;
         if let Some(exclude_pattern) = exclude_pattern {
             if entry.path().to_string_lossy().contains(exclude_pattern) {
-                println!("Skipping {:?}", entry.path());
+                debug!("Skipping {:?}", entry.path());
                 skipped += 1;
                 continue;
             }
         }
-        println!("Removing {:?}", entry.path());
+        debug!("Removing {:?}", entry.path());
         if ty.is_dir() {
             fs::remove_dir_all(entry.path())?;
         } else {
@@ -125,7 +125,7 @@ pub fn get_shallowest_mod_dir(path: &Path) -> Option<PathBuf> {
 }
 
 pub fn list_symlinks(target_root_dir: String) -> Result<Vec<PathBuf>, String> {
-    println!("Listing symlinks in {}", &target_root_dir);
+    debug!("Listing symlinks in {}", &target_root_dir);
 
     let target = std::path::Path::new(&target_root_dir);
 
@@ -144,7 +144,7 @@ pub fn list_symlinks(target_root_dir: String) -> Result<Vec<PathBuf>, String> {
                 let entry = entry.unwrap();
                 let path = entry.path();
                 if path.is_symlink() {
-                    println!("Symlink: {}", path.display());
+                    debug!("Symlink: {}", path.display());
                     symlinks.push(path);
                 }
             }

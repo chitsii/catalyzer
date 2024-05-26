@@ -1,3 +1,5 @@
+use crate::prelude::*;
+
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum StringOrVec {
@@ -21,11 +23,10 @@ pub struct ModInfo {
 
 impl ModInfo {
     pub fn from_path(path: &std::path::Path) -> Result<Self, String> {
-        println!("Reading modinfo from {}", path.display());
+        debug!("Reading modinfo from {}", path.display());
         let content = std::fs::read_to_string(path).unwrap();
-        // println!("Content: {}", content);
         let info: Vec<ModInfo> = serde_json::from_str(&content).unwrap_or_else(|e| {
-            println!(
+            debug!(
                 "Failed to parse modinfo.json of mod {}. msg: {}",
                 &path.to_string_lossy(),
                 e

@@ -1,7 +1,9 @@
+use crate::prelude::*;
+
 use git2::{Branch, Repository, Signature};
 
 pub fn open(target_dir: String) -> Result<Repository, String> {
-    println!("Opening repository at {}", target_dir);
+    debug!("Opening repository at {}", target_dir);
     match Repository::open(&target_dir) {
         Ok(repo) => Ok(repo),
         Err(e) => Err(format!("Failed to open repository: {}", e)),
@@ -9,7 +11,7 @@ pub fn open(target_dir: String) -> Result<Repository, String> {
 }
 
 fn init(target_dir: String) -> Result<Repository, String> {
-    println!("Initializing repository at {}", target_dir);
+    debug!("Initializing repository at {}", target_dir);
     match Repository::init(&target_dir) {
         Ok(_) => {
             let repo = open(target_dir).unwrap();
@@ -20,7 +22,7 @@ fn init(target_dir: String) -> Result<Repository, String> {
 }
 
 fn commit(repo: &Repository, message: &str) -> Result<(), String> {
-    println!("Committing changes to repository");
+    debug!("Committing changes to repository");
 
     let sig = Signature::now("CataclysmLauncher", "Nothing").unwrap();
 
@@ -40,7 +42,7 @@ fn commit(repo: &Repository, message: &str) -> Result<(), String> {
             Ok(())
         }
         Err(_) => {
-            println!("No HEAD found, creating initial commit.");
+            debug!("No HEAD found, creating initial commit.");
             let tree_id = {
                 let mut index = repo.index().unwrap();
                 index
@@ -63,7 +65,7 @@ fn commit(repo: &Repository, message: &str) -> Result<(), String> {
 }
 
 fn reset_hard(repo: &Repository) -> Result<(), String> {
-    println!("Resetting repository to HEAD");
+    debug!("Resetting repository to HEAD");
     let head = repo.head().unwrap();
     let head_commit = head.peel_to_commit().unwrap();
     let head_object = head_commit.as_object();
@@ -73,7 +75,7 @@ fn reset_hard(repo: &Repository) -> Result<(), String> {
 }
 
 pub fn list_branches(repo: &Repository) -> Result<Vec<String>, String> {
-    println!("Listing branches in repository");
+    debug!("Listing branches in repository");
     let mut branches = Vec::new();
     for branch in repo.branches(None).unwrap() {
         let (branch, _) = branch.unwrap();
@@ -90,7 +92,7 @@ fn git_create_branch<'a>(
     branch_name: &'a str,
     base_branch: &'a str,
 ) -> Result<Branch<'a>, String> {
-    println!("Creating branch {} from {}", branch_name, base_branch);
+    debug!("Creating branch {} from {}", branch_name, base_branch);
     let base_branch = repo
         .find_branch(base_branch, git2::BranchType::Local)
         .unwrap();
@@ -101,7 +103,7 @@ fn git_create_branch<'a>(
 }
 
 fn checkout(repo: &Repository, branch_name: &str, create_if_unexist: bool) -> Result<bool, String> {
-    println!("Checking out branch {}", branch_name);
+    debug!("Checking out branch {}", branch_name);
 
     match repo.find_branch(branch_name, git2::BranchType::Local) {
         Ok(branch) => {
@@ -110,14 +112,14 @@ fn checkout(repo: &Repository, branch_name: &str, create_if_unexist: bool) -> Re
             Ok(false)
         }
         Err(_e) => {
-            println!("Branch not found: {}", branch_name);
+            debug!("Branch not found: {}", branch_name);
             if create_if_unexist {
                 let head = repo.head().unwrap();
                 let current_branch = head.name().unwrap().split('/').last().unwrap();
                 let new_branch = git_create_branch(repo, branch_name, current_branch).unwrap();
                 let new_branch_ref = new_branch.into_reference();
                 repo.set_head(new_branch_ref.name().unwrap()).unwrap();
-                println!("move to the new branch: {}", branch_name);
+                debug!("move to the new branch: {}", branch_name);
                 Ok(true)
             } else {
                 Err("Did not find branch that name to checkout".to_string())
@@ -158,7 +160,7 @@ pub mod commands {
             return Err(format!("Repository already exists at {}", target_dir));
         }
         let repo = init(target_dir).unwrap();
-        println!("Repository initialized at {}", repo.path().display());
+        debug!("Repository initialized at {}", repo.path().display());
         commit(&repo, "Initial commit").unwrap();
         reset_hard(&repo).unwrap();
 

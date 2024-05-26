@@ -7,13 +7,17 @@ mod prelude {
     pub use crate::profile::AppState;
 
     pub use anyhow::{ensure, Context as _, Result};
+    pub use log::{debug, error, info, warn};
     pub use std::path::{Path, PathBuf};
 }
 
+use log::LevelFilter;
+use tauri_plugin_log::{LogTarget, RotationStrategy, TimezoneStrategy};
+
 use prelude::*;
 
-use std::process::Command;
-use tauri::Manager;
+use std::{fs::read_to_string, process::Command};
+use tauri::{api::path::executable_dir, Manager};
 
 mod logic;
 
@@ -30,10 +34,26 @@ mod symlink;
 mod zip;
 
 fn main() {
+    const MAX_LOG_FILE_SIZE: u128 = 10_000_000;
+
     let app_state = AppState::new();
 
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    LogTarget::Stdout,
+                    LogTarget::Webview,
+                    LogTarget::Folder(crate::profile::get_config_root().join("logs")),
+                ])
+                .timezone_strategy(TimezoneStrategy::UseLocal)
+                .rotation_strategy(RotationStrategy::KeepOne)
+                .max_file_size(MAX_LOG_FILE_SIZE)
+                .level(LevelFilter::Debug)
+                .build(),
+        )
         .setup(|app| {
+            info!("Welcome to the CDDA mod manager! Starting up...");
             // 開発時だけdevtoolsを表示する。
             #[cfg(debug_assertions)]
             app.get_window("main").unwrap().open_devtools();
@@ -44,6 +64,7 @@ fn main() {
             scan_mods,
             open_dir,
             open_mod_data,
+            tail_log,
             symlink::commands::install_mod,
             symlink::commands::uninstall_mod,
             zip::commands::unzip_mod_archive,
@@ -60,7 +81,11 @@ fn main() {
             profile::commands::get_active_profile,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            error!("Error while running tauri application: {}", e);
+            // エラーが発生した場合はプログラムを終了する。
+            std::process::exit(1);
+        });
 }
 
 #[tauri::command]
@@ -123,4 +148,28 @@ fn open_dir(target_dir: String) {
 fn open_mod_data(state: tauri::State<'_, AppState>) {
     let setting = state.get_settings();
     open_dir(setting.mod_data_path.to_string_lossy().to_string());
+}
+
+#[tauri::command]
+fn tail_log() -> Vec<String> {
+    let log_path = profile::get_config_root().join("logs");
+    let log_file = log_path
+        .read_dir()
+        .unwrap()
+        .find(|entry| {
+            let entry = entry.as_ref().unwrap();
+            entry.path().extension().unwrap() == "log"
+        })
+        .unwrap()
+        .unwrap();
+    let content = read_to_string(log_file.path()).unwrap();
+
+    const MAX_LINES: usize = 20;
+    let lines: Vec<String> = content.lines().map(|line| line.to_string()).collect();
+    let start = if lines.len() > MAX_LINES {
+        lines.len() - MAX_LINES
+    } else {
+        0
+    };
+    lines[start..].to_vec()
 }

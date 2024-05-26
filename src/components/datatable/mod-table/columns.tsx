@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { info, error, debug } from "tauri-plugin-log-api";
 import { ColumnDef, RowData } from "@tanstack/react-table";
 import { GitGraphIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -104,7 +105,6 @@ export const columns: ColumnDef<Mod>[] = [
                 <p
                   className="text-sm text-primary cursor-pointer hover:underline"
                   onClick={() => {
-                    console.log(`opne locally: ${info.name}`)
                     openLocalDir(row.original.localPath)
                   }}
                 >
@@ -213,7 +213,6 @@ export const columns: ColumnDef<Mod>[] = [
 
       const fetchBranches = async () => {
         const branches = await list_branches(row.original.localPath);
-        console.log(branches);
         const barnchesWithoutCurrent = branches.filter((branch) => branch != local_version.branchName);
         setBranches(barnchesWithoutCurrent);
       }
@@ -239,7 +238,6 @@ export const columns: ColumnDef<Mod>[] = [
                       <form onSubmit={(e: any) => {
                         e.preventDefault();
                         const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
-                        console.log(selectedBranchName);
                         GitCmd("git_checkout", {
                           targetDir: row.original.localPath,
                           targetBranch: selectedBranchName,
@@ -349,7 +347,7 @@ export const columns: ColumnDef<Mod>[] = [
                                   targetBranch: input_branch_name,
                                   createIfUnexist: true,
                                 });
-                                console.debug("checkout done");
+                                debug("checkout done.");
 
                                 // zipファイルを展開
                                 if (!!uploadFilePath) {
@@ -358,7 +356,7 @@ export const columns: ColumnDef<Mod>[] = [
                                     row.original.localPath,
                                     true
                                   );
-                                  console.debug("unzip done");
+                                  debug("unzip done.");
 
                                   // commit changes
                                   GitCmd("git_commit_changes", { targetDir: row.original.localPath });
@@ -400,7 +398,7 @@ export const columns: ColumnDef<Mod>[] = [
                   <DropdownMenuContent>
                     <DropdownMenuItem
                       onClick={() => {
-                        console.log(`start managing section: ${JSON.stringify(row.original.localPath)}`)
+                        info(`start managing section: ${JSON.stringify(row.original.localPath)}`)
                         const localPath = row.original.localPath;
                         GitCmd("git_init", { targetDir: localPath });
 
@@ -444,7 +442,6 @@ export const columns: ColumnDef<Mod>[] = [
                   const base = path.parse(row.original.localPath).base;
 
                   if (!targetDir || targetDir == "") {
-                    console.error("target directory is not set!");
                     popUp("failed", "target directory is not set!");
                     return
                   };

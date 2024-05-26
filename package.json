@@ -38,6 +38,7 @@
     "sonner": "^1.4.41",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
+    "tauri-plugin-log-api": "github:tauri-apps/tauri-plugin-log#v1",
     "vaul": "^0.9.0",
     "wonka": "^6.3.4",
     "zod": "^3.23.6"

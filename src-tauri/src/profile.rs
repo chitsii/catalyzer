@@ -17,7 +17,7 @@ use tauri::api::path::{app_config_dir, config_dir, data_dir};
 const SETTINGS_FILENAME: &str = "setting.yaml";
 
 /// current_exeの親ディレクトリ
-fn get_config_root() -> PathBuf {
+pub fn get_config_root() -> PathBuf {
     let exe_path = std::env::current_exe().unwrap();
     exe_path.parent().unwrap().to_path_buf()
 }
@@ -163,7 +163,7 @@ impl Settings {
                 fs::rename(&game_save_dir, backup_dir)?;
             }
         }
-        println!(
+        debug!(
             "++++++++Creating symlink: {:?} -> {:?}",
             profile_save_dir, game_save_dir
         );
@@ -183,8 +183,8 @@ impl Settings {
                 create_symbolic_link(Path::new(&src), &dest).unwrap();
             }
             // ローカルブランチがあればチェックアウト
-            println!(
-                "⭐️⭐️⭐️⭐️Checking out branch: {:?}",
+            debug!(
+                "Checking out branch: {:?}",
                 m.local_version.clone().unwrap().branch_name
             );
             git_checkout_logic(
@@ -192,8 +192,8 @@ impl Settings {
                 m.local_version.clone().unwrap().branch_name,
                 false,
             )
-            .unwrap_or(println!(
-                "⭐️⭐️⭐️⭐️Failed to checkout branch: {}",
+            .unwrap_or(debug!(
+                "Failed to checkout branch: {}",
                 m.local_version.clone().unwrap().branch_name
             ));
         });
@@ -202,7 +202,7 @@ impl Settings {
 
     fn remove_profile_dir(&self, profile: &Profile) {
         let profile_dir = &profile.profile_path.root;
-        println!("Removing profile dir: {:?}", profile_dir);
+        debug!("Removing profile dir: {:?}", profile_dir);
         if profile_dir.exists() {
             remove_dir_all(profile_dir, None).unwrap();
         }
@@ -232,7 +232,6 @@ impl Settings {
             .position(|x| x.id == profile_id)
             .unwrap();
 
-        // TODO: remove profile directory
         let profile = &self.profiles[index];
         self.remove_profile_dir(profile);
 
@@ -275,7 +274,7 @@ impl Settings {
         let existing_symlinks = match existing_symlinks {
             Ok(data) => data,
             Err(e) => {
-                println!("Failed to list symlinks: {}", e);
+                debug!("Failed to list symlinks: {}", e);
                 ensure!(false, "Failed to list symlinks");
                 unreachable!();
             }
@@ -289,7 +288,7 @@ impl Settings {
             let modinfo_path = match get_modinfo_path(&path) {
                 Ok(d) => d,
                 Err(e) => {
-                    println!("{:}", e);
+                    debug!("{:}", e);
                     continue;
                 }
             };
@@ -298,7 +297,7 @@ impl Settings {
             let info = match ModInfo::from_path(&modinfo_path) {
                 Ok(info) => info,
                 Err(e) => {
-                    println!("Failed to read modinfo.json: {}", e);
+                    debug!("Failed to read modinfo.json: {}", e);
                     continue;
                 }
             };
@@ -321,7 +320,7 @@ impl Settings {
                     })
                 }
                 Err(e) => {
-                    println!("Failed to open as repository: {}", e);
+                    debug!("Failed to open as repository: {}", e);
                     None
                 }
             };
@@ -347,18 +346,18 @@ impl Settings {
 
         // let active_profile = self.get_active_profile();
         let active_profile = profile.clone();
-        println!(
+        debug!(
             "******Refreshing mod status for profile: {:?}",
             active_profile.name
         );
-        println!("******Found {} mods", mods.len());
+        debug!("******Found {} mods", mods.len());
 
         self.profiles.iter_mut().for_each(|p| {
             if p.id.eq(&active_profile.id) {
                 p.mod_status = mods.clone();
             }
         });
-        println!(
+        debug!(
             "******Mod status refreshed: {:?}",
             self.get_active_profile().mod_status.len()
         );
@@ -392,7 +391,7 @@ impl Config for Settings {
         match deserialized {
             Ok(settings) => settings,
             Err(_) => {
-                println!("Error: Failed to read config file");
+                debug!("Error: Failed to read config file");
                 self.clone()
             }
         }

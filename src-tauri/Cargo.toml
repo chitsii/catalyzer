@@ -20,12 +20,14 @@ serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "1.6.2", features = [ "path-all", "shell-open", "fs-remove-dir", "fs-rename-file", "dialog-save", "dialog-ask", "fs-exists", "fs-create-dir", "dialog-open", "fs-remove-file", "fs-copy-file", "fs-read-dir", "fs-write-file", "fs-read-file", "dialog-confirm", "dialog-message"] }
 git2 = { varsion = "0.18.3", features = ["vendored-libgit2"] }
 chrono = "0.4"
+tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 zip-extract = "0.1.3"
 tempfile = "3.10.1"
 anyhow = "1.0"
 zifu_core = "0.1.1"
 serde_yaml = "0.9.34"
 toml = "0.8.13"
+log = "0.4.21"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

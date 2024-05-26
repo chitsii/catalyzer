@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef, ReactNode } from "react";
+import React, { useEffect, useState, useRef, ReactNode, use } from "react";
 import Link from "next/link";
 import path from "path";
 import { cn } from "@/lib/utils";
@@ -45,7 +45,7 @@ import { ColorThemeSelector } from "@/components/theme-seletor";
 import { ModsTable } from "@/components/datatable/mod-table/table-mods";
 import CSR from "@/components/csr/csr";
 
-import { useAtom } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import {
   refreshModsAtom,
   modsAtom,
@@ -55,6 +55,7 @@ import {
   store as AtomStore,
   refreshSettingAtom,
   activeProfileAtom,
+  logTextAtom,
 } from "@/components/atoms";
 import { ask } from '@tauri-apps/api/dialog';
 import { ScrollArea } from "@radix-ui/react-scroll-area";
@@ -85,14 +86,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { get } from "http";
 
+
+import { info, warn, trace, error, debug, attachLogger, attachConsole } from 'tauri-plugin-log-api';
+// import { logTextAtom, store as atomStore } from '@/components/atoms';
+// import { useAtom } from 'jotai';
+import { AreaForLog } from "@/components/logger";
+
+
+
+
 const profileFormSchema = z.object({
   name: z.string().min(1).max(45).trim(),
   game_path: z.string().max(255).trim(),
-  // profile_path: z.string().min(1).max(255).trim(),
-  // branch_name: z.string().min(1).max(20).regex(
-  //   /^[a-zA-Z0-9_\-]+$/,
-  //   'Invalid branch name. Only alphanumeric characters, hyphen and underscore are allowed.'
-  // ).trim(),
 })
 
 type ProfileFormProps = {
@@ -120,8 +125,8 @@ const ProfileForm = ({
   });
 
   const onSubmit = async (values: z.infer<typeof profileFormSchema>) => {
-    console.log('onSubmit');
-    console.log(values);
+    // console.log('onSubmit');
+    // console.log(values);
 
     const handleAddProfile = async (
       name: string,
@@ -484,7 +489,7 @@ const setUpDropEvent = async () => {
   const window = await import("@tauri-apps/api/window");
   const { appWindow } = window;
   appWindow.onFileDropEvent(async (ev) => {
-    console.log(ev); // Debug
+    // console.log(ev); // Debug
     if (ev.payload.type !== 'drop') {
       return;
     }
@@ -514,7 +519,7 @@ const setUpDropEvent = async () => {
       popUp('success', 'このModは既にインストール済みのようです。更新したい場合、Modの新しい断面を作成してください');
     }
     else {
-      popUp( 'failed', 'Unsupported File Type' );
+      popUp('failed', 'Unsupported File Type');
     }
   })
 };
@@ -585,9 +590,9 @@ export default function Home() {
                 className="text-lg"
               >設定
               </TabsTrigger>
-              {/* <TabsTrigger value="debug">
+              <TabsTrigger value="debug">
                 debug
-              </TabsTrigger> */}
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="mods">
               <div className="bg-muted/40">
@@ -634,20 +639,11 @@ export default function Home() {
                 </div>
               </div>
             </TabsContent>
-            <TabsContent value="debug">
-              <Button onClick={async () => {
-                const a = await getActiveProfile();
-                console.log(a);
-              }}>
-                get active profile
-              </Button>
 
-              <Button onClick={async () => {
-                await refreshSettings();
-              }}>
-                refresh settings
-              </Button>
+            <TabsContent value="debug">
+              <AreaForLog />
             </TabsContent>
+
             <TabsContent value="releases">
               <Link
                 href="https://github.com/CleverRaven/Cataclysm-DDA/releases"

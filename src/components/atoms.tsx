@@ -82,6 +82,8 @@ const modsAtom = atomWithSuspenseQuery((get) => ({
 }))
 
 
+const logTextAtom = atom<String[]>([]);
+
 const store = createStore();
 
 export {
@@ -90,6 +92,7 @@ export {
   modsAtom,
   refreshModsAtom,
   activeProfileAtom,
+  logTextAtom,
   store
 }
 export type {

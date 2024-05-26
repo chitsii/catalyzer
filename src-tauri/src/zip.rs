@@ -1,4 +1,8 @@
+use crate::prelude::*;
+
 pub mod commands {
+    use super::*;
+
     use crate::logic;
     use logic::utils::{copy_dir_all, get_shallowest_mod_dir, remove_dir_all};
     use logic::zip::fix_zip_fname_encoding;
@@ -22,7 +26,7 @@ pub mod commands {
 
         if exists_ok.is_some_and(|x| x) {
             if dest_path.exists() {
-                println!(
+                debug!(
                     "Destination already exists, so we merge them: {}",
                     dest_path.display()
                 );
@@ -35,7 +39,7 @@ pub mod commands {
         }
         let tmp_dir_zip = tempdir().unwrap();
         let tmp_dir_zip_path = tmp_dir_zip.path();
-        println!("tmp zip dir {}", tmp_dir_zip_path.display());
+        debug!("tmp zip dir {}", tmp_dir_zip_path.display());
 
         // src_pathのファイル名の文字コードを修正
         // temp_dir/{srcのファイル名}に修正版のzipファイルを作成
@@ -45,14 +49,14 @@ pub mod commands {
             tmp_dir_zip_path.join(filename).display().to_string(),
         )
         .map_err(|e| format!("Failed to fix encoding of ZIP archive: {}", e))?;
-        println!("Fixed zip file created: {}", fixed_src_path);
+        debug!("Fixed zip file created: {}", fixed_src_path);
 
         let archive: Vec<u8> = std::fs::read(fixed_src_path).unwrap();
         let archive = std::io::Cursor::new(archive);
 
         let tmp_dir = tempdir().unwrap();
         let tmp_dir_path = tmp_dir.path();
-        println!("tmp extract mod to {}", tmp_dir_zip_path.display());
+        debug!("tmp extract mod to {}", tmp_dir_zip_path.display());
 
         match zip_extract::extract(archive, tmp_dir_path, true) {
             Ok(_) => {
@@ -64,9 +68,9 @@ pub mod commands {
                     Some(mod_dir) => {
                         // if dest_path exists, overwrite (merge) the mod directory.
                         if exists_ok.is_some_and(|x| x) && dest_path.exists() {
-                            println!("Removing existing directory: {}", dest_path.display());
+                            debug!("Removing existing directory: {}", dest_path.display());
                             remove_dir_all(&dest_path, Some(".git")).unwrap();
-                            println!("Merging mod directory to {}", dest_path.display());
+                            debug!("Merging mod directory to {}", dest_path.display());
                             copy_dir_all(&mod_dir, &dest_path, Some(".git")).unwrap();
                         } else {
                             // copy the mod directory to the destination
