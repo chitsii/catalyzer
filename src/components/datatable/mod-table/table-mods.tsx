@@ -23,7 +23,7 @@ function ModsTable({ mods }: getModsProps) {
           columns={columns}
           data={mods}
           fetchMods={refresh}
-          gameModDir={settings.game_config_path.mods}
+          gameModDir={settings ? settings.game_config_path.mods : ''}
         />
       </div>
     </CSR>

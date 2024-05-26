@@ -62,6 +62,7 @@ const settingAtom = atomWithSuspenseQuery(
 const activeProfileAtom = atom(
   async (get) => {
       const { data: settings } = await get(settingAtom);
+      if (!settings) return null;
       const res = settings.profiles.find((p) => p.is_active);
       return res
   }

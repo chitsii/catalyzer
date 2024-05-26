@@ -84,12 +84,9 @@ import {
 import { boolean, z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { get } from "http";
 
 
 import { info, warn, trace, error, debug, attachLogger, attachConsole } from 'tauri-plugin-log-api';
-// import { logTextAtom, store as atomStore } from '@/components/atoms';
-// import { useAtom } from 'jotai';
 import { AreaForLog } from "@/components/logger";
 
 
@@ -278,7 +275,7 @@ const ProfileSwitcher = ({
 
   const [{ data: settings }] = useAtom(settingAtom);
   const [_, refresh] = useAtom(refreshSettingAtom);
-  const profileList = settings.profiles;
+  const profileList = settings ? settings.profiles : [];
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [hasOpenDialog, setHasOpenDialog] = useState(false);
@@ -503,9 +500,11 @@ const setUpDropEvent = async () => {
     // const [{ data: settings }] = useAtom(settingAtom);
     const { data: settings } = await AtomStore.get(settingAtom);
 
-    const modDataDir = settings.mod_data_path;
+    // const modDataDir = settings.mod_data_path;
+    const modDataDir = settings ? settings.mod_data_path : null;
+
     if (!modDataDir) {
-      popUp('failed', 'Somehow Mod Directory is not set.');
+      debug('Somehow Mod Directory is not set.');
       return;
     }
     if (path.extname(filepath) === '.zip') {
@@ -523,12 +522,60 @@ const setUpDropEvent = async () => {
     }
   })
 };
-setUpDropEvent();
 
+let IS_LOGGER_ATTACHED = false;
 
 export default function Home() {
+
+  useEffect(() => {
+    const setUpDropEvent = async () => {
+      const window = await import("@tauri-apps/api/window");
+      const { appWindow } = window;
+      appWindow.onFileDropEvent(async (ev) => {
+        // console.log(ev); // Debug
+        if (ev.payload.type !== 'drop') {
+          return;
+        }
+        const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
+        if (!does_install) {
+          return;
+        }
+        const [filepath] = ev.payload.paths;
+        const { data: settings } = await AtomStore.get(settingAtom);
+        const modDataDir = settings ? settings.mod_data_path : null;
+        if (!modDataDir) {
+          debug('Somehow Mod Directory is not set.');
+          return;
+        }
+        if (path.extname(filepath) === '.zip') {
+          unzipModArchive(
+            filepath,
+            path.join(modDataDir, path.basename(filepath))
+          );
+          return;
+        }
+        else if (path.parse(filepath).dir === modDataDir) {
+          popUp('success', 'このModは既にインストール済みのようです。更新したい場合、Modの新しい断面を作成してください');
+        }
+        else {
+          popUp('failed', 'Unsupported File Type');
+        }
+      })
+    };
+
+    const setUpDropEventAndAttachLogger = async () => {
+      if (!IS_LOGGER_ATTACHED) {
+        await setUpDropEvent();
+        IS_LOGGER_ATTACHED = true;
+      }
+    };
+
+    setUpDropEventAndAttachLogger();
+  }, []);
+
+
   const [{ data: setting }] = useAtom(settingAtom);
-  const profileList = setting.profiles;
+  const profileList = setting ? setting.profiles : [];
   const [__, refreshSettings] = useAtom(refreshSettingAtom);
 
   const gt = useAtom(activeProfileAtom);
@@ -639,7 +686,6 @@ export default function Home() {
                 </div>
               </div>
             </TabsContent>
-
             <TabsContent value="debug">
               <AreaForLog />
             </TabsContent>

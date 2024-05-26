@@ -1,9 +1,8 @@
 import { Mod } from "@/components/datatable/mod-table/columns";
-import { invoke, InvokeArgs } from "@tauri-apps/api/tauri";
-import React from "react";
 import { popUp } from "@/lib/utils";
 import { createId } from "@paralleldrive/cuid2";
 import { error, info, debug } from "tauri-plugin-log-api";
+import { invoke } from "@tauri-apps/api/tauri";
 
 
 type GitArgs = {
@@ -14,14 +13,15 @@ type GitArgs = {
 };
 
 type Command =
-"git_init" |
-"git_commit_changes" |
-"git_reset_changes" |
-"git_list_branches" |
-"git_checkout";
+  "git_init" |
+  "git_commit_changes" |
+  "git_reset_changes" |
+  "git_list_branches" |
+  "git_checkout";
 
-export function GitCmd(command: Command, args: GitArgs) {
-  invoke<string>(command, args)
+export async function GitCmd(command: Command, args: GitArgs) {
+  const isClient = typeof window !== "undefined";
+  isClient && await invoke<string>(command, args)
     .then((response) => {
       popUp("success", `'${command}' succeeded!`);
     })
@@ -31,18 +31,22 @@ export function GitCmd(command: Command, args: GitArgs) {
     });
 };
 
-export function openLocalDir(targetDir: string) {
+export async function openLocalDir(targetDir: string) {
   info(`open mod data directory: ${targetDir}`);
-  invoke<string>("open_dir", { targetDir: targetDir });
+
+  const isClient = typeof window !== "undefined";
+  isClient && invoke<string>("open_dir", { targetDir: targetDir });
 };
 
-export function openModData() {
-
-  invoke<string>("open_mod_data");
+export async function openModData() {
+  const isClient = typeof window !== "undefined";
+  isClient && await invoke<string>("open_mod_data");
 };
 
-export function uninstallMod(target: string) {
-  invoke<string>('uninstall_mod', { targetFile: target })
+export async function uninstallMod(target: string) {
+
+  const isClient = typeof window !== "undefined";
+  isClient && await invoke<string>('uninstall_mod', { targetFile: target })
     .then((response) => {
       // debug(response);
       info(`mod uninstalled: ${target}.`);
@@ -54,6 +58,10 @@ export function uninstallMod(target: string) {
 };
 
 export async function list_branches(targetDir: string) {
+
+  const isClient = typeof window !== "undefined";
+  if (!isClient) return [];
+
   const res = await invoke<string[]>('git_list_branches', { targetDir: targetDir })
     .then((response: string[]) => {
       // debug(response.join(","));
@@ -66,8 +74,10 @@ export async function list_branches(targetDir: string) {
   return res ? res : [];
 }
 
-export function unistallMod(source: string, target: string) {
-  invoke<string>('install_mod',
+export async function unistallMod(source: string, target: string) {
+
+  const isClient = typeof window !== "undefined";
+  isClient && await invoke<string>('install_mod',
     {
       sourceDir: source,
       targetDir: target
@@ -83,7 +93,9 @@ export function unistallMod(source: string, target: string) {
 };
 
 export const fetchMods = async () => {
-  // if (typeof window === "undefined") return [];
+  const isClient = typeof window !== "undefined";
+  if (!isClient) return [];
+
   const res = await invoke<Mod[]>('scan_mods')
     .then((response) => {
       info(`scan mods. found: ${response.length}`);
@@ -91,14 +103,14 @@ export const fetchMods = async () => {
     })
     .catch((err) => {
       error(err);
-      throw new Error(err);
+      throw new Error(`found error: ${err}`);
     });
   return res;
 };
 
 export const unzipModArchive = async (src: string, dest: string, existsOk: boolean = false) => {
-  if (typeof window === "undefined") return;
-  invoke<string>('unzip_mod_archive', { src: src, dest: dest, existsOk: existsOk })
+  const isClient = typeof window !== "undefined";
+  isClient && await invoke<string>('unzip_mod_archive', { src: src, dest: dest, existsOk: existsOk })
     .then((response) => {
       popUp('success', 'Mod archive extracted at ' + dest);
     })
@@ -111,12 +123,14 @@ export const addProfile = async (
   name: string,
   gamePath: string,
 ) => {
-  const args: InvokeArgs = {
+
+  const args = {
     id: createId(),
     name: name,
     gamePath: gamePath,
   };
-  invoke<string>('add_profile', args)
+  const isClient = typeof window !== "undefined";
+  isClient && await invoke<string>('add_profile', args)
     .then((response) => {
       popUp('success', 'Profile added!');
     })
@@ -128,6 +142,10 @@ export const addProfile = async (
 import { Settings } from "@/components/atoms";
 
 export const getSettings = async () => {
+
+  const isClient = typeof window !== "undefined";
+  if (!isClient) return null;
+
   const res = await invoke<Settings>('get_settings')
     .then((response) => {
       info(`refresh settings.`);
@@ -135,14 +153,15 @@ export const getSettings = async () => {
     })
     .catch((err) => {
       error(err);
-      throw new Error(err);
+      // throw new Error(err);
+      throw new Error(`found error: ${err}`);
     });
-    return res
-  // return res ? res : { language: 'ja', mod_data_path: '', game_config_path: '', profiles: [] };
+  return res;
 }
 
 export const setProfileActive = async (profileId: string) => {
-  invoke<string>('set_profile_active', { profileId: profileId })
+  const isClient = typeof window !== "undefined";
+  isClient && await invoke<string>('set_profile_active', { profileId: profileId })
     .then((response) => {
       popUp('success', response);
     })
@@ -152,7 +171,8 @@ export const setProfileActive = async (profileId: string) => {
 }
 
 export const removeProfile = async (profileId: string) => {
-  invoke<string>('remove_profile', { profileId: profileId })
+  const isClient = typeof window !== "undefined";
+  isClient && await invoke<string>('remove_profile', { profileId: profileId })
     .then((response) => {
       popUp('success', response);
     })
@@ -166,12 +186,14 @@ export const editProfile = async (
   name: string,
   gamePath: string,
 ) => {
-  const args: InvokeArgs = {
+  const args = {
     profileId: profileId,
     name: name,
     gamePath: gamePath,
   };
-  invoke<string>('edit_profile', args)
+
+  const isClient = typeof window !== "undefined";
+  isClient && invoke<string>('edit_profile', args)
     .then((response) => {
       popUp('success', response);
     })
@@ -181,6 +203,8 @@ export const editProfile = async (
 }
 
 export const tailLog = async () => {
+  const isClient = typeof window !== "undefined";
+  if (!isClient) return [];
   const res = await invoke<string[]>('tail_log')
     .then((response) => {
       info("read log file.");

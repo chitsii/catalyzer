@@ -83,7 +83,6 @@ fn main() {
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {
             error!("Error while running tauri application: {}", e);
-            // エラーが発生した場合はプログラムを終了する。
             std::process::exit(1);
         });
 }
