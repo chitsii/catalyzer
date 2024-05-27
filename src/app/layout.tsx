@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { ThemeProvider } from 'next-themes';
 import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
-import CSR from "@/components/csr/csr";
 import "./globals.css";
 
 const NotoSansMono = localFont({

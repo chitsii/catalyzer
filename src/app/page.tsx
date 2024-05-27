@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Menu, CheckIcon, MoreHorizontal, PencilIcon, Trash2Icon, XIcon, Edit2Icon, Edit3, LucideNetwork, LucideExternalLink } from 'lucide-react'
+import { Menu, CheckIcon, MoreHorizontal, PencilIcon, Trash2Icon, XIcon, Edit2Icon, Edit3, LucideNetwork, LucideExternalLink, SquarePlay } from 'lucide-react'
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -88,6 +88,7 @@ import { useForm } from "react-hook-form";
 
 import { info, warn, trace, error, debug, attachLogger, attachConsole } from 'tauri-plugin-log-api';
 import { AreaForLog } from "@/components/logger";
+import { DropdownMenuArrow } from "@radix-ui/react-dropdown-menu";
 
 
 
@@ -190,38 +191,6 @@ const ProfileForm = ({
             </FormItem>
           )}
         />
-        {/* <FormField
-          name="profile_path"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-sm">プロファイルデータパス</FormLabel>
-              <FormControl>
-                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
-                  {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          disabled={!!targetProfile}
-          name="branch_name"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-sm">断面名称(branch name)</FormLabel>
-              <FormDescription className="text-xs">
-                ※プロファイルの断面名(Gitのブランチ名)として使用されるため、一度設定した断面名は変更できません。
-              </FormDescription>
-              <FormControl>
-                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
-                  {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        /> */}
         <Button
           type="submit"
           onClick={async () => {
@@ -266,12 +235,8 @@ const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: Dialo
   )
 }
 
-type ProfileSelectorProps = {
-  className?: string
-}
-const ProfileSwitcher = ({
-  className
-}: ProfileSelectorProps) => {
+
+const ProfileSwitcher = () => {
 
   const [{ data: settings }] = useAtom(settingAtom);
   const [_, refresh] = useAtom(refreshSettingAtom);
@@ -293,17 +258,25 @@ const ProfileSwitcher = ({
   }
   const selectProfile = async (id: string) => {
     await setProfileActive(id);
+    // TODO: junkey solution. sometimes ui is not updated after profile change.
+    await new Promise((resolve) => setTimeout(resolve, 400));
     await refresh();
   }
+
+  const currentProfile = profileList.find((p) => p.is_active);
 
   return (
     <>
       <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
         <DropdownMenuTrigger asChild>
           <Button
-            className={cn("flex items-center gap-2", className)}
+            variant="ghost"
             ref={dropdownTriggerRef}>
-            <Menu />
+            <Badge
+              className="text-primary-foreground hover:mouse-pointer hover:bg-primary text-muted cursor-pointer hover:skew-x-12 hover:scale=[1.1] hover:rotate-[-12deg] transition-transform duration-300 ease-in-out"
+            >
+              {currentProfile ? currentProfile.name : 'No Profile'}
+            </Badge>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -482,46 +455,61 @@ const ProfileSwitcher = ({
 }
 
 
-const setUpDropEvent = async () => {
-  const window = await import("@tauri-apps/api/window");
-  const { appWindow } = window;
-  appWindow.onFileDropEvent(async (ev) => {
-    // console.log(ev); // Debug
-    if (ev.payload.type !== 'drop') {
-      return;
-    }
-    const does_install = await ask('Add the dropped file to Mod Directory?', 'CDDA Launcher');
-    if (!does_install) {
-      return;
-    }
-    const [filepath] = ev.payload.paths;
+// radial-gradient(closest-side, rgba(93, 194, 48, 1), rgba(233, 233, 233, 1));
 
+const GlobalMenu = () => {
+  const [{ data: setting }] = useAtom(settingAtom);
+  const current_profile = setting ? setting.profiles.find((p) => p.is_active) : null;
+  const game_path = current_profile ? current_profile.game_path : null;
 
-    // const [{ data: settings }] = useAtom(settingAtom);
-    const { data: settings } = await AtomStore.get(settingAtom);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <div className="rounded-full hover:shadow-lg hover:shadow-accent-foreground">
+          <img
+            src="/assets/icon.png"
+            alt="menu"
+            width={80}
+            height={80}
+          />
+        </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent>
+        <DropdownMenuGroup>
+          <DropdownMenuItem>
+            <p
+              className={
+                game_path
+                  ? "text-lg"
+                  : "text-lg text-muted-foreground cursor-not-allowed"
+              }
+              onClick={() => {
+                if (!game_path) {
+                  return;
+                }
+                openLocalDir(game_path);
 
-    // const modDataDir = settings.mod_data_path;
-    const modDataDir = settings ? settings.mod_data_path : null;
-
-    if (!modDataDir) {
-      debug('Somehow Mod Directory is not set.');
-      return;
-    }
-    if (path.extname(filepath) === '.zip') {
-      unzipModArchive(
-        filepath,
-        path.join(modDataDir, path.basename(filepath))
-      );
-      return;
-    }
-    else if (path.parse(filepath).dir === modDataDir) {
-      popUp('success', 'このModは既にインストール済みのようです。更新したい場合、Modの新しい断面を作成してください');
-    }
-    else {
-      popUp('failed', 'Unsupported File Type');
-    }
-  })
-};
+              }}
+            >ゲーム起動</p>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel>
+            <p className="text-xs">👇リンク(ブラウザで開く)</p>
+          </DropdownMenuLabel>
+          <DropdownMenuItem>
+            <p className="text-xs"
+              onClick={() => {
+                openLocalDir("https://github.com/CleverRaven/Cataclysm-DDA/");
+              }}
+            >
+              リポジトリ
+            </p>
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
 
 let IS_LOGGER_ATTACHED = false;
 
@@ -594,30 +582,19 @@ export default function Home() {
     <main>
       <div className="w-full overflow-hidden select-none bg-muted/40">
         <div className="flex w-full h-[100px] gap-8 p-4 items-center">
-          <ProfileSwitcher />
+          <div className="flex-shrink-0 w-[100px] h-[100px] rounded-lg flex items-center justify-center">
+
+            <GlobalMenu />
+          </div>
           <div className="flex-grow">
             <CSR>
               <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
+              <span className="text-sm text-muted-foreground">現在のプリセット:</span>
+              <ProfileSwitcher />
               {
-                currentProfile && (
-                  <>
-                    <span className="text-sm text-muted-foreground">Active Profile: </span>
-                    <Badge
-                      variant="outline"
-                      className="hover:mouse-pointer hover:bg-primary hover:text-white cursor-pointer"
-                      onClick={() => {
-                        openLocalDir(currentProfile.profile_path.root);
-                      }}>
-                      {currentProfile.name}
-                    </Badge>
-                    <ul className="list-none px-4">
-                      {
-                        !!currentProfile.game_path &&
-                        <li className="text-[10px] text-muted-foreground">Game Path: {currentProfile.game_path}</li>
-                      }
-                    </ul>
-                  </>
-                )
+                !!currentProfile?.game_path
+                  ? <p className="text-[10px] text-muted-foreground line-clamp-1">CDDAパス: {currentProfile.game_path}</p>
+                  : <p className="text-[10px] text-muted-foreground">⚠️ CDDAへのパスを設定していません。(Mod管理に影響はありません)</p>
               }
             </CSR>
           </div>

@@ -164,7 +164,7 @@ impl Settings {
             }
         }
         debug!(
-            "++++++++Creating symlink: {:?} -> {:?}",
+            "Creating symlink: {:?} -> {:?}",
             profile_save_dir, game_save_dir
         );
         create_symbolic_link(&profile_save_dir, &game_save_dir)?;
@@ -183,19 +183,26 @@ impl Settings {
                 create_symbolic_link(Path::new(&src), &dest).unwrap();
             }
             // ローカルブランチがあればチェックアウト
-            debug!(
-                "Checking out branch: {:?}",
-                m.local_version.clone().unwrap().branch_name
-            );
-            git_checkout_logic(
-                m.local_path.clone(),
-                m.local_version.clone().unwrap().branch_name,
-                false,
-            )
-            .unwrap_or(debug!(
-                "Failed to checkout branch: {}",
-                m.local_version.clone().unwrap().branch_name
-            ));
+            if let Some(local_version) = &m.local_version {
+                git_checkout_logic(
+                    m.local_path.clone(),
+                    local_version.branch_name.clone(),
+                    false,
+                )
+                .unwrap_or(debug!(
+                    "Failed to checkout branch: {}",
+                    local_version.branch_name.clone()
+                ));
+            }
+            // git_checkout_logic(
+            //     m.local_path.clone(),
+            //     m.local_version.clone().unwrap().branch_name,
+            //     false,
+            // )
+            // .unwrap_or(debug!(
+            //     "Failed to checkout branch: {}",
+            //     m.local_version.clone().unwrap().branch_name
+            // ));
         });
         Ok(())
     }

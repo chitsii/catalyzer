@@ -17,7 +17,7 @@ pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> 
         source_dir
     );
     ensure!(
-        !target_dir.exists(),
+        target_dir.symlink_metadata().is_err(),
         "Target directory already exists: {:?}",
         target_dir
     );

@@ -64,6 +64,7 @@ type ModInfo = {
   type?: string;
   maintainers?: string[];
   version?: string;
+  obsolete?: boolean;
 }
 
 type LocalVersion = {
@@ -131,7 +132,6 @@ export const columns: ColumnDef<Mod>[] = [
             info.category &&
             (<Badge variant="category">{info.category}</Badge>)
           }
-          {/* <LucideCopy size={16} className="m-2"/> */}
         </div>
       )
     },
@@ -162,11 +162,11 @@ export const columns: ColumnDef<Mod>[] = [
           {
             info.description && (
               <div>
-                <p className="text-xs text-muted-foreground">{info.description}</p>
+                <p className="text-xs text-muted-foreground line-clamp-4">{info.description}</p>
               </div>
             )
           }
-          <div>
+          <div className="pt-1 pl-4 text-[11px] text-muted-foreground leading-tight">
             {
               Object.keys(info).map((k) => {
                 const value = info[k as keyof ModInfo];
@@ -176,16 +176,16 @@ export const columns: ColumnDef<Mod>[] = [
                 if (Array.isArray(value)) {
                   return (value.join("").trim() != "") && (
                     <p key={k}>
-                      <span className="text-xs font-semibold text-muted-foreground uppercase">{k}: </span>
-                      <span className="text-xs text-muted-foreground">{value.join(", ")}</span>
+                      <span className="font-semibold uppercase">{k}: </span>
+                      <span>{value.join(", ")}</span>
                     </p>
                   )
                 }
                 else {
                   return value && (
                     <p key={k}>
-                      <span className="text-xs font-semibold text-muted-foreground uppercase">{k}: </span>
-                      <span className="text-xs text-muted-foreground">{value}</span>
+                      <span className="font-semibold uppercase">{k}: </span>
+                      <span>{JSON.stringify(value)}</span>
                     </p>
                   )
                 }
