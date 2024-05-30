@@ -12,6 +12,8 @@ import {
   Trash2Icon,
   Edit3,
   LucideExternalLink,
+  Play,
+  PlayIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +22,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuSub,
@@ -478,24 +481,32 @@ const GlobalMenu = () => {
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         <DropdownMenuGroup>
-          <DropdownMenuItem
-            className={
-              game_path
-                ? "text-lg"
-                : "text-lg text-muted-foreground cursor-not-allowed"
-            }
-          >
-            <p
-              onClick={() => {
-                if (!game_path) {
-                  return;
-                }
-                openLocalDir(game_path);
-              }}
-            >
-              ゲーム起動
-            </p>
-          </DropdownMenuItem>
+          {
+            // ゲーム起動
+            // ゲームパスがない場合は無効化
+            // ゲームパスがある場合は、そのパスを引数にしてゲームを起動する
+            !!game_path ? (
+              <DropdownMenuItem
+                className="text-lg"
+                onClick={() => {
+                  openLocalDir(game_path);
+                }}
+              >
+                <Play className="mr-4 h-4 w-4" />
+                ゲーム起動
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem>
+                <div
+                  className="text-lg text-gray-500 cursor-not-allowed pointer-events-none flex items-center
+                  "
+                >
+                  <Play className="mr-4 h-4 w-4" />
+                  CDDAパス未設定
+                </div>
+              </DropdownMenuItem>
+            )
+          }
           <DropdownMenuSeparator />
           <DropdownMenuLabel>
             <p className="text-xs">👇リンク(ブラウザで開く)</p>
@@ -600,7 +611,7 @@ export default function Home() {
                 現在のプリセット:
               </span>
               <ProfileSwitcher />
-              {!!currentProfile?.game_path ? (
+              {/* {!!currentProfile?.game_path ? (
                 <p className="text-[10px] text-muted-foreground line-clamp-1">
                   CDDAパス: {currentProfile.game_path}
                 </p>
@@ -608,7 +619,7 @@ export default function Home() {
                 <p className="text-[10px] text-muted-foreground">
                   🔨 CDDA本体パス未設定
                 </p>
-              )}
+              )} */}
             </CSR>
           </div>
         </div>
