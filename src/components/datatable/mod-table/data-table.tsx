@@ -144,7 +144,7 @@ export function DataTable<TData, TValue>({
                   }}
                   >
                     <br/>
-                    管理フォルダにModを追加しましょう。<br/>
+                    管理ディレクトリにModを追加しましょう。<br/>
                     このウィンドウにZipファイルをドラッグ＆ドロップしても追加できます。
                   </Button>
                 </TableCell>
