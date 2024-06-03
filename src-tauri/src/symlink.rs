@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+#[cfg(unix)]
 fn remove_file(target: &Path) -> Result<()> {
     ensure!(
         target.exists(),
@@ -10,6 +11,18 @@ fn remove_file(target: &Path) -> Result<()> {
     Ok(())
 }
 
+#[cfg(windows)]
+fn remove_file(target: &Path) -> Result<()> {
+    ensure!(
+        target.exists(),
+        "Target directory does not exist: {}",
+        target.display()
+    );
+    use junction;
+    junction::delete(target).map_err(anyhow::Error::from)
+}
+
+#[cfg(unix)]
 pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> {
     ensure!(
         source_dir.exists() && source_dir.is_dir(),
@@ -22,6 +35,25 @@ pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> 
         target_dir
     );
     std::os::unix::fs::symlink(source_dir, target_dir).map_err(anyhow::Error::from)
+}
+
+#[cfg(windows)]
+pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> {
+    ensure!(
+        source_dir.exists() && source_dir.is_dir(),
+        "Source directory does not exist or is not a directory: {:?}",
+        source_dir
+    );
+    ensure!(
+        target_dir.symlink_metadata().is_err(),
+        "Target directory already exists: {:?}",
+        target_dir
+    );
+
+    use junction;
+    junction::create(target_dir, source_dir)
+        .map_err(anyhow::Error::from)
+        .map_err(anyhow::Error::from)
 }
 
 pub mod commands {

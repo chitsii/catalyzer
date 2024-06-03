@@ -20,7 +20,6 @@ use std::{fs::read_to_string, process::Command};
 use tauri::{api::path::executable_dir, Manager};
 
 mod logic;
-
 use logic::utils::{get_modinfo_path, list_symlinks};
 
 mod model;

@@ -113,6 +113,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "git2",
+ "junction",
  "log",
  "serde",
  "serde_json",
@@ -1685,6 +1686,16 @@ dependencies = [
  "serde_json",
  "thiserror",
  "treediff",
+]
+
+[[package]]
+name = "junction"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c9c415a9b7b1e86cd5738f39d34c9e78c765da7fb1756dbd7d31b3b0d2e7afa"
+dependencies = [
+ "scopeguard",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
