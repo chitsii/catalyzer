@@ -35,7 +35,7 @@ tauri = { version = "1.6.2", features = [
     "dialog-confirm",
     "dialog-message",
 ] }
-git2 = { varsion = "0.18.3", features = ["vendored-libgit2"] }
+git2 = { version = "0.18.3", features = ["vendored-libgit2"] }
 chrono = "0.4"
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 zip-extract = "0.1.3"
