@@ -8,14 +8,18 @@ pub mod commands {
     use logic::zip::fix_zip_fname_encoding;
     use tempfile::tempdir;
 
+    /// Unzips a mod archive to a destination directory.
+    /// src: Mod archive file path
+    /// dest_dir: プロファイルのmodディレクトリ
     #[tauri::command]
     pub fn unzip_mod_archive(
         src: String,
-        dest: String,
+        dest_dir: String,
         exists_ok: Option<bool>,
     ) -> Result<(), String> {
         let src_path = std::path::PathBuf::from(src);
-        let dest_path = std::path::PathBuf::from(dest).with_extension("");
+        let src_basename = src_path.file_name().unwrap();
+        let dest_path = std::path::PathBuf::from(dest_dir).join(src_basename);
 
         if !src_path.exists() {
             return Err(format!(
@@ -71,10 +75,33 @@ pub mod commands {
                             debug!("Removing existing directory: {}", dest_path.display());
                             remove_dir_all(&dest_path, Some(".git")).unwrap();
                             debug!("Merging mod directory to {}", dest_path.display());
-                            copy_dir_all(&mod_dir, &dest_path, Some(".git")).unwrap();
+                            match copy_dir_all(&mod_dir, &dest_path, Some(".git")) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    tmp_dir.close().unwrap();
+                                    println!(
+                                        "Failed to copy mod directory: {}, dest: {}",
+                                        e,
+                                        dest_path.to_string_lossy()
+                                    );
+                                    return Err(format!("Failed to copy mod directory: {}", e));
+                                }
+                            }
                         } else {
                             // copy the mod directory to the destination
-                            std::fs::rename(mod_dir, dest_path).unwrap();
+                            // std::fs::rename(mod_dir, dest_path).unwrap();
+                            match copy_dir_all(&mod_dir, &dest_path, Some(".git")) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    tmp_dir.close().unwrap();
+                                    println!(
+                                        "Failed to copy mod directory: {}, dest: {}",
+                                        e,
+                                        dest_path.to_string_lossy()
+                                    );
+                                    return Err(format!("Failed to copy mod directory: {}", e));
+                                }
+                            }
                         }
                     }
                     None => {

@@ -1,18 +1,20 @@
 "use client";
 
-import { Atom, atom, PrimitiveAtom, useAtom, useAtomValue } from 'jotai';
-import { createStore, Provider } from 'jotai';
+import { Atom, atom, PrimitiveAtom, useAtom, useAtomValue } from "jotai";
+import { createStore, Provider } from "jotai";
 import { Mod } from "@/components/datatable/mod-table/columns";
-import { atomWithStorage } from 'jotai/utils'
+import { atomWithStorage } from "jotai/utils";
 import { fetchMods } from "@/lib/api";
-import { atomWithSuspenseQuery } from 'jotai-tanstack-query';
+import { atomWithSuspenseQuery } from "jotai-tanstack-query";
 
 import { getSettings } from "@/lib/api";
 
 // atomWithStorage
 // ToDo: Remove this
-const defaultModDataDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source";
-const defaultGameModDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets";
+const defaultModDataDir =
+  "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source";
+const defaultGameModDir =
+  "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets";
 
 type UserDataPaths = {
   root: string;
@@ -22,20 +24,16 @@ type UserDataPaths = {
   save: string;
   sound: string;
   gfx: string;
-}
+};
 
 type Profile = {
   id: string;
   name: string;
   game_path: string;
   profile_path: UserDataPaths;
-  mod_status: Mod[],
-  // mod_data_path: string;
-  // profile_path: ProfilePath;
-  // active_mods: string[];
-  // branch_name: string;
+  mod_status: Mod[];
   is_active: boolean;
-}
+};
 
 type Settings = {
   language: string;
@@ -45,43 +43,44 @@ type Settings = {
 };
 
 const refreshSettingState = atom(0);
-const refreshSettingAtom = atom((get) => get(refreshSettingState), (get, set) => {
-  set(refreshSettingState, (c) => c + 1);
+const refreshSettingAtom = atom(
+  (get) => get(refreshSettingState),
+  (get, set) => {
+    set(refreshSettingState, (c) => c + 1);
+  },
+);
+const settingAtom = atomWithSuspenseQuery((get) => ({
+  enabled: typeof window !== "undefined",
+  queryKey: [get(refreshSettingState)],
+  queryFn: async () => {
+    return getSettings();
+  },
+  staleTime: Infinity,
+  refetchOnMount: "always",
+}));
+const activeProfileAtom = atom(async (get) => {
+  const { data: settings } = await get(settingAtom);
+  if (!settings) return null;
+  const res = settings.profiles.find((p) => p.is_active);
+  return res;
 });
-const settingAtom = atomWithSuspenseQuery(
-  (get) => ({
-    enabled: typeof window !== "undefined",
-    queryKey: [get(refreshSettingState)],
-    queryFn: async () => {
-      return getSettings();
-    },
-    staleTime: Infinity,
-    refetchOnMount: "always",
-  })
-);
-const activeProfileAtom = atom(
-  async (get) => {
-      const { data: settings } = await get(settingAtom);
-      if (!settings) return null;
-      const res = settings.profiles.find((p) => p.is_active);
-      return res
-  }
-);
 
 const refreshState = atom(0);
-const refreshModsAtom = atom((get) => get(refreshState), (get, set) => {
-  set(refreshState, (c) => c + 1);
-});
+const refreshModsAtom = atom(
+  (get) => get(refreshState),
+  (get, set) => {
+    set(refreshState, (c) => c + 1);
+  },
+);
 const modsAtom = atomWithSuspenseQuery((get) => ({
   enabled: typeof window === "undefined",
-  queryKey: ['mods', get(refreshState), get(activeProfileAtom)],
+  queryKey: ["mods", get(refreshState), get(activeProfileAtom)],
   queryFn: async () => {
     return fetchMods();
   },
   staleTime: Infinity,
   refetchOnMount: "always",
-}))
-
+}));
 
 const logTextAtom = atom<String[]>([]);
 
@@ -94,9 +93,6 @@ export {
   refreshModsAtom,
   activeProfileAtom,
   logTextAtom,
-  store
-}
-export type {
-  Profile,
-  Settings
-}
+  store,
+};
+export type { Profile, Settings };

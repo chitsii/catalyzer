@@ -1,5 +1,5 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(unused_imports)]
 mod prelude {
 
@@ -9,6 +9,8 @@ mod prelude {
     pub use anyhow::{ensure, Context as _, Result};
     pub use log::{debug, error, info, warn};
     pub use std::path::{Path, PathBuf};
+
+    pub use tauri::async_runtime::Mutex;
 }
 
 use log::LevelFilter;
@@ -20,7 +22,7 @@ use std::{fs::read_to_string, process::Command};
 use tauri::{api::path::executable_dir, Manager};
 
 mod logic;
-use logic::utils::{get_modinfo_path, list_symlinks};
+use logic::utils::get_modinfo_path;
 
 mod model;
 use model::{LocalVersion, Mod, ModInfo};
@@ -33,6 +35,8 @@ mod symlink;
 mod zip;
 
 fn main() {
+    debug!("Starting up CDDA Mod Manager.");
+
     const MAX_LOG_FILE_SIZE: u128 = 10_000_000;
 
     let app_state = AppState::new();
@@ -64,6 +68,7 @@ fn main() {
             open_dir,
             open_mod_data,
             tail_log,
+            launch_game,
             symlink::commands::install_mod,
             symlink::commands::uninstall_mod,
             zip::commands::unzip_mod_archive,
@@ -88,7 +93,8 @@ fn main() {
 
 #[tauri::command]
 fn scan_mods(state: tauri::State<'_, AppState>) -> Result<Vec<Mod>, String> {
-    let settings = state.get_settings();
+    let settings = state.get_settings().unwrap();
+
     let mods = settings.scan_mods().unwrap();
     Ok(mods)
 }
@@ -144,7 +150,7 @@ fn open_dir(target_dir: String) {
 
 #[tauri::command]
 fn open_mod_data(state: tauri::State<'_, AppState>) {
-    let setting = state.get_settings();
+    let setting = state.get_settings().unwrap();
     open_dir(setting.mod_data_path.to_string_lossy().to_string());
 }
 
@@ -170,4 +176,55 @@ fn tail_log() -> Vec<String> {
         0
     };
     lines[start..].to_vec()
+}
+
+#[tauri::command]
+fn launch_game(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let setting = state.get_settings().unwrap();
+
+    let profile = setting.get_active_profile();
+    let game_path = profile.game_path.unwrap();
+
+    // game_pathが存在しない場合はエラーを返して表示する
+    if !game_path.exists() {
+        return Err(format!("Game path does not exist: {:?}", game_path));
+    }
+    launch(game_path).map_err(|e| format!("Failed to launch the game: {}", e))?;
+
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn launch(game_path: PathBuf) -> Result<(), String> {
+    let mut p = game_path.clone();
+
+    let file_name = p.file_name().unwrap().to_string_lossy();
+    if file_name.ends_with(".exe") {
+        let maybe = p.join("cataclysm-tiles.exe");
+        if maybe.exists() {
+            p = maybe;
+        } else {
+            println!("Game path does not exist: {:?}", game_path);
+            return Err(format!("Game path does not exist: {:?}", game_path));
+        }
+    }
+    debug!("Launching game: {:?}", &p);
+    Command::new(p)
+        .spawn()
+        .map_err(|e| format!("Failed to launch the game: {}", e))?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn launch(game_path: PathBuf) -> Result<(), String> {
+    if game_path.extension().unwrap() != "app" {
+        return Err(format!("Game path does not exist: {:?}", game_path));
+    }
+
+    debug!("Launching game: {:?}", &game_path);
+    Command::new("open")
+        .arg(game_path)
+        .spawn()
+        .map_err(|e| format!("Failed to launch the game: {}", e))?;
+    Ok(())
 }

@@ -22,6 +22,53 @@ fn remove_file(target: &Path) -> Result<()> {
     junction::delete(target).map_err(anyhow::Error::from)
 }
 
+#[cfg(windows)]
+fn is_symlink(target: &Path) -> bool {
+    use junction;
+    match junction::exists(target) {
+        Ok(b) => b,
+        Err(_) => false,
+    }
+}
+
+#[cfg(unix)]
+fn is_symlink(target: &Path) -> bool {
+    target
+        .symlink_metadata()
+        .map(|metadata| metadata.file_type().is_symlink())
+        .unwrap_or(false)
+}
+
+pub fn list_symlinks(target_root_dir: String) -> Result<Vec<PathBuf>, String> {
+    debug!("Listing symlinks in {}", &target_root_dir);
+
+    let target = std::path::Path::new(&target_root_dir);
+
+    if !target.exists() {
+        return Err(format!(
+            "Target directory does not exist: {}",
+            target.display()
+        ));
+    }
+
+    let mut symlinks = Vec::new();
+
+    match std::fs::read_dir(target) {
+        Ok(entries) => {
+            for entry in entries {
+                let entry = entry.unwrap();
+                let path = entry.path();
+                if is_symlink(&path) {
+                    debug!("Symlink: {}", path.display());
+                    symlinks.push(path);
+                }
+            }
+            Ok(symlinks)
+        }
+        Err(e) => Err(format!("Failed to list symlinks: {}", e)),
+    }
+}
+
 #[cfg(unix)]
 pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> {
     ensure!(

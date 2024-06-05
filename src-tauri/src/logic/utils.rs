@@ -123,33 +123,3 @@ pub fn get_shallowest_mod_dir(path: &Path) -> Option<PathBuf> {
     }
     None
 }
-
-pub fn list_symlinks(target_root_dir: String) -> Result<Vec<PathBuf>, String> {
-    debug!("Listing symlinks in {}", &target_root_dir);
-
-    let target = std::path::Path::new(&target_root_dir);
-
-    if !target.exists() {
-        return Err(format!(
-            "Target directory does not exist: {}",
-            target.display()
-        ));
-    }
-
-    let mut symlinks = Vec::new();
-
-    match std::fs::read_dir(target) {
-        Ok(entries) => {
-            for entry in entries {
-                let entry = entry.unwrap();
-                let path = entry.path();
-                if path.is_symlink() {
-                    debug!("Symlink: {}", path.display());
-                    symlinks.push(path);
-                }
-            }
-            Ok(symlinks)
-        }
-        Err(e) => Err(format!("Failed to list symlinks: {}", e)),
-    }
-}

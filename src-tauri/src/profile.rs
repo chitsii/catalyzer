@@ -5,7 +5,7 @@ use crate::logic::utils::{copy_dir_all, remove_dir_all};
 use crate::model::Mod;
 // use crate::symlink::commands::{create_symlink, remove_symlink};
 use crate::git::git_checkout_logic;
-use crate::logic::utils::{get_modinfo_path, list_symlinks};
+use crate::logic::utils::get_modinfo_path;
 use crate::symlink::create_symbolic_link;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -30,13 +30,6 @@ fn get_profile_dir(profile_name: &str) -> PathBuf {
         fs::create_dir_all(&profile_path).unwrap();
     }
     profile_path
-}
-
-/// Returns the path to the game directory.
-/// MacOs: ~/Library/Application Support/Cataclysm
-fn get_default_game_config_path() -> PathBuf {
-    let data_dir = data_dir().unwrap();
-    data_dir.join("Cataclysm")
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -67,23 +60,38 @@ impl UserDataPaths {
 pub struct Profile {
     id: String,
     name: String,
-    game_path: Option<PathBuf>,  // ゲームのインストール先
-    profile_path: UserDataPaths, // thisApp.exe/Proiles/{ProfileName}
-    mod_status: Vec<Mod>,        // プロファイル内のModの状態
-    is_active: bool,             // アクティブなプロファイルかどうか
+    pub game_path: Option<PathBuf>, // ゲームのインストール先
+    profile_path: UserDataPaths,    // thisApp.exe/Proiles/{ProfileName}
+    mod_status: Vec<Mod>,           // プロファイル内のModの状態
+    is_active: bool,                // アクティブなプロファイルかどうか
 }
 impl Profile {
+    #[cfg(unix)]
     pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
         let profile_dir = get_profile_dir(&name);
         Self {
             id,
-            name: name.clone(),
+            name,
             game_path,
             profile_path: UserDataPaths::new(profile_dir),
             mod_status: Vec::new(),
             is_active: false,
         }
     }
+
+    #[cfg(windows)]
+    pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
+        let profile_dir = get_profile_dir(&name);
+        Self {
+            id,
+            name,
+            game_path,
+            profile_path: UserDataPaths::new(profile_dir),
+            mod_status: Vec::new(),
+            is_active: false,
+        }
+    }
+
     pub fn create_dir_if_unexist(&self) {
         let paths = [
             &self.profile_path.root,
@@ -121,7 +129,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             language: "ja".into(),
-            game_config_path: UserDataPaths::new(get_default_game_config_path()),
+            game_config_path: UserDataPaths::new(PathBuf::new()),
             mod_data_path: get_config_root().join("ModData"),
             profiles: vec![Profile::default()],
         }
@@ -132,7 +140,24 @@ impl Settings {
         self.create_dirs_if_unexist();
 
         let profile = &self.get_active_profile();
-        self.mutate_state_mod_status(profile).unwrap();
+
+        if cfg!(windows) {
+            // windowsだと、ユーザファイルはゲームディレクトリ内部に存在
+            if profile.game_path.is_some() {
+                self.game_config_path = UserDataPaths::new(profile.game_path.clone().unwrap());
+            }
+        } else if cfg!(macos) {
+            // MacOsではユーザファイルは固定のディレクトリに存在
+            // ~/Library/Application Support/Cataclysm/*
+            let data_dir = data_dir().unwrap();
+            let default_game_config_dir = data_dir.join("Cataclysm");
+            self.game_config_path = UserDataPaths::new(default_game_config_dir);
+        } else {
+            // その他のOSは未対応
+            panic!("Unsupported OS.");
+        }
+
+        self.mutate_state_mod_status(profile).unwrap(); // FIXME
         self.switch_save_dir_symlink(profile).unwrap();
         self.write_file();
     }
@@ -150,20 +175,28 @@ impl Settings {
         let game_save_dir = self.game_config_path.save.clone();
         let profile_save_dir = profile.profile_path.save.clone();
 
+        // game_save_dirが存在しない場合は何もしない
+        if !game_save_dir.exists() {
+            debug!("game_save_dir does not exist so do nothing");
+            return Ok(());
+        }
+
         // game_save_dirが通常のディレクトリならrenameする。シンボリックリンクなら消す
-        if game_save_dir.exists() {
-            let meta = game_save_dir.symlink_metadata().unwrap();
-            if meta.file_type().is_symlink() {
-                fs::remove_file(&game_save_dir)?;
-            } else {
-                let backup_dir = game_save_dir.with_file_name(format!(
-                    "save_backup_{}",
-                    chrono::Local::now().format("%Y%m%d%H%M%S")
-                ));
-                fs::rename(&game_save_dir, backup_dir)?;
-            }
+        let meta = game_save_dir.symlink_metadata().unwrap();
+        if meta.file_type().is_symlink() {
+            fs::remove_file(&game_save_dir)?;
+        } else {
+            let backup_dir = game_save_dir.with_file_name(format!(
+                "save_backup_{}",
+                chrono::Local::now().format("%Y%m%d%H%M%S")
+            ));
+            fs::rename(&game_save_dir, backup_dir)?;
         }
         debug!(
+            "Creating symlink: {:?} -> {:?}",
+            profile_save_dir, game_save_dir
+        );
+        println!(
             "Creating symlink: {:?} -> {:?}",
             profile_save_dir, game_save_dir
         );
@@ -173,15 +206,15 @@ impl Settings {
 
     /// プロファイルの設定を反映する
     fn apply_mod_status(&self, profile: &Profile) -> Result<()> {
-        crate::logic::utils::cleanup_symlinks(&self.game_config_path.mods)?;
+        let has_game_mod_dir = self.game_config_path.mods.exists();
+
+        if has_game_mod_dir {
+            crate::logic::utils::cleanup_symlinks(&self.game_config_path.mods)?;
+        } else {
+            warn!("game mod directory does not exist");
+        }
 
         profile.mod_status.iter().for_each(|m| {
-            if m.is_installed {
-                let src = m.local_path.clone();
-                let dir_name = Path::new(&src).file_name().unwrap();
-                let dest = self.game_config_path.mods.join(dir_name);
-                create_symbolic_link(Path::new(&src), &dest).unwrap();
-            }
             // ローカルブランチがあればチェックアウト
             if let Some(local_version) = &m.local_version {
                 git_checkout_logic(
@@ -194,15 +227,22 @@ impl Settings {
                     local_version.branch_name.clone()
                 ));
             }
-            // git_checkout_logic(
-            //     m.local_path.clone(),
-            //     m.local_version.clone().unwrap().branch_name,
-            //     false,
-            // )
-            // .unwrap_or(debug!(
-            //     "Failed to checkout branch: {}",
-            //     m.local_version.clone().unwrap().branch_name
-            // ));
+
+            // インストール先が存在しない場合は、シンボリックリンク作成はスキップ
+            if !has_game_mod_dir {
+                warn!("game mod directory does not exist");
+                return;
+            }
+            if m.is_installed {
+                let src = Path::new(&m.local_path);
+                if src.exists() {
+                    let dir_name = src.file_name().unwrap();
+                    let dest = self.game_config_path.mods.join(dir_name);
+                    create_symbolic_link(&src, &dest).unwrap();
+                } else {
+                    debug!("mod local_path does not exist");
+                }
+            }
         });
         Ok(())
     }
@@ -255,6 +295,9 @@ impl Settings {
             target_profile.id == profile_id,
             "Failed to set active profile"
         );
+
+        // プロファイルの設定を反映
+
         self.apply_mod_status(&target_profile)?;
         self.mutate_state_mod_status(&target_profile)?;
         self.switch_save_dir_symlink(&target_profile)?;
@@ -277,18 +320,19 @@ impl Settings {
         let mut mods = Vec::new();
 
         // シンボリックリンクの一覧を取得
-        let existing_symlinks = list_symlinks(game_mod_dir.to_string_lossy().to_string());
-        let existing_symlinks = match existing_symlinks {
+        use crate::symlink::list_symlinks;
+        let existing_symlinks = match list_symlinks(game_mod_dir.to_string_lossy().to_string()) {
             Ok(data) => data,
             Err(e) => {
-                debug!("Failed to list symlinks: {}", e);
-                ensure!(false, "Failed to list symlinks");
-                unreachable!();
+                warn!("Failed to list symlinks: {}", e);
+                println!("Failed to list symlinks: {}", e);
+                vec![]
             }
         };
 
         // Modディレクトリを走査
         let entries = std::fs::read_dir(mod_data_dir)?;
+
         for entry in entries {
             let entry = entry?;
             let path = entry.path();
@@ -349,15 +393,20 @@ impl Settings {
     }
 
     pub fn mutate_state_mod_status(&mut self, profile: &Profile) -> Result<Vec<Mod>> {
-        let mods = self.scan_mods()?;
-
-        // let active_profile = self.get_active_profile();
+        let mods = match self.scan_mods() {
+            Ok(mods) => mods,
+            Err(e) => {
+                debug!("Failed to scan mods: {}", e);
+                ensure!(false, "Failed to scan mods");
+                unreachable!();
+            }
+        };
         let active_profile = profile.clone();
         debug!(
-            "******Refreshing mod status for profile: {:?}",
+            "Refreshing mod status for profile: {:?}",
             active_profile.name
         );
-        debug!("******Found {} mods", mods.len());
+        debug!("Found {} mods", mods.len());
 
         self.profiles.iter_mut().for_each(|p| {
             if p.id.eq(&active_profile.id) {
@@ -365,7 +414,7 @@ impl Settings {
             }
         });
         debug!(
-            "******Mod status refreshed: {:?}",
+            "Mod status refreshed: {:?}",
             self.get_active_profile().mod_status.len()
         );
         self.write_file();
@@ -423,9 +472,9 @@ impl AppState {
         Ok(mods)
     }
 
-    pub fn get_settings(&self) -> Settings {
+    pub fn get_settings(&self) -> Option<Settings> {
         let settings = self.settings.lock().unwrap();
-        settings.clone()
+        Some(settings.clone())
     }
 }
 
@@ -433,13 +482,13 @@ pub mod commands {
     use super::*;
 
     #[tauri::command]
-    pub async fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings, String> {
+    pub fn get_settings(state: tauri::State<'_, AppState>) -> Result<Settings, String> {
         let settings = state.settings.lock().unwrap();
         Ok(settings.clone())
     }
 
     #[tauri::command]
-    pub async fn add_profile(
+    pub fn add_profile(
         state: tauri::State<'_, AppState>,
         id: String,
         name: String,
@@ -454,7 +503,7 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn remove_profile(
+    pub fn remove_profile(
         state: tauri::State<'_, AppState>,
         profile_id: String,
     ) -> Result<(), String> {
@@ -469,7 +518,7 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn set_profile_active(
+    pub fn set_profile_active(
         state: tauri::State<'_, AppState>,
         profile_id: String,
     ) -> Result<(), String> {
@@ -479,14 +528,14 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub async fn get_active_profile(state: tauri::State<'_, AppState>) -> Result<Profile, String> {
+    pub fn get_active_profile(state: tauri::State<'_, AppState>) -> Result<Profile, String> {
         let settings = state.settings.lock().unwrap();
         let res = settings.get_active_profile();
         Ok(res)
     }
 
     #[tauri::command]
-    pub async fn edit_profile(
+    pub fn edit_profile(
         state: tauri::State<'_, AppState>,
         profile_id: String,
         name: String,

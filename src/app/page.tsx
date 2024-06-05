@@ -48,7 +48,6 @@ import {
   refreshModsAtom,
   modsAtom,
   settingAtom,
-  // profiles,
   Profile,
   store as AtomStore,
   refreshSettingAtom,
@@ -58,8 +57,7 @@ import { ask } from "@tauri-apps/api/dialog";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 
 import { popUp } from "@/lib/utils";
-import { unzipModArchive } from "@/lib/api";
-import { openLocalDir } from "@/lib/api";
+import { openLocalDir, unzipModArchive, launchGame } from "@/lib/api";
 
 import {
   addProfile,
@@ -114,13 +112,10 @@ const ProfileForm = ({
   });
 
   const onSubmit = async (values: z.infer<typeof profileFormSchema>) => {
-    // console.log('onSubmit');
-    // console.log(values);
-
     const handleAddProfile = async (name: string, gamePath: string) => {
       await addProfile(name, gamePath);
       form.reset();
-      await refresh();
+      refresh();
     };
 
     const handleEditProfile = async (
@@ -130,14 +125,14 @@ const ProfileForm = ({
     ) => {
       await editProfile(id, name, gamePath);
       form.reset();
-      await refresh();
+      refresh();
     };
 
     targetProfile
       ? handleEditProfile(targetProfile.id, values.name, values.game_path)
       : handleAddProfile(values.name, values.game_path);
 
-    await refresh(); // refresh settings
+    refresh(); // refresh settings
     handleDialogItemOpenChange(false); // close dialog
   };
 
@@ -255,7 +250,7 @@ const ProfileSwitcher = () => {
     await setProfileActive(id);
     // TODO: junkey solution. sometimes ui is not updated after profile change.
     await new Promise((resolve) => setTimeout(resolve, 400));
-    await refresh();
+    refresh();
   };
 
   const currentProfile = profileList.find((p) => p.is_active);
@@ -441,7 +436,7 @@ const ProfileSwitcher = () => {
                             onClick={async () => {
                               removeProfile(profile.id);
                               // refresh settings
-                              await refresh();
+                              refresh();
                               // close dialog
                               handleDialogItemOpenChange(false);
                             }}
@@ -488,7 +483,8 @@ const GlobalMenu = () => {
               <DropdownMenuItem
                 className="text-lg"
                 onClick={() => {
-                  openLocalDir(game_path);
+                  // openLocalDir(game_path); // FIXME
+                  launchGame();
                 }}
               >
                 <Play className="mr-4 h-4 w-4" />
@@ -553,10 +549,7 @@ export default function Home() {
           return;
         }
         if (path.extname(filepath) === ".zip") {
-          unzipModArchive(
-            filepath,
-            path.join(modDataDir, path.basename(filepath)),
-          );
+          unzipModArchive(filepath, modDataDir);
           return;
         } else if (path.parse(filepath).dir === modDataDir) {
           popUp(
