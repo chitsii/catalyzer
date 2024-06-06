@@ -34,7 +34,7 @@ fn get_profile_dir(profile_name: &str) -> PathBuf {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDataPaths {
-    root: PathBuf,
+    pub root: PathBuf,
     mods: PathBuf,
     config: PathBuf,
     font: PathBuf,
@@ -60,10 +60,10 @@ impl UserDataPaths {
 pub struct Profile {
     id: String,
     name: String,
-    pub game_path: Option<PathBuf>, // ゲームのインストール先
-    profile_path: UserDataPaths,    // thisApp.exe/Proiles/{ProfileName}
-    mod_status: Vec<Mod>,           // プロファイル内のModの状態
-    is_active: bool,                // アクティブなプロファイルかどうか
+    pub game_path: Option<PathBuf>,  // ゲームのインストール先
+    pub profile_path: UserDataPaths, // thisApp.exe/Proiles/{ProfileName}
+    mod_status: Vec<Mod>,            // プロファイル内のModの状態
+    is_active: bool,                 // アクティブなプロファイルかどうか
 }
 impl Profile {
     #[cfg(unix)]
@@ -141,13 +141,21 @@ impl Settings {
 
         let profile = &self.get_active_profile();
 
+        // CataclysmDDA: src/path_info.cppを参照
         if cfg!(windows) {
+            // FIXME:
             // windowsだと、ユーザファイルはゲームディレクトリ内部に存在
-            if profile.game_path.is_some() {
-                self.game_config_path = UserDataPaths::new(profile.game_path.clone().unwrap());
-            }
+            // if profile.game_path.is_some() {
+            //     self.game_config_path = UserDataPaths::new(profile.game_path.clone().unwrap());
+            // }
+
+            // windowsのユーザデータは
+            // LOCALAPPDATA/cataclysm-dda/*
+            let data_dir = tauri::api::path::local_data_dir().unwrap();
+            let default_game_config_dir = data_dir.join("cataclysm-dda");
+            self.game_config_path = UserDataPaths::new(default_game_config_dir);
         } else if cfg!(macos) {
-            // MacOsではユーザファイルは固定のディレクトリに存在
+            // MacOsのユーザファイルは
             // ~/Library/Application Support/Cataclysm/*
             let data_dir = data_dir().unwrap();
             let default_game_config_dir = data_dir.join("Cataclysm");
@@ -267,6 +275,23 @@ impl Settings {
         }
     }
     pub fn add_profile(&mut self, new_profile: Profile) {
+        // FIXME: やりかけ。windowsだとgame_config_pathがプロファイル依存だから計画が崩れる。共通のコンフィグはないか？
+        // let game_path = new_profile.game_path.clone();
+        // if game_path.is_some() {
+        //     let game_path = game_path.unwrap();
+        //     if !game_path.exists() {
+        //         return;
+        //     }
+
+        //     if cfg!(windows) {
+        //         if game_path.extension().is_some_and(|f| f.eq("exe")) {
+        //             // exeファイルを指定した場合、windowsはユーザファイルも同階層に作られるのでプロファイルを更新
+        //             let parent_dir = game_path.parent().unwrap();
+        //             self.game_config_path = UserDataPaths::new(parent_dir.to_owned());
+        //         }
+        //     }
+        // }
+
         new_profile.create_dir_if_unexist();
         self.profiles.push(new_profile.clone());
         self.set_active_profile(new_profile.id.clone()).unwrap();

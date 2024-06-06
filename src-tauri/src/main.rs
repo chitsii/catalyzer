@@ -183,23 +183,23 @@ fn launch_game(state: tauri::State<'_, AppState>) -> Result<(), String> {
     let setting = state.get_settings().unwrap();
 
     let profile = setting.get_active_profile();
-    let game_path = profile.game_path.unwrap();
+    let game_path = profile.game_path.clone().unwrap();
+    let userdata_path = profile.profile_path.root.clone();
 
     // game_pathが存在しない場合はエラーを返して表示する
     if !game_path.exists() {
         return Err(format!("Game path does not exist: {:?}", game_path));
     }
-    launch(game_path).map_err(|e| format!("Failed to launch the game: {}", e))?;
+    launch(game_path, userdata_path).map_err(|e| format!("Failed to launch the game: {}", e))?;
 
     Ok(())
 }
 
 #[cfg(target_os = "windows")]
-fn launch(game_path: PathBuf) -> Result<(), String> {
+fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
     let mut p = game_path.clone();
-
     let file_name = p.file_name().unwrap().to_string_lossy();
-    if file_name.ends_with(".exe") {
+    if !file_name.ends_with(".exe") {
         let maybe = p.join("cataclysm-tiles.exe");
         if maybe.exists() {
             p = maybe;
@@ -208,15 +208,23 @@ fn launch(game_path: PathBuf) -> Result<(), String> {
             return Err(format!("Game path does not exist: {:?}", game_path));
         }
     }
-    debug!("Launching game: {:?}", &p);
-    Command::new(p)
+    let options = format!(
+        "cd /d {} && start cataclysm-tiles.exe --userdir {}",
+        &game_path.parent().unwrap().to_string_lossy(),
+        userdata_path.to_string_lossy()
+    );
+    debug!("command: {}", &options);
+
+    Command::new("cmd")
+        .args(["/C", &options])
         .spawn()
         .map_err(|e| format!("Failed to launch the game: {}", e))?;
+
     Ok(())
 }
 
 #[cfg(target_os = "macos")]
-fn launch(game_path: PathBuf) -> Result<(), String> {
+fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
     if game_path.extension().unwrap() != "app" {
         return Err(format!("Game path does not exist: {:?}", game_path));
     }
@@ -224,6 +232,7 @@ fn launch(game_path: PathBuf) -> Result<(), String> {
     debug!("Launching game: {:?}", &game_path);
     Command::new("open")
         .arg(game_path)
+        .arg(format!("--userdir {}", userdata_path.to_string_lossy()))
         .spawn()
         .map_err(|e| format!("Failed to launch the game: {}", e))?;
     Ok(())
