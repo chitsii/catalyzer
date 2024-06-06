@@ -116,36 +116,36 @@ fn open_dir(target_dir: String) {
             .spawn()
             .unwrap();
     }
-    #[cfg(target_os = "linux")]
-    {
-        if path.contains(",") {
-            // see https://gitlab.freedesktop.org/dbus/dbus/-/issues/76
-            let new_path = match metadata(&path).unwrap().is_dir() {
-                true => path,
-                false => {
-                    let mut path2 = PathBuf::from(path);
-                    path2.pop();
-                    path2.into_os_string().into_string().unwrap()
-                }
-            };
-            Command::new("xdg-open").arg(&new_path).spawn().unwrap();
-        } else {
-            if let Ok(Fork::Child) = daemon(false, false) {
-                Command::new("dbus-send")
-                    .args([
-                        "--session",
-                        "--dest=org.freedesktop.FileManager1",
-                        "--type=method_call",
-                        "/org/freedesktop/FileManager1",
-                        "org.freedesktop.FileManager1.ShowItems",
-                        format!("array:string:\"file://{path}\"").as_str(),
-                        "string:\"\"",
-                    ])
-                    .spawn()
-                    .unwrap();
-            }
-        }
-    }
+    // #[cfg(target_os = "linux")]
+    // {
+    //     if path.contains(",") {
+    //         // see https://gitlab.freedesktop.org/dbus/dbus/-/issues/76
+    //         let new_path = match metadata(&path).unwrap().is_dir() {
+    //             true => path,
+    //             false => {
+    //                 let mut path2 = PathBuf::from(path);
+    //                 path2.pop();
+    //                 path2.into_os_string().into_string().unwrap()
+    //             }
+    //         };
+    //         Command::new("xdg-open").arg(&new_path).spawn().unwrap();
+    //     } else {
+    //         if let Ok(Fork::Child) = daemon(false, false) {
+    //             Command::new("dbus-send")
+    //                 .args([
+    //                     "--session",
+    //                     "--dest=org.freedesktop.FileManager1",
+    //                     "--type=method_call",
+    //                     "/org/freedesktop/FileManager1",
+    //                     "org.freedesktop.FileManager1.ShowItems",
+    //                     format!("array:string:\"file://{path}\"").as_str(),
+    //                     "string:\"\"",
+    //                 ])
+    //                 .spawn()
+    //                 .unwrap();
+    //         }
+    //     }
+    // }
 }
 
 #[tauri::command]
@@ -183,6 +183,7 @@ fn launch_game(state: tauri::State<'_, AppState>) -> Result<(), String> {
     let setting = state.get_settings().unwrap();
 
     let profile = setting.get_active_profile();
+
     let game_path = profile.game_path.clone().unwrap();
     let userdata_path = profile.profile_path.root.clone();
 
@@ -190,6 +191,8 @@ fn launch_game(state: tauri::State<'_, AppState>) -> Result<(), String> {
     if !game_path.exists() {
         return Err(format!("Game path does not exist: {:?}", game_path));
     }
+
+    profile.create_dir_if_unexist();
     launch(game_path, userdata_path).map_err(|e| format!("Failed to launch the game: {}", e))?;
 
     Ok(())
@@ -199,22 +202,12 @@ fn launch_game(state: tauri::State<'_, AppState>) -> Result<(), String> {
 fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
     let mut p = game_path.clone();
     let file_name = p.file_name().unwrap().to_string_lossy();
-    if !file_name.ends_with(".exe") {
-        let maybe = p.join("cataclysm-tiles.exe");
-        if maybe.exists() {
-            p = maybe;
-        } else {
-            println!("Game path does not exist: {:?}", game_path);
-            return Err(format!("Game path does not exist: {:?}", game_path));
-        }
-    }
     let options = format!(
-        "cd /d {} && start cataclysm-tiles.exe --userdir {}",
+        "cd /d {} && start cataclysm-tiles.exe --userdir {}\\",
         &game_path.parent().unwrap().to_string_lossy(),
         userdata_path.to_string_lossy()
     );
     debug!("command: {}", &options);
-
     Command::new("cmd")
         .args(["/C", &options])
         .spawn()
@@ -228,11 +221,9 @@ fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
     if game_path.extension().unwrap() != "app" {
         return Err(format!("Game path does not exist: {:?}", game_path));
     }
-
     debug!("Launching game: {:?}", &game_path);
     Command::new("open")
         .arg(game_path)
-        .arg(format!("--userdir {}", userdata_path.to_string_lossy()))
         .spawn()
         .map_err(|e| format!("Failed to launch the game: {}", e))?;
     Ok(())

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider } from "next-themes";
 import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -15,14 +15,14 @@ export const metadata: Metadata = {
   description: "Cataclysm: Dark Days Ahead Launcher",
 };
 
-export default function RootLayout(
-  { children, }: Readonly<{ children: React.ReactNode; }>
-) {
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ja" suppressHydrationWarning>
       <body className={NotoSansMono.className}>
         <ThemeProvider
-          themes={["light", "dark", "yukari"]}
+          themes={["light", "dark", "twilight"]}
           attribute="class"
           defaultTheme="dark"
           enableSystem

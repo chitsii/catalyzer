@@ -66,20 +66,6 @@ pub struct Profile {
     is_active: bool,                 // アクティブなプロファイルかどうか
 }
 impl Profile {
-    #[cfg(unix)]
-    pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
-        let profile_dir = get_profile_dir(&name);
-        Self {
-            id,
-            name,
-            game_path,
-            profile_path: UserDataPaths::new(profile_dir),
-            mod_status: Vec::new(),
-            is_active: false,
-        }
-    }
-
-    #[cfg(windows)]
     pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
         let profile_dir = get_profile_dir(&name);
         Self {
@@ -94,13 +80,15 @@ impl Profile {
 
     pub fn create_dir_if_unexist(&self) {
         let paths = [
+            // Must-have:
             &self.profile_path.root,
             &self.profile_path.mods,
-            // &self.profile_path.config,
-            // &self.profile_path.font,
             &self.profile_path.save,
-            // &self.profile_path.sound,
-            // &self.profile_path.gfx,
+            &self.profile_path.config,
+            // Optional:
+            &self.profile_path.font,
+            &self.profile_path.sound,
+            &self.profile_path.gfx,
         ];
         for path in paths {
             if !path.exists() {
@@ -143,17 +131,8 @@ impl Settings {
 
         // CataclysmDDA: src/path_info.cppを参照
         if cfg!(windows) {
-            // FIXME:
-            // windowsだと、ユーザファイルはゲームディレクトリ内部に存在
-            // if profile.game_path.is_some() {
-            //     self.game_config_path = UserDataPaths::new(profile.game_path.clone().unwrap());
-            // }
-
-            // windowsのユーザデータは
-            // LOCALAPPDATA/cataclysm-dda/*
-            let data_dir = tauri::api::path::local_data_dir().unwrap();
-            let default_game_config_dir = data_dir.join("cataclysm-dda");
-            self.game_config_path = UserDataPaths::new(default_game_config_dir);
+            let profile_root_path = profile.profile_path.root.clone();
+            self.game_config_path = UserDataPaths::new(profile_root_path);
         } else if cfg!(macos) {
             // MacOsのユーザファイルは
             // ~/Library/Application Support/Cataclysm/*
@@ -520,6 +499,17 @@ pub mod commands {
         game_path: Option<String>,
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().unwrap();
+
+        if game_path.is_some() {
+            let _s = game_path.clone().unwrap();
+            let _s = _s.trim().trim_matches('"').to_string();
+            let game_path = Path::new(&_s);
+            let fname = game_path.file_name().unwrap();
+
+            if fname.eq("cataclysm-tiles.exe") && fname.eq_ignore_ascii_case("Cataclysm.app") {
+                return Err("Invalid game path. Please select the game executable file. (cataclysm-tiles.exe or Cataclysm.app)".to_string());
+            }
+        }
 
         let new_profile = Profile::new(id, name, game_path.map(PathBuf::from));
         settings.add_profile(new_profile);

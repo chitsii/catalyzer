@@ -1,21 +1,20 @@
-'use client';
+"use client";
 
-import { Sun, Moon, Eclipse, Gem } from "lucide-react";;
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { Sun, Moon, Eclipse, Gem } from "lucide-react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-
-const ColorThemeIcon = ({type}: { type: string | undefined }) => {
+const ColorThemeIcon = ({ type }: { type: string | undefined }) => {
   switch (type) {
-    case 'light':
+    case "light":
       return <Sun className="size-6" />;
-    case 'system':
+    case "system":
       return <Eclipse className="size-6" />;
-    case 'dark':
+    case "dark":
       return <Moon className="size-6" />;
-    case 'yukari':
+    case "twilight":
       return <Gem className="size-6" />;
     default:
       return <Gem className="size-6" />;
@@ -23,7 +22,6 @@ const ColorThemeIcon = ({type}: { type: string | undefined }) => {
 };
 
 const ColorThemeSelector = () => {
-
   const [mounted, setMounted] = useState(false);
   const { theme, resolvedTheme, themes, setTheme } = useTheme();
 
@@ -47,7 +45,7 @@ const ColorThemeSelector = () => {
           className="rounded border p-2 text-foreground flex items-center gap-2 hover:bg-secondary capitalize"
           type="button"
         >
-          <ColorThemeIcon type={theme}/>
+          <ColorThemeIcon type={theme} />
           <p className="text-sm">{theme}</p>
         </button>
       </DropdownMenu.Trigger>
@@ -63,12 +61,12 @@ const ColorThemeSelector = () => {
               <DropdownMenu.Item
                 className={cn(
                   "flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-background hover:bg-foreground",
-                  item === theme && "bg-primary"
+                  item === theme && "bg-primary",
                 )}
                 key={item}
                 onClick={() => setTheme(item)}
               >
-                <ColorThemeIcon type={item}/>
+                <ColorThemeIcon type={item} />
                 <span className="capitalize">{item}</span>
                 {item === theme && <span className="sr-only">（選択中）</span>}
               </DropdownMenu.Item>
@@ -80,4 +78,4 @@ const ColorThemeSelector = () => {
   );
 };
 
-export { ColorThemeSelector }
+export { ColorThemeSelector };

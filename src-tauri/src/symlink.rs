@@ -98,9 +98,7 @@ pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> 
     );
 
     use junction;
-    junction::create(target_dir, source_dir)
-        .map_err(anyhow::Error::from)
-        .map_err(anyhow::Error::from)
+    junction::create(target_dir, source_dir).map_err(anyhow::Error::from)
 }
 
 pub mod commands {
