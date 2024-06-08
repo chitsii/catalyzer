@@ -133,7 +133,8 @@ pub fn git_checkout_logic(
     target_branch: String,
     create_if_unexist: bool,
 ) -> Result<(), String> {
-    let repo = open(target_dir.clone()).unwrap();
+    let repo = open(target_dir.clone())
+        .map_err(|e| format!("Failed to open repository at {}: {}", target_dir, e))?;
     let _has_created = match checkout(&repo, &target_branch, create_if_unexist) {
         Ok(has_created) => has_created,
         Err(e) => return Err(e),

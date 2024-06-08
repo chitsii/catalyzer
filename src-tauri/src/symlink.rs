@@ -11,7 +11,7 @@ fn remove_file(target: &Path) -> Result<()> {
     Ok(())
 }
 
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 fn remove_file(target: &Path) -> Result<()> {
     ensure!(
         target.exists(),
@@ -22,7 +22,7 @@ fn remove_file(target: &Path) -> Result<()> {
     junction::delete(target).map_err(anyhow::Error::from)
 }
 
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 fn is_symlink(target: &Path) -> bool {
     use junction;
     match junction::exists(target) {
@@ -39,10 +39,10 @@ fn is_symlink(target: &Path) -> bool {
         .unwrap_or(false)
 }
 
-pub fn list_symlinks(target_root_dir: String) -> Result<Vec<PathBuf>, String> {
-    debug!("Listing symlinks in {}", &target_root_dir);
+pub fn list_symlinks(target_root_dir: std::path::PathBuf) -> Result<Vec<PathBuf>, String> {
+    debug!("Listing symlinks in {}", &target_root_dir.display());
 
-    let target = std::path::Path::new(&target_root_dir);
+    let target = target_root_dir.clone();
 
     if !target.exists() {
         return Err(format!(
@@ -70,38 +70,38 @@ pub fn list_symlinks(target_root_dir: String) -> Result<Vec<PathBuf>, String> {
 }
 
 #[cfg(unix)]
-pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> {
+pub fn create_symbolic_link(source_path: &Path, target_path: &Path) -> Result<()> {
     ensure!(
-        source_dir.exists() && source_dir.is_dir(),
+        source_path.exists() && source_path.is_dir(),
         "Source directory does not exist or is not a directory: {:?}",
-        source_dir
+        source_path
     );
     ensure!(
-        target_dir.symlink_metadata().is_err(),
+        target_path.symlink_metadata().is_err(),
         "Target directory already exists: {:?}",
-        target_dir
+        target_path
     );
-    std::os::unix::fs::symlink(source_dir, target_dir).map_err(anyhow::Error::from)
+    std::os::unix::fs::symlink(source_path, target_path).map_err(anyhow::Error::from)
 }
 
 #[cfg(windows)]
-pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> {
+pub fn create_symbolic_link(source_path: &Path, target_path: &Path) -> Result<()> {
     ensure!(
-        source_dir.exists() && source_dir.is_dir(),
+        source_path.exists() && source_path.is_dir(),
         "Source directory does not exist or is not a directory: {:?}",
-        source_dir
+        source_path
     );
     ensure!(
-        target_dir.symlink_metadata().is_err(),
+        target_path.symlink_metadata().is_err(),
         "Target directory already exists: {:?}",
-        target_dir
+        target_path
     );
 
     use junction;
     // Junctions are similar to symlinks, but are only available on Windows
     // and are limited to directories.
     // junction::create creates a junction at the target_dir that points to the source_dir.
-    junction::create(source_dir, target_dir).map_err(anyhow::Error::from)
+    junction::create(source_path, target_path).map_err(anyhow::Error::from)
 }
 
 pub mod commands {
@@ -111,13 +111,17 @@ pub mod commands {
     #[tauri::command]
     pub fn install_mod(
         state: tauri::State<'_, AppState>,
-        source_dir: String,
-        target_dir: String,
+        mod_data_path: String,
+        // target_dir: String,
     ) -> Result<(), String> {
-        create_symbolic_link(Path::new(&source_dir), Path::new(&target_dir)).map_err(|e| {
+        let mod_name = Path::new(&mod_data_path).file_name().unwrap();
+        let target_dir = state.get_game_mod_dir();
+        let target_path = target_dir.join(mod_name);
+
+        create_symbolic_link(Path::new(&mod_data_path), &target_path).map_err(|e| {
             format!(
-                "Failed to create symbolic link from {} to {}: {}",
-                source_dir, target_dir, e
+                "Failed to create symbolic link from {} to {:?}: {}",
+                mod_data_path, target_path, e
             )
         })?;
 
@@ -128,11 +132,19 @@ pub mod commands {
     #[tauri::command]
     pub fn uninstall_mod(
         state: tauri::State<'_, AppState>,
-        target_file: String,
+        mod_data_path: String,
     ) -> Result<(), String> {
-        remove_file(Path::new(&target_file))
-            .map_err(|e| format!("Failed to remove symlink at {}: {}", target_file, e))?;
-        state.refresh_mod_save_mod_status().unwrap();
+        // get symlink path
+        let mod_name = Path::new(&mod_data_path).file_name().unwrap();
+        let symlink_dir = state.get_game_mod_dir();
+        let symlink_path = symlink_dir.join(mod_name);
+        remove_file(&symlink_path).map_err(|e| {
+            format!(
+                "Failed to remove symlink at {}: {}",
+                symlink_path.display(),
+                e
+            )
+        })?;
         Ok(())
     }
 }

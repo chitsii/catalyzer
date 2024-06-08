@@ -35,7 +35,7 @@ fn get_profile_dir(profile_name: &str) -> PathBuf {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDataPaths {
     root: PathBuf,
-    mods: PathBuf,
+    pub mods: PathBuf,
     config: PathBuf,
     font: PathBuf,
     save: PathBuf,
@@ -101,9 +101,6 @@ impl Profile {
     pub fn get_profile_root_dir(&self) -> PathBuf {
         self.profile_path.root.clone()
     }
-    pub fn get_profile_mod_dir(&self) -> PathBuf {
-        self.profile_path.mods.clone()
-    }
 }
 impl Default for Profile {
     fn default() -> Self {
@@ -137,28 +134,29 @@ impl Settings {
     }
 }
 impl Settings {
+    #[cfg(target_os = "windows")]
+    fn get_game_config_root(&self) -> PathBuf {
+        // Windowsのユーザファイルはデフォルトではゲームのインストール先に保存されるが、
+        // このランチャーを通じて起動するとプロファイルディレクトリにセーブを保存
+        let profile = &self.get_active_profile();
+        profile.profile_path.root.clone()
+    }
+    #[cfg(target_os = "macos")]
+    fn get_game_config_root(&self) -> PathBuf {
+        // MacOsのユーザファイルは以下で固定
+        // ~/Library/Application Support/Cataclysm/*
+        let data_dir = data_dir().unwrap();
+        data_dir.join("Cataclysm")
+    }
+
     fn post_init(&mut self) {
         self.create_dirs_if_unexist();
 
         let profile = &self.get_active_profile();
 
         // CataclysmDDA: src/path_info.cppを参照
-        if cfg!(windows) {
-            // Windowsのユーザファイルはデフォルトではゲームのインストール先に保存されるが
-            // ランチャーを通じて起動するとプロファイルディレクトリにセーブを保存する
-            let profile_root_path = profile.profile_path.root.clone();
-            self.game_config_path = UserDataPaths::new(profile_root_path);
-        } else if cfg!(macos) {
-            // MacOsのユーザファイルは
-            // ~/Library/Application Support/Cataclysm/*
-            let data_dir = data_dir().unwrap();
-            let default_game_config_dir = data_dir.join("Cataclysm");
-            self.game_config_path = UserDataPaths::new(default_game_config_dir);
-        } else {
-            // その他のOSは未対応
-            panic!("Unsupported OS.");
-        }
-
+        let profile_root_path = self.get_game_config_root();
+        self.game_config_path = UserDataPaths::new(profile_root_path);
         self.mutate_state_mod_status(profile).unwrap(); // FIXME
         self.switch_save_dir_symlink(profile).unwrap();
         self.write_file();
@@ -173,35 +171,46 @@ impl Settings {
     }
 
     fn switch_save_dir_symlink(&self, profile: &Profile) -> Result<()> {
-        let game_save_dir = self.game_config_path.save.clone();
-        let profile_save_dir = profile.profile_path.save.clone();
-
-        // game_save_dirが存在しない場合は何もしない
-        if !game_save_dir.exists() {
-            debug!("game_save_dir does not exist so do nothing");
+        if cfg!(target_os = "windows") {
+            // Windowsの場合は何もしない
+            // ゲームの起動オプションにより元々プロファイルディレクトリにセーブを保存しているので
             return Ok(());
-        }
+        } else if cfg!(target_os = "macos") {
+            // MacOsの場合、固定のセーブディレクトリを
+            // Profileのセーブディレクトリにシンボリックリンクする
+            let game_save_dir = self.game_config_path.save.clone();
+            let profile_save_dir = profile.profile_path.save.clone();
+            if !game_save_dir.exists() {
+                debug!("game_save_dir does not exist so do nothing");
+                return Ok(());
+            }
 
-        // game_save_dirが通常のディレクトリならrenameする。シンボリックリンクなら消す
-        let meta = game_save_dir.symlink_metadata().unwrap();
-        if meta.file_type().is_symlink() {
-            fs::remove_file(&game_save_dir)?;
+            // game_save_dirが通常のディレクトリならrenameする。シンボリックリンクなら消す
+            let meta = game_save_dir.symlink_metadata().unwrap();
+            if meta.file_type().is_symlink() {
+                fs::remove_file(&game_save_dir)?;
+            } else {
+                let backup_dir = game_save_dir.with_file_name(format!(
+                    "save_backup_{}",
+                    chrono::Local::now().format("%Y%m%d%H%M%S")
+                ));
+                fs::rename(&game_save_dir, backup_dir)?;
+            }
+            debug!(
+                "Creating symlink: {:?} -> {:?}",
+                profile_save_dir, game_save_dir
+            );
+            create_symbolic_link(&profile_save_dir, &game_save_dir)?;
         } else {
-            let backup_dir = game_save_dir.with_file_name(format!(
-                "save_backup_{}",
-                chrono::Local::now().format("%Y%m%d%H%M%S")
-            ));
-            fs::rename(&game_save_dir, backup_dir)?;
+            // その他のOSは未対応
+            panic!("Unsupported OS.");
         }
-        debug!(
-            "Creating symlink: {:?} -> {:?}",
-            profile_save_dir, game_save_dir
-        );
-        create_symbolic_link(&profile_save_dir, &game_save_dir)?;
         Ok(())
     }
 
-    /// プロファイルの設定を反映する
+    /// プロファイルのmod_statusを元に、
+    /// 1. 指定ローカルブランチがあればチェックアウト
+    /// 2. ModDataディレクトリからゲームが読み込むmodディレクトリにシンボリックリンクを貼る
     fn apply_mod_status(&self, profile: &Profile) -> Result<()> {
         let has_game_mod_dir = self.game_config_path.mods.exists();
 
@@ -263,41 +272,21 @@ impl Settings {
             settings.read_file()
         }
     }
+
     pub fn add_profile(&mut self, new_profile: Profile) {
-        // FIXME: やりかけ。windowsだとgame_config_pathがプロファイル依存だから計画が崩れる。共通のコンフィグはないか？
-        // let game_path = new_profile.game_path.clone();
-        // if game_path.is_some() {
-        //     let game_path = game_path.unwrap();
-        //     if !game_path.exists() {
-        //         return;
-        //     }
-
-        //     if cfg!(windows) {
-        //         if game_path.extension().is_some_and(|f| f.eq("exe")) {
-        //             // exeファイルを指定した場合、windowsはユーザファイルも同階層に作られるのでプロファイルを更新
-        //             let parent_dir = game_path.parent().unwrap();
-        //             self.game_config_path = UserDataPaths::new(parent_dir.to_owned());
-        //         }
-        //     }
-        // }
-
         new_profile.create_dir_if_unexist();
         self.profiles.push(new_profile.clone());
         self.set_active_profile(new_profile.id.clone()).unwrap();
         self.write_file();
     }
+
     pub fn remove_profile(&mut self, profile_id: String) {
-        let index = self
-            .profiles
-            .iter()
-            .position(|x| x.id == profile_id)
-            .unwrap();
-
-        let profile = &self.profiles[index];
-        self.remove_profile_dir(profile);
-
-        self.profiles.remove(index); // indexがズレるので最後に呼ぶ
-        self.write_file();
+        if let Some(index) = self.profiles.iter().position(|x| x.id == profile_id) {
+            let profile = &self.profiles[index];
+            self.remove_profile_dir(profile);
+            self.profiles.remove(index); // 削除はindex使うので最後
+            self.write_file();
+        }
     }
 
     pub fn set_active_profile(&mut self, profile_id: String) -> Result<()> {
@@ -305,37 +294,38 @@ impl Settings {
             .iter_mut()
             .for_each(|p| p.is_active = p.id == profile_id);
         let target_profile = self.get_active_profile();
-        ensure!(
-            target_profile.id == profile_id,
-            "Failed to set active profile"
-        );
 
         // プロファイルの設定を反映
-
-        self.apply_mod_status(&target_profile)?;
-        self.mutate_state_mod_status(&target_profile)?;
-        self.switch_save_dir_symlink(&target_profile)?;
+        self.apply_mod_status(&target_profile)
+            .context("Failed to apply mod status")?;
+        self.mutate_state_mod_status(&target_profile)
+            .context("Failed to mutate state mod status")?;
+        self.switch_save_dir_symlink(&target_profile)
+            .context("Failed to switch save dir symlink")?;
 
         self.write_file();
         Ok(())
     }
+
     pub fn get_active_profile(&self) -> Profile {
         let res = self.profiles.iter().find(|x| x.is_active);
         match res {
-            None => Profile::default(),
+            None => {
+                warn!("Active profile not found. Using default profile.");
+                Profile::default()
+            }
             Some(p) => p.clone(),
         }
     }
 
     pub fn scan_mods(&self) -> Result<Vec<Mod>> {
-        let game_mod_dir = self.game_config_path.mods.clone();
+        let game_mod_dir = self.get_game_mod_dir();
         let mod_data_dir = self.mod_data_path.clone();
 
-        let mut mods = Vec::new();
-
         // シンボリックリンクの一覧を取得
+        let mut mods = Vec::new();
         use crate::symlink::list_symlinks;
-        let existing_symlinks = match list_symlinks(game_mod_dir.to_string_lossy().to_string()) {
+        let existing_symlinks = match list_symlinks(game_mod_dir) {
             Ok(data) => data,
             Err(e) => {
                 warn!("Failed to list symlinks: {}", e);
@@ -405,6 +395,7 @@ impl Settings {
         Ok(mods)
     }
 
+    /// プロファイルの設定をStateに反映
     pub fn mutate_state_mod_status(&mut self, profile: &Profile) -> Result<Vec<Mod>> {
         let mods = match self.scan_mods() {
             Ok(mods) => mods,
@@ -432,6 +423,18 @@ impl Settings {
         );
         self.write_file();
         Ok(mods)
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn get_game_mod_dir(&self) -> PathBuf {
+        let profile = self.get_active_profile();
+        profile.profile_path.mods.clone()
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn get_game_mod_dir(&self) -> PathBuf {
+        self.game_config_path.clone();
+        game_config.mods.clone()
     }
 }
 
@@ -490,10 +493,16 @@ impl AppState {
         Some(settings.clone())
     }
 
-    pub fn get_active_profile(&self) -> Option<Profile> {
+    #[cfg(target_os = "macos")]
+    pub fn get_game_mod_dir(&self) -> PathBuf {
         let settings = self.settings.lock().unwrap();
-        let profile = settings.get_active_profile();
-        Some(profile)
+        settings.get_game_mod_dir()
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn get_game_mod_dir(&self) -> PathBuf {
+        let settings = self.settings.lock().unwrap();
+        settings.get_game_mod_dir()
     }
 }
 
@@ -519,10 +528,15 @@ pub mod commands {
             let _s = game_path.clone().unwrap();
             let _s = _s.trim().trim_matches('"').to_string();
             let game_path = Path::new(&_s);
-            let fname = game_path.file_name().unwrap();
-
-            if fname.eq("cataclysm-tiles.exe") && fname.eq_ignore_ascii_case("Cataclysm.app") {
-                return Err("Invalid game path. Please select the game executable file. (cataclysm-tiles.exe or Cataclysm.app)".to_string());
+            let fname = game_path
+                .file_name()
+                .and_then(std::ffi::OsStr::to_str)
+                .and_then(|fname| match fname {
+                    "cataclysm-tiles.exe" | "Cataclysm.app" => Some(fname),
+                    _ => None,
+                });
+            if fname.is_none() {
+                return Err("Invalid game path".to_string());
             }
         }
 

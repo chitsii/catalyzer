@@ -6,7 +6,7 @@ mod prelude {
     pub use crate::model::{LocalVersion, Mod, ModInfo};
     pub use crate::profile::AppState;
 
-    pub use anyhow::{ensure, Context as _, Result};
+    pub use anyhow::{anyhow, ensure, Context as _, Result};
     pub use log::{debug, error, info, warn};
     pub use std::path::{Path, PathBuf};
 
