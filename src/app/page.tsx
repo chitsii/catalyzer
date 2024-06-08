@@ -480,7 +480,7 @@ export default function Home() {
                   refresh();
                 }}
               >
-                Mod一覧({mods?.length})
+                Mod一覧
               </TabsTrigger>
               <TabsTrigger value="setting">設定</TabsTrigger>
               <TabsTrigger value="debug">ログ</TabsTrigger>
