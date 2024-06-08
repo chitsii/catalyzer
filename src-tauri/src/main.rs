@@ -56,7 +56,11 @@ fn main() {
                 .build(),
         )
         .setup(|app| {
-            info!("Welcome to the CDDA mod manager! Starting up...");
+            info!("\n\n");
+            info!("=======================");
+            info!("  Welcome, Surviver！  ");
+            info!("=======================");
+            info!("\n\n");
             // 開発時だけdevtoolsを表示する。
             #[cfg(debug_assertions)]
             app.get_window("main").unwrap().open_devtools();

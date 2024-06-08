@@ -348,7 +348,7 @@ export const columns: ColumnDef<Mod>[] = [
 
                                 // zipファイルを展開
                                 if (!!uploadFilePath) {
-                                  unzipModArchive(uploadFilePath, row.original.localPath, true);
+                                  unzipModArchive(uploadFilePath, true);
                                   debug("unzip done.");
 
                                   // commit changes
@@ -430,11 +430,6 @@ export const columns: ColumnDef<Mod>[] = [
             <DropdownMenuContent>
               <DropdownMenuItem
                 onClick={() => {
-                  // const targetDir = table.options.meta?.gameModDir;
-                  // const base = path.parse(row.original.localPath).base;
-
-                  // const targetModDir = path.join(targetDir, base);
-
                   const mod_data_dir = row.original.localPath;
                   if (isInstalled) {
                     uninstallMod(mod_data_dir);

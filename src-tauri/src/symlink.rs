@@ -19,7 +19,11 @@ fn remove_file(target: &Path) -> Result<()> {
         target.display()
     );
     use junction;
-    junction::delete(target).map_err(anyhow::Error::from)
+    junction::delete(target)?;
+    // std::fs::remove_file(target)?; // junctionを消すと空のディレクトリが残るので、それを削除する
+    std::fs::remove_dir(target)?; // junctionを消すと空のディレクトリが残るので、それを削除する
+
+    Ok(())
 }
 
 #[cfg(target_os = "windows")]
@@ -135,9 +139,11 @@ pub mod commands {
         mod_data_path: String,
     ) -> Result<(), String> {
         // get symlink path
+
         let mod_name = Path::new(&mod_data_path).file_name().unwrap();
         let symlink_dir = state.get_game_mod_dir();
         let symlink_path = symlink_dir.join(mod_name);
+        debug!("Removing symlink at {}", symlink_path.display());
         remove_file(&symlink_path).map_err(|e| {
             format!(
                 "Failed to remove symlink at {}: {}",

@@ -25,7 +25,7 @@ pub fn get_executable_dir() -> PathBuf {
 /// current_exe_dir/Profiles/{ProfileName}
 fn get_profile_dir(profile_name: &str) -> PathBuf {
     let config_root = get_executable_dir();
-    let profile_path = config_root.join("Profiles").join(profile_name);
+    let profile_path = config_root.join("profiles").join(profile_name);
     if !profile_path.exists() {
         fs::create_dir_all(&profile_path).unwrap();
     }
@@ -123,14 +123,16 @@ impl Default for Settings {
         Self {
             language: "ja".into(),
             game_config_path: UserDataPaths::new(PathBuf::new()),
-            mod_data_path: get_executable_dir().join("ModData"),
+            mod_data_path: get_executable_dir().join("moddata"),
             profiles: vec![Profile::default()],
         }
     }
 }
 impl Settings {
+    /// ModDataディレクトリを返す
+    /// Osによらず executable/ModData
     pub fn get_mod_data_dir(&self) -> PathBuf {
-        self.mod_data_path.clone()
+        get_executable_dir().join("moddata")
     }
 }
 impl Settings {
@@ -212,10 +214,10 @@ impl Settings {
     /// 1. 指定ローカルブランチがあればチェックアウト
     /// 2. ModDataディレクトリからゲームが読み込むmodディレクトリにシンボリックリンクを貼る
     fn apply_mod_status(&self, profile: &Profile) -> Result<()> {
-        let has_game_mod_dir = self.game_config_path.mods.exists();
-
+        let game_mod_dir = self.get_game_mod_dir();
+        let has_game_mod_dir = game_mod_dir.exists();
         if has_game_mod_dir {
-            crate::logic::utils::cleanup_symlinks(&self.game_config_path.mods)?;
+            crate::logic::utils::cleanup_symlinks(&game_mod_dir)?;
         } else {
             warn!("game mod directory does not exist");
         }
@@ -242,9 +244,11 @@ impl Settings {
             if m.is_installed {
                 let src = Path::new(&m.local_path);
                 if src.exists() {
-                    let dir_name = src.file_name().unwrap();
+                    let dir_name = src.file_name().context("Failed to get file name").unwrap();
                     let dest = self.game_config_path.mods.join(dir_name);
-                    create_symbolic_link(src, &dest).unwrap();
+                    create_symbolic_link(src, &dest).unwrap_or_else(|e| {
+                        warn!("{}", e);
+                    });
                 } else {
                     debug!("mod local_path does not exist");
                 }
@@ -427,14 +431,15 @@ impl Settings {
 
     #[cfg(target_os = "macos")]
     pub fn get_game_mod_dir(&self) -> PathBuf {
-        let profile = self.get_active_profile();
-        profile.profile_path.mods.clone()
+        let game_config = self.game_config_path.clone();
+        game_config.mods.clone()
     }
 
     #[cfg(target_os = "windows")]
     pub fn get_game_mod_dir(&self) -> PathBuf {
-        self.game_config_path.clone();
-        game_config.mods.clone()
+        let profile = self.get_active_profile();
+        debug!("Active profile: {:?}", profile);
+        profile.profile_path.mods.clone()
     }
 }
 
@@ -493,13 +498,6 @@ impl AppState {
         Some(settings.clone())
     }
 
-    #[cfg(target_os = "macos")]
-    pub fn get_game_mod_dir(&self) -> PathBuf {
-        let settings = self.settings.lock().unwrap();
-        settings.get_game_mod_dir()
-    }
-
-    #[cfg(target_os = "windows")]
     pub fn get_game_mod_dir(&self) -> PathBuf {
         let settings = self.settings.lock().unwrap();
         settings.get_game_mod_dir()
@@ -524,10 +522,10 @@ pub mod commands {
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().unwrap();
 
-        if game_path.is_some() {
+        let game_path = if game_path.is_some() {
             let _s = game_path.clone().unwrap();
             let _s = _s.trim().trim_matches('"').to_string();
-            let game_path = Path::new(&_s);
+            let game_path = PathBuf::from(&_s);
             let fname = game_path
                 .file_name()
                 .and_then(std::ffi::OsStr::to_str)
@@ -538,9 +536,12 @@ pub mod commands {
             if fname.is_none() {
                 return Err("Invalid game path".to_string());
             }
-        }
+            Some(game_path)
+        } else {
+            None
+        };
 
-        let new_profile = Profile::new(id, name, game_path.map(PathBuf::from));
+        let new_profile = Profile::new(id, name, game_path);
         settings.add_profile(new_profile);
         settings.write_file();
         Ok(())
@@ -567,8 +568,11 @@ pub mod commands {
         profile_id: String,
     ) -> Result<(), String> {
         let mut settings = state.settings.lock().unwrap();
-        settings.set_active_profile(profile_id).unwrap();
-        Ok(())
+        settings.set_active_profile(profile_id).map_err(|e| {
+            debug!("Error: Failed to set active profile: {:?}", state);
+            e.to_string()
+        })
+        // Ok(())
     }
 
     #[tauri::command]

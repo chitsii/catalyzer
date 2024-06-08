@@ -106,16 +106,15 @@ export const fetchMods = async () => {
   return res;
 };
 
-export const unzipModArchive = async (src: string, destDir: string, existsOk: boolean = false) => {
+export const unzipModArchive = async (src: string, existsOk: boolean = false) => {
   const isClient = typeof window !== "undefined";
   isClient &&
     (await invoke<string>("unzip_mod_archive", {
       src: src,
-      destDir: destDir,
       existsOk: existsOk,
     })
       .then((response) => {
-        popUp("success", "Mod archive extracted at " + destDir);
+        popUp("success", "Mod unzipped!");
       })
       .catch((err) => {
         popUp("failed", err);

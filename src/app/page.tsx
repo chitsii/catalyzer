@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import path from "path";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -202,12 +203,14 @@ const ProfileSwitcher = () => {
       setDropdownOpen(false);
     }
   };
+
   const selectProfile = async (id: string) => {
     await setProfileActive(id);
-    // FIXME: junkey solution. sometimes ui is not updated after profile switch
-    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-    wait(1000).then(() => {
-      refresh();
+    // refresh();
+    // FIXME: junky way to reload page
+    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+    await sleep(400).then(() => {
+      window.location.reload();
     });
   };
 
@@ -244,7 +247,10 @@ const ProfileSwitcher = () => {
               return (
                 <DropdownMenuItem
                   key={profile.id}
-                  onClick={() => selectProfile(profile.id)}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    await selectProfile(profile.id);
+                  }}
                   className="flex items-center px-3 text-sm text-primary grid-cols-2"
                 >
                   {profile.is_active ? (
@@ -253,9 +259,6 @@ const ProfileSwitcher = () => {
                     <div className="col-span-1"></div>
                   )}
                   <span className="col-span-1">{profile.name}</span>
-                  <DropdownMenuShortcut>
-                    <span>{profile.branchName}</span>
-                  </DropdownMenuShortcut>
                 </DropdownMenuItem>
               );
             })
@@ -396,8 +399,6 @@ const ProfileSwitcher = () => {
   );
 };
 
-// radial-gradient(closest-side, rgba(93, 194, 48, 1), rgba(233, 233, 233, 1));
-
 const GlobalMenu = () => {
   const [{ data: setting }] = useAtom(settingAtom);
   const current_profile = setting ? setting.profiles.find((p) => p.is_active) : null;
@@ -407,7 +408,7 @@ const GlobalMenu = () => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <div className="rounded-full hover:shadow-lg hover:shadow-accent-foreground">
-          <img src="/assets/icon.png" alt="menu" width={80} height={80} />
+          <Image src="/assets/icon.png" alt="menu" width={80} height={80} />
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
@@ -462,31 +463,15 @@ export default function Home() {
       const window = await import("@tauri-apps/api/window");
       const { appWindow } = window;
       appWindow.onFileDropEvent(async (ev) => {
-        // console.log(ev); // Debug
-        if (ev.payload.type !== "drop") {
-          return;
-        }
-        const does_install = await ask("Add the dropped file to Mod Directory?", "CDDA Launcher");
-        if (!does_install) {
-          return;
-        }
+        if (ev.payload.type !== "drop") return;
+        const does_install = await ask("ドロップしたファイルをModディレクトリに解凍しますか？", "CDDA Launcher");
+        if (!does_install) return;
         const [filepath] = ev.payload.paths;
-        const { data: settings } = await AtomStore.get(settingAtom);
-        const modDataDir = settings ? settings.mod_data_path : null;
-        if (!modDataDir) {
-          debug("Somehow Mod Directory is not set.");
-          return;
-        }
         if (path.extname(filepath) === ".zip") {
-          unzipModArchive(filepath, modDataDir);
+          unzipModArchive(filepath);
           return;
-        } else if (path.parse(filepath).dir === modDataDir) {
-          popUp(
-            "success",
-            "このModは既にインストール済みのようです。更新したい場合、Modの新しい断面を作成してください",
-          );
         } else {
-          popUp("failed", "Unsupported File Type");
+          popUp("failed", "この形式はサポートしていません。");
         }
       });
     };
@@ -501,18 +486,7 @@ export default function Home() {
     setUpDropEventAndAttachLogger();
   }, []);
 
-  const [{ data: setting }] = useAtom(settingAtom);
-  const profileList = setting ? setting.profiles : [];
-  const [__, refreshSettings] = useAtom(refreshSettingAtom);
-
-  const gt = useAtom(activeProfileAtom);
-
-  const getActiveProfile = () => {
-    const res = profileList.find((p) => p.is_active);
-    return res;
-  };
-  const currentProfile: Profile | undefined = getActiveProfile();
-
+  // const [{ data: setting }] = useAtom(settingAtom);
   const [{ data: mods }] = useAtom(modsAtom);
   const [_, refresh] = useAtom(refreshModsAtom);
 

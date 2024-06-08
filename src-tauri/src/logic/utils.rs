@@ -9,10 +9,6 @@ pub fn cleanup_symlinks(target_dir: &Path) -> Result<()> {
         target_dir
     );
     ensure!(target_dir.is_dir(), "Not a directory: {:?}", target_dir);
-
-    // std::fs::remove_dir_all(target_dir)?;
-    // std::fs::create_dir(target_dir)?;
-
     for entry in fs::read_dir(target_dir)? {
         let entry = entry?;
         let path = entry.path();

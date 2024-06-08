@@ -1,4 +1,19 @@
+use std::ffi::OsStr;
+
 use crate::prelude::*;
+
+fn to_stem(file_path: impl AsRef<Path>) -> String {
+    let file_name = file_path
+        .as_ref()
+        .file_name()
+        .and_then(OsStr::to_str)
+        .unwrap_or("");
+    let mut parts: Vec<&str> = file_name.split('.').collect();
+    if parts.len() > 1 {
+        parts.pop();
+    }
+    parts.join(".")
+}
 
 pub mod commands {
     use super::*;
@@ -14,17 +29,20 @@ pub mod commands {
         tmp_extract: tempfile::TempDir,
         tmp_zip: tempfile::TempDir,
     }
+
     fn prepare_paths(
         state: tauri::State<'_, AppState>,
         src: String,
         exists_ok: Option<bool>,
     ) -> Result<SrcDestPaths> {
         let src_path = std::path::PathBuf::from(src);
-        let src_stem = src_path.file_stem().unwrap();
+        let src_stem = to_stem(&src_path);
+        println!("--- src_stem: {}", src_stem);
 
         let setting = state.get_settings().unwrap();
         let dest_dir = setting.get_mod_data_dir();
         let dest_path = dest_dir.join(src_stem);
+        println!("--- dest_path: {}", dest_path.display());
 
         // check if src_path exists, otherwise return error
         ensure!(
@@ -94,7 +112,7 @@ pub mod commands {
             remove_dir_all(&paths.dest, Some(".git")).unwrap();
         };
 
-        
+        info!("Copying mod to: {}", &paths.dest.display());
         copy_dir_all(mod_dir, &paths.dest, Some(".git"))
             .map(|_| debug!("Mod extracted to: {}", &paths.dest.display()))
             .map_err(|e| e.to_string())
