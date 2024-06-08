@@ -8,7 +8,64 @@ pub mod commands {
     use logic::zip::fix_zip_fname_encoding;
     use tempfile::tempdir;
 
-    use crate::profile::Settings;
+    struct SrcDestPaths {
+        src: std::path::PathBuf,
+        dest: std::path::PathBuf,
+        tmp_extract: tempfile::TempDir,
+        tmp_zip: tempfile::TempDir,
+    }
+    fn prepare_paths(
+        state: tauri::State<'_, AppState>,
+        src: String,
+        exists_ok: Option<bool>,
+    ) -> Result<SrcDestPaths> {
+        let src_path = std::path::PathBuf::from(src);
+        let src_stem = src_path.file_stem().unwrap();
+
+        let setting = state.get_settings().unwrap();
+        let dest_dir = setting.get_mod_data_dir();
+        let dest_path = dest_dir.join(src_stem);
+
+        // check if src_path exists, otherwise return error
+        ensure!(
+            src_path.exists(),
+            "Source file does not exist: {}",
+            src_path.display()
+        );
+
+        // check if dest_path doesnt exist, or, if exists_ok is set to true and dest_path exists.
+        // otherwise return error
+        ensure!(
+            !dest_path.exists() || (exists_ok.is_some_and(|x| x) && dest_path.exists()),
+            "Destination directory already exists: {}",
+            dest_path.display()
+        );
+
+        let tmp_zip = tempdir().unwrap();
+        let tmp_extract = tempdir().unwrap();
+        Ok(SrcDestPaths {
+            src: src_path,
+            dest: dest_path,
+            tmp_extract,
+            tmp_zip,
+        })
+    }
+
+    // Zipファイル名の文字コードを修正
+    // target_dir/{srcのファイル名}に修正版のzipファイルを作成する
+    fn create_fixed_encoding_zip(
+        src_zip_path: &std::path::Path,
+        target_dir: &std::path::Path,
+    ) -> Result<std::path::PathBuf, String> {
+        let filename = src_zip_path.file_name().unwrap();
+        let fixed_zip_path = fix_zip_fname_encoding(
+            src_zip_path.display().to_string(),
+            target_dir.join(filename).display().to_string(),
+        )
+        .map_err(|e| format!("Failed to fix encoding of ZIP archive: {}", e))?;
+        debug!("Fixed zip file created: {}", &fixed_zip_path);
+        Ok(PathBuf::from(fixed_zip_path))
+    }
 
     /// Unzips a mod archive to a destination directory.
     /// src: Mod archive file path
@@ -19,106 +76,27 @@ pub mod commands {
         src: String,
         exists_ok: Option<bool>,
     ) -> Result<(), String> {
-        let profile = state.get_active_profile().unwrap();
-        let dest_dir = profile.get_mod_dir();
+        let paths = prepare_paths(state, src, exists_ok).map_err(|e| e.to_string())?;
+        let fixed_zip_path = create_fixed_encoding_zip(&paths.src, &paths.tmp_zip.path())
+            .map_err(|e| e.to_string())?;
 
-        let src_path = std::path::PathBuf::from(src);
-        let src_stem = src_path.file_stem().unwrap();
-        let dest_path = std::path::PathBuf::from(dest_dir).join(src_stem);
-
-        if !src_path.exists() {
-            return Err(format!(
-                "Source file does not exist: {}",
-                src_path.display()
-            ));
-        }
-
-        if exists_ok.is_some_and(|x| x) {
-            if dest_path.exists() {
-                debug!(
-                    "Destination already exists, so we merge them: {}",
-                    dest_path.display()
-                );
-            }
-        } else if dest_path.exists() {
-            return Err(format!(
-                "Destination directory already exists: {}",
-                dest_path.display()
-            ));
-        }
-        let tmp_dir_zip = tempdir().unwrap();
-        let tmp_dir_zip_path = tmp_dir_zip.path();
-        debug!("tmp zip dir {}", tmp_dir_zip_path.display());
-
-        // src_pathのファイル名の文字コードを修正
-        // temp_dir/{srcのファイル名}に修正版のzipファイルを作成
-        let filename = src_path.file_name().unwrap().to_str().unwrap();
-        let fixed_src_path = fix_zip_fname_encoding(
-            src_path.display().to_string(),
-            tmp_dir_zip_path.join(filename).display().to_string(),
-        )
-        .map_err(|e| format!("Failed to fix encoding of ZIP archive: {}", e))?;
-        debug!("Fixed zip file created: {}", fixed_src_path);
-
-        let archive: Vec<u8> = std::fs::read(fixed_src_path).unwrap();
+        let archive: Vec<u8> = std::fs::read(fixed_zip_path).unwrap();
         let archive = std::io::Cursor::new(archive);
+        let tmp_dir_path = &paths.tmp_extract.path();
+        zip_extract::extract(archive, tmp_dir_path, true).map_err(|e| e.to_string())?;
 
-        let tmp_dir = tempdir().unwrap();
-        let tmp_dir_path = tmp_dir.path();
-        debug!("tmp extract mod to {}", tmp_dir_zip_path.display());
+        let mod_dir = get_shallowest_mod_dir(tmp_dir_path)
+            .ok_or_else(|| "No mod directory found in archive".to_string())?;
 
-        match zip_extract::extract(archive, tmp_dir_path, true) {
-            Ok(_) => {
-                // find if there is a mod directory in the extracted files
-                let mod_dir = get_shallowest_mod_dir(tmp_dir_path);
-                match mod_dir {
-                    Some(mod_dir) => {
-                        // if dest_path exists, overwrite (merge) the mod directory.
-                        if exists_ok.is_some_and(|x| x) && dest_path.exists() {
-                            debug!("Removing existing directory: {}", dest_path.display());
-                            remove_dir_all(&dest_path, Some(".git")).unwrap();
-                            debug!("Merging mod directory to {}", dest_path.display());
-                            match copy_dir_all(&mod_dir, &dest_path, Some(".git")) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    tmp_dir.close().unwrap();
-                                    return Err(format!(
-                                        "Failed to copy mod directory: {}, dest: {}",
-                                        e,
-                                        dest_path.to_string_lossy()
-                                    )
-                                    .to_string());
-                                }
-                            }
-                        } else {
-                            // copy the mod directory to the destination
-                            // std::fs::rename(mod_dir, dest_path).unwrap();
-                            match copy_dir_all(&mod_dir, &dest_path, Some(".git")) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    tmp_dir.close().unwrap();
-                                    println!(
-                                        "Failed to copy mod directory: {}, dest: {}",
-                                        e,
-                                        dest_path.to_string_lossy()
-                                    );
-                                    return Err(format!("Failed to copy mod directory: {}", e));
-                                }
-                            }
-                        }
-                    }
-                    None => {
-                        // remove tmp dir and return error
-                        tmp_dir.close().unwrap();
-                        return Err("Failed to extract archive: Invalid mod directory".to_string());
-                    }
-                }
-                Ok(())
-            }
-            Err(e) => {
-                tmp_dir.close().unwrap();
-                Err(format!("Failed to extract archive: {}", e))
-            }
-        }
+        // if exists_ok is set to true and dest directory exists, remove contents of dest directory except .git/*
+        if (exists_ok.is_some_and(|x| x) && paths.dest.clone().exists()) {
+            debug!("Removing existing directory: {}", &paths.dest.display());
+            remove_dir_all(&paths.dest, Some(".git")).unwrap();
+        };
+
+        let result = copy_dir_all(&mod_dir, &paths.dest, Some(".git"))
+            .map(|_| debug!("Mod extracted to: {}", &paths.dest.display()))
+            .map_err(|e| e.to_string());
+        result
     }
 }

@@ -101,7 +101,7 @@ impl Profile {
     pub fn get_profile_root_dir(&self) -> PathBuf {
         self.profile_path.root.clone()
     }
-    pub fn get_mod_dir(&self) -> PathBuf {
+    pub fn get_profile_mod_dir(&self) -> PathBuf {
         self.profile_path.mods.clone()
     }
 }
@@ -132,6 +132,11 @@ impl Default for Settings {
     }
 }
 impl Settings {
+    pub fn get_mod_data_dir(&self) -> PathBuf {
+        self.mod_data_path.clone()
+    }
+}
+impl Settings {
     fn post_init(&mut self) {
         self.create_dirs_if_unexist();
 
@@ -158,7 +163,6 @@ impl Settings {
         self.switch_save_dir_symlink(profile).unwrap();
         self.write_file();
     }
-
     fn create_dirs_if_unexist(&self) {
         let to_create = [&self.mod_data_path];
         for path in to_create {
