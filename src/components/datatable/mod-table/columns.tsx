@@ -6,13 +6,7 @@ import { ColumnDef, RowData } from "@tanstack/react-table";
 import { GitGraphIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import path from "path";
 import {
   DropdownMenu,
@@ -35,15 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isNonEmptyStringOrArray, popUp } from "@/lib/utils";
-import {
-  installMod,
-  uninstallMod,
-  GitCmd,
-  openLocalDir,
-  list_branches,
-  unzipModArchive,
-  fetchMods,
-} from "@/lib/api";
+import { installMod, uninstallMod, GitCmd, openLocalDir, list_branches, unzipModArchive, fetchMods } from "@/lib/api";
 import { open, ask } from "@tauri-apps/api/dialog";
 
 declare module "@tanstack/react-table" {
@@ -112,16 +98,11 @@ export const columns: ColumnDef<Mod>[] = [
           )}
           {isNonEmptyStringOrArray(info.authors) && (
             <p className="text-xs text-muted-foreground">
-              作成者{" "}
-              {Array.isArray(info.authors)
-                ? info.authors.map((author) => author).join(",")
-                : info.authors}
+              作成者 {Array.isArray(info.authors) ? info.authors.map((author) => author).join(",") : info.authors}
             </p>
           )}
           {isNonEmptyStringOrArray(info.maintainers) && (
-            <p className="text-xs text-muted-foreground">
-              メンテナ {info.maintainers}
-            </p>
+            <p className="text-xs text-muted-foreground">メンテナ {info.maintainers}</p>
           )}
           {info.category && <Badge variant="category">{info.category}</Badge>}
         </div>
@@ -141,12 +122,8 @@ export const columns: ColumnDef<Mod>[] = [
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      let searchTerms = Array.isArray(filterValues)
-        ? filterValues
-        : [filterValues];
-      return searchTerms.some((term) =>
-        userInfoString.includes(term.toLowerCase()),
-      );
+      let searchTerms = Array.isArray(filterValues) ? filterValues : [filterValues];
+      return searchTerms.some((term) => userInfoString.includes(term.toLowerCase()));
     },
   },
   {
@@ -160,25 +137,14 @@ export const columns: ColumnDef<Mod>[] = [
         <>
           {info.description && (
             <div>
-              <p className="text-xs text-muted-foreground">
-                {info.description}
-              </p>
+              <p className="text-xs text-muted-foreground">{info.description}</p>
             </div>
           )}
           <div className="pt-1 pl-4 text-[11px] text-muted-foreground leading-tight">
             {Object.keys(info).map((k) => {
               const value = info[k as keyof ModInfo];
               // 前のカラムで表示済み
-              const skipKeys = [
-                "type",
-                "ident",
-                "id",
-                "name",
-                "authors",
-                "maintainers",
-                "category",
-                "description",
-              ];
+              const skipKeys = ["type", "ident", "id", "name", "authors", "maintainers", "category", "description"];
               if (skipKeys.includes(k)) return null;
               if (Array.isArray(value)) {
                 return (
@@ -219,9 +185,7 @@ export const columns: ColumnDef<Mod>[] = [
 
       const fetchBranches = async () => {
         const branches = await list_branches(row.original.localPath);
-        const barnchesWithoutCurrent = branches.filter(
-          (branch) => branch != local_version.branchName,
-        );
+        const barnchesWithoutCurrent = branches.filter((branch) => branch != local_version.branchName);
         setBranches(barnchesWithoutCurrent);
       };
 
@@ -231,12 +195,7 @@ export const columns: ColumnDef<Mod>[] = [
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="notInstalled"
-                    size="sm"
-                    className="ml-2 text-[10px]"
-                    onMouseEnter={fetchBranches}
-                  >
+                  <Button variant="notInstalled" size="sm" className="ml-2 text-[10px]" onMouseEnter={fetchBranches}>
                     {local_version.branchName}
                   </Button>
                 </DropdownMenuTrigger>
@@ -245,8 +204,7 @@ export const columns: ColumnDef<Mod>[] = [
                     <form
                       onSubmit={(e: any) => {
                         e.preventDefault();
-                        const selectedBranchName: string =
-                          e.target["selectedVersionSwitchTo"].value;
+                        const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
                         GitCmd("git_checkout", {
                           targetDir: row.original.localPath,
                           targetBranch: selectedBranchName,
@@ -302,9 +260,7 @@ export const columns: ColumnDef<Mod>[] = [
                         }}
                       >
                         <DrawerHeader>
-                          <DrawerTitle>
-                            新規断面作成: {row.original.info.name}
-                          </DrawerTitle>
+                          <DrawerTitle>新規断面作成: {row.original.info.name}</DrawerTitle>
                           <DrawerDescription>
                             新規のブランチ名と、データを上書きしたい場合はModのzipファイルを選択してください。
                             <span className="text-xs text-red-600">
@@ -316,10 +272,7 @@ export const columns: ColumnDef<Mod>[] = [
                         <div className="flex place-content-center">
                           <form>
                             <div className="flex-none">
-                              <Label
-                                htmlFor="newBranchName"
-                                className="text-xs"
-                              >
+                              <Label htmlFor="newBranchName" className="text-xs">
                                 ブランチ名
                               </Label>
                               <Input
@@ -349,23 +302,16 @@ export const columns: ColumnDef<Mod>[] = [
                               <Button
                                 type="button"
                                 onClick={async () => {
-                                  const pathModule = await import(
-                                    "@tauri-apps/api/path"
-                                  );
+                                  const pathModule = await import("@tauri-apps/api/path");
                                   const { downloadDir } = pathModule;
 
                                   const selected = await open({
                                     directory: false,
                                     multiple: false,
-                                    filters: [
-                                      { name: "Zip", extensions: ["zip"] },
-                                    ],
+                                    filters: [{ name: "Zip", extensions: ["zip"] }],
                                     defaultPath: await downloadDir(),
                                   });
-                                  if (
-                                    selected == null ||
-                                    Array.isArray(selected)
-                                  ) {
+                                  if (selected == null || Array.isArray(selected)) {
                                     return;
                                   } else {
                                     setUploadFilePath(selected);
@@ -374,11 +320,7 @@ export const columns: ColumnDef<Mod>[] = [
                               >
                                 ファイルを選択...
                               </Button>
-                              <p>
-                                {uploadFilePath
-                                  ? path.parse(uploadFilePath).base
-                                  : "ファイルが選択されていません"}
-                              </p>
+                              <p>{uploadFilePath ? path.parse(uploadFilePath).base : "ファイルが選択されていません"}</p>
                             </div>
                             <Button
                               onClick={async (e: any) => {
@@ -394,10 +336,7 @@ export const columns: ColumnDef<Mod>[] = [
                                 const input_branch_name = newBranchName;
 
                                 if (input_branch_name == null) {
-                                  popUp(
-                                    "failed",
-                                    "ブランチ名が入力されていません！",
-                                  );
+                                  popUp("failed", "ブランチ名が入力されていません！");
                                   return;
                                 }
                                 GitCmd("git_checkout", {
@@ -409,11 +348,7 @@ export const columns: ColumnDef<Mod>[] = [
 
                                 // zipファイルを展開
                                 if (!!uploadFilePath) {
-                                  unzipModArchive(
-                                    uploadFilePath,
-                                    row.original.localPath,
-                                    true,
-                                  );
+                                  unzipModArchive(uploadFilePath, row.original.localPath, true);
                                   debug("unzip done.");
 
                                   // commit changes
@@ -449,20 +384,14 @@ export const columns: ColumnDef<Mod>[] = [
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="notInstalled"
-                    size="sm"
-                    className="ml-2 text-[10px]"
-                  >
+                  <Button variant="notInstalled" size="sm" className="ml-2 text-[10px]">
                     N/A
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
                   <DropdownMenuItem
                     onClick={() => {
-                      info(
-                        `start managing section: ${JSON.stringify(row.original.localPath)}`,
-                      );
+                      info(`start managing section: ${JSON.stringify(row.original.localPath)}`);
                       const localPath = row.original.localPath;
                       GitCmd("git_init", { targetDir: localPath });
 
@@ -494,29 +423,23 @@ export const columns: ColumnDef<Mod>[] = [
         <>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                className="text-xs"
-                variant={isInstalled ? "installed" : "notInstalled"}
-              >
+              <Button className="text-xs" variant={isInstalled ? "installed" : "notInstalled"}>
                 {isInstalled ? "Installed" : "Not Installed"}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuItem
                 onClick={() => {
-                  const targetDir = table.options.meta?.gameModDir;
-                  const base = path.parse(row.original.localPath).base;
+                  // const targetDir = table.options.meta?.gameModDir;
+                  // const base = path.parse(row.original.localPath).base;
 
-                  if (!targetDir || targetDir == "") {
-                    popUp("failed", "target directory is not set!");
-                    return;
-                  }
-                  const targetModDir = path.join(targetDir, base);
+                  // const targetModDir = path.join(targetDir, base);
 
+                  const mod_data_dir = row.original.localPath;
                   if (isInstalled) {
-                    uninstallMod(targetModDir);
+                    uninstallMod(mod_data_dir);
                   } else {
-                    installMod(row.original.localPath, targetModDir);
+                    installMod(mod_data_dir);
                   }
                   // reload table
                   const f = table.options.meta?.fetchMods;

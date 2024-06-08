@@ -11,10 +11,8 @@ import { getSettings } from "@/lib/api";
 
 // atomWithStorage
 // ToDo: Remove this
-const defaultModDataDir =
-  "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source";
-const defaultGameModDir =
-  "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets";
+const defaultModDataDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source";
+const defaultGameModDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets";
 
 type UserDataPaths = {
   root: string;
@@ -46,6 +44,7 @@ const refreshSettingState = atom(0);
 const refreshSettingAtom = atom(
   (get) => get(refreshSettingState),
   (get, set) => {
+    // FIXME: asyncにしてリフレッシュを待てるようにする
     set(refreshSettingState, (c) => c + 1);
   },
 );
@@ -86,13 +85,5 @@ const logTextAtom = atom<String[]>([]);
 
 const store = createStore();
 
-export {
-  settingAtom,
-  refreshSettingAtom,
-  modsAtom,
-  refreshModsAtom,
-  activeProfileAtom,
-  logTextAtom,
-  store,
-};
+export { settingAtom, refreshSettingAtom, modsAtom, refreshModsAtom, activeProfileAtom, logTextAtom, store };
 export type { Profile, Settings };

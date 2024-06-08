@@ -11,12 +11,7 @@ type GitArgs = {
   createIfUnexist?: boolean;
 };
 
-type Command =
-  | "git_init"
-  | "git_commit_changes"
-  | "git_reset_changes"
-  | "git_list_branches"
-  | "git_checkout";
+type Command = "git_init" | "git_commit_changes" | "git_reset_changes" | "git_list_branches" | "git_checkout";
 
 export async function GitCmd(command: Command, args: GitArgs) {
   const isClient = typeof window !== "undefined";
@@ -53,20 +48,6 @@ export async function openModData() {
   isClient && (await invoke<string>("open_mod_data"));
 }
 
-export async function uninstallMod(target: string) {
-  const isClient = typeof window !== "undefined";
-  isClient &&
-    (await invoke<string>("uninstall_mod", { targetFile: target })
-      .then((response) => {
-        // debug(response);
-        info(`mod uninstalled: ${target}.`);
-      })
-      .catch((err) => {
-        error(err);
-        popUp("failed", err);
-      }));
-}
-
 export async function list_branches(targetDir: string) {
   const isClient = typeof window !== "undefined";
   if (!isClient) return [];
@@ -75,7 +56,6 @@ export async function list_branches(targetDir: string) {
     targetDir: targetDir,
   })
     .then((response: string[]) => {
-      // debug(response.join(","));
       return response;
     })
     .catch((err) => {
@@ -85,15 +65,24 @@ export async function list_branches(targetDir: string) {
   return res ? res : [];
 }
 
-export async function installMod(source: string, target: string) {
+export async function installMod(mod_data_path: string) {
   const isClient = typeof window !== "undefined";
   isClient &&
-    (await invoke<string>("install_mod", {
-      sourceDir: source,
-      targetDir: target,
-    })
-      .then((response) => {
-        // debug(response);
+    (await invoke<string>("install_mod", { modDataPath: mod_data_path })
+      .then(() => {
+        info(`mod installed: ${mod_data_path}.`);
+      })
+      .catch((err) => {
+        error(err);
+        popUp("failed", err);
+      }));
+}
+export async function uninstallMod(mod_data_path: string) {
+  const isClient = typeof window !== "undefined";
+  isClient &&
+    (await invoke<string>("uninstall_mod", { modDataPath: mod_data_path })
+      .then(() => {
+        info(`mod uninstalled: ${mod_data_path}.`);
       })
       .catch((err) => {
         error(err);
@@ -117,11 +106,7 @@ export const fetchMods = async () => {
   return res;
 };
 
-export const unzipModArchive = async (
-  src: string,
-  destDir: string,
-  existsOk: boolean = false,
-) => {
+export const unzipModArchive = async (src: string, destDir: string, existsOk: boolean = false) => {
   const isClient = typeof window !== "undefined";
   isClient &&
     (await invoke<string>("unzip_mod_archive", {
@@ -197,11 +182,7 @@ export const removeProfile = async (profileId: string) => {
       }));
 };
 
-export const editProfile = async (
-  profileId: string,
-  name: string,
-  gamePath: string,
-) => {
+export const editProfile = async (profileId: string, name: string, gamePath: string) => {
   const args = {
     profileId: profileId,
     name: name,

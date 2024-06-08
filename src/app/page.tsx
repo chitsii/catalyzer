@@ -6,15 +6,7 @@ import path from "path";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {
-  CheckIcon,
-  PencilIcon,
-  Trash2Icon,
-  Edit3,
-  LucideExternalLink,
-  Play,
-  PlayIcon,
-} from "lucide-react";
+import { CheckIcon, PencilIcon, Trash2Icon, Edit3, LucideExternalLink, Play, PlayIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -59,21 +51,9 @@ import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { popUp } from "@/lib/utils";
 import { openLocalDir, unzipModArchive, launchGame } from "@/lib/api";
 
-import {
-  addProfile,
-  setProfileActive,
-  removeProfile,
-  editProfile,
-} from "@/lib/api";
+import { addProfile, setProfileActive, removeProfile, editProfile } from "@/lib/api";
 
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -90,10 +70,7 @@ type ProfileFormProps = {
   targetProfile?: Profile;
   handleDialogItemOpenChange: (open: boolean) => void;
 };
-const ProfileForm = ({
-  targetProfile,
-  handleDialogItemOpenChange,
-}: ProfileFormProps) => {
+const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormProps) => {
   const [_, refresh] = useAtom(refreshSettingAtom);
 
   const defaultValues = targetProfile
@@ -118,19 +95,15 @@ const ProfileForm = ({
       refresh();
     };
 
-    const handleEditProfile = async (
-      id: string,
-      name: string,
-      gamePath: string,
-    ) => {
+    const handleEditProfile = async (id: string, name: string, gamePath: string) => {
       await editProfile(id, name, gamePath);
       form.reset();
       refresh();
     };
 
     targetProfile
-      ? handleEditProfile(targetProfile.id, values.name, values.game_path)
-      : handleAddProfile(values.name, values.game_path);
+      ? await handleEditProfile(targetProfile.id, values.name, values.game_path)
+      : await handleAddProfile(values.name, values.game_path);
 
     refresh(); // refresh settings
     handleDialogItemOpenChange(false); // close dialog
@@ -146,13 +119,7 @@ const ProfileForm = ({
             <FormItem>
               <FormLabel className="text-xs">プロファイル名</FormLabel>
               <FormControl>
-                <Input
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck="false"
-                  {...field}
-                />
+                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -165,13 +132,7 @@ const ProfileForm = ({
             <FormItem>
               <FormLabel className="text-sm">CDDAパス</FormLabel>
               <FormControl>
-                <Input
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck="false"
-                  {...field}
-                />
+                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -198,12 +159,7 @@ type DialogItemProps = {
   onSelect: () => void;
   onOpenChange: (open: boolean) => void;
 };
-const DialogItem = ({
-  triggerChildren,
-  children,
-  onSelect,
-  onOpenChange,
-}: DialogItemProps) => {
+const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: DialogItemProps) => {
   return (
     <Dialog onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
@@ -249,18 +205,17 @@ const ProfileSwitcher = () => {
   const selectProfile = async (id: string) => {
     await setProfileActive(id);
     // FIXME: junkey solution. sometimes ui is not updated after profile switch
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    refresh();
+    const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    wait(1000).then(() => {
+      refresh();
+    });
   };
 
   const currentProfile = profileList.find((p) => p.is_active);
 
   return (
     <>
-      <DropdownMenu
-        open={dropdownOpen}
-        onOpenChange={(isOpen) => setDropdownOpen(isOpen)}
-      >
+      <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" ref={dropdownTriggerRef}>
             <Badge className="text-primary-foreground hover:mouse-pointer hover:bg-primary cursor-pointer hover:skew-x-12 hover:scale=[1.1] hover:rotate-[-12deg] transition-transform duration-300 ease-in-out">
@@ -322,12 +277,8 @@ const ProfileSwitcher = () => {
                 onOpenChange={handleDialogItemOpenChange}
               >
                 <DialogTitle className="DialogTitle">新規追加</DialogTitle>
-                <DialogDescription className="DialogDescription">
-                  プロファイルを新規追加します。
-                </DialogDescription>
-                <ProfileForm
-                  handleDialogItemOpenChange={handleDialogItemOpenChange}
-                />
+                <DialogDescription className="DialogDescription">プロファイルを新規追加します。</DialogDescription>
+                <ProfileForm handleDialogItemOpenChange={handleDialogItemOpenChange} />
               </DialogItem>
               <DropdownMenuSeparator />
               {/* プロファイル更新 ==== */}
@@ -339,8 +290,7 @@ const ProfileSwitcher = () => {
                   </>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  {profileList.filter((profile) => profile.id !== "default")
-                    .length === 0 ? (
+                  {profileList.filter((profile) => profile.id !== "default").length === 0 ? (
                     <DropdownMenuItem>
                       <span className="text-muted-foreground">項目無し</span>
                     </DropdownMenuItem>
@@ -366,9 +316,7 @@ const ProfileSwitcher = () => {
                             プロファイルを更新します。
                           </DialogDescription>
                           <ProfileForm
-                            handleDialogItemOpenChange={
-                              handleDialogItemOpenChange
-                            }
+                            handleDialogItemOpenChange={handleDialogItemOpenChange}
                             targetProfile={profile}
                           />
                         </DialogItem>
@@ -388,8 +336,7 @@ const ProfileSwitcher = () => {
                   </>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  {profileList.filter((profile) => profile.id !== "default")
-                    .length === 0 ? (
+                  {profileList.filter((profile) => profile.id !== "default").length === 0 ? (
                     <DropdownMenuItem>
                       <span className="text-muted-foreground">項目無し</span>
                     </DropdownMenuItem>
@@ -410,25 +357,17 @@ const ProfileSwitcher = () => {
                           onSelect={() => {}}
                           onOpenChange={handleDialogItemOpenChange}
                         >
-                          <DialogTitle className="DialogTitle">
-                            プロファイル削除
-                          </DialogTitle>
+                          <DialogTitle className="DialogTitle">プロファイル削除</DialogTitle>
                           <DialogDescription>
                             <p>本当に以下のプロファイルを削除しますか？</p>
                             <div className="p-4">
                               <ul className="list-disc">
-                                <li className="text-destructive text-xs">
-                                  Name: {profile.name}
-                                </li>
-                                <li className="text-destructive text-xs">
-                                  Game Path: {profile.game_path}
-                                </li>
+                                <li className="text-destructive text-xs">Name: {profile.name}</li>
+                                <li className="text-destructive text-xs">Game Path: {profile.game_path}</li>
                                 <li className="text-destructive text-xs">
                                   Active: {JSON.stringify(!!profile.is_active)}
                                 </li>
-                                <li className="text-destructive text-xs">
-                                  (Unique ID: {profile.id})
-                                </li>
+                                <li className="text-destructive text-xs">(Unique ID: {profile.id})</li>
                               </ul>
                             </div>
                           </DialogDescription>
@@ -461,9 +400,7 @@ const ProfileSwitcher = () => {
 
 const GlobalMenu = () => {
   const [{ data: setting }] = useAtom(settingAtom);
-  const current_profile = setting
-    ? setting.profiles.find((p) => p.is_active)
-    : null;
+  const current_profile = setting ? setting.profiles.find((p) => p.is_active) : null;
   const game_path = current_profile ? current_profile.game_path : null;
 
   return (
@@ -507,11 +444,7 @@ const GlobalMenu = () => {
             <p className="text-xs">👇リンク(ブラウザで開く)</p>
           </DropdownMenuLabel>
           <DropdownMenuItem>
-            <Link
-              href="https://github.com/CleverRaven/Cataclysm-DDA/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <Link href="https://github.com/CleverRaven/Cataclysm-DDA/" target="_blank" rel="noopener noreferrer">
               リポジトリ
             </Link>
           </DropdownMenuItem>
@@ -533,10 +466,7 @@ export default function Home() {
         if (ev.payload.type !== "drop") {
           return;
         }
-        const does_install = await ask(
-          "Add the dropped file to Mod Directory?",
-          "CDDA Launcher",
-        );
+        const does_install = await ask("Add the dropped file to Mod Directory?", "CDDA Launcher");
         if (!does_install) {
           return;
         }
@@ -595,12 +525,8 @@ export default function Home() {
           </div>
           <div className="flex-grow">
             <CSR>
-              <p className="text-xl font-semibold">
-                Cataclysm: Dark Days Ahead Launcher
-              </p>
-              <span className="text-sm text-muted-foreground">
-                現在のプリセット:
-              </span>
+              <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
+              <span className="text-sm text-muted-foreground">現在のプリセット:</span>
               <ProfileSwitcher />
             </CSR>
           </div>
@@ -633,14 +559,8 @@ export default function Home() {
                   <h1 className="text-3xl font-semibold">設定</h1>
                 </div>
                 <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
-                  <nav
-                    className="grid gap-4 text-sm text-muted-foreground"
-                    x-chunk="dashboard-04-chunk-0"
-                  >
-                    <Link
-                      href="#theme_setting"
-                      className="font-semibold text-primary"
-                    >
+                  <nav className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0">
+                    <Link href="#theme_setting" className="font-semibold text-primary">
                       カラーテーマ
                     </Link>
                     {/* <Link href="#language_setting"
