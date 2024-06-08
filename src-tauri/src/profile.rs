@@ -235,7 +235,7 @@ impl Settings {
                 if src.exists() {
                     let dir_name = src.file_name().unwrap();
                     let dest = self.game_config_path.mods.join(dir_name);
-                    create_symbolic_link(&src, &dest).unwrap();
+                    create_symbolic_link(src, &dest).unwrap();
                 } else {
                     debug!("mod local_path does not exist");
                 }
@@ -423,7 +423,7 @@ impl Settings {
 
         self.profiles.iter_mut().for_each(|p| {
             if p.id.eq(&active_profile.id) {
-                p.mod_status = mods.clone();
+                p.mod_status.clone_from(&mods);
             }
         });
         debug!(

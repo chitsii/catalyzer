@@ -77,7 +77,7 @@ pub mod commands {
         exists_ok: Option<bool>,
     ) -> Result<(), String> {
         let paths = prepare_paths(state, src, exists_ok).map_err(|e| e.to_string())?;
-        let fixed_zip_path = create_fixed_encoding_zip(&paths.src, &paths.tmp_zip.path())
+        let fixed_zip_path = create_fixed_encoding_zip(&paths.src, paths.tmp_zip.path())
             .map_err(|e| e.to_string())?;
 
         let archive: Vec<u8> = std::fs::read(fixed_zip_path).unwrap();
@@ -89,14 +89,14 @@ pub mod commands {
             .ok_or_else(|| "No mod directory found in archive".to_string())?;
 
         // if exists_ok is set to true and dest directory exists, remove contents of dest directory except .git/*
-        if (exists_ok.is_some_and(|x| x) && paths.dest.clone().exists()) {
+        if exists_ok.is_some_and(|x| x) && paths.dest.clone().exists() {
             debug!("Removing existing directory: {}", &paths.dest.display());
             remove_dir_all(&paths.dest, Some(".git")).unwrap();
         };
 
-        let result = copy_dir_all(&mod_dir, &paths.dest, Some(".git"))
+        
+        copy_dir_all(mod_dir, &paths.dest, Some(".git"))
             .map(|_| debug!("Mod extracted to: {}", &paths.dest.display()))
-            .map_err(|e| e.to_string());
-        result
+            .map_err(|e| e.to_string())
     }
 }
