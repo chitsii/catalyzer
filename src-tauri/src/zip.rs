@@ -17,15 +17,14 @@ pub mod commands {
     pub fn unzip_mod_archive(
         state: tauri::State<'_, AppState>,
         src: String,
-        // dest_dir: String,
         exists_ok: Option<bool>,
     ) -> Result<(), String> {
         let profile = state.get_active_profile().unwrap();
         let dest_dir = profile.get_mod_dir();
 
         let src_path = std::path::PathBuf::from(src);
-        let src_basename = src_path.file_name().unwrap();
-        let dest_path = std::path::PathBuf::from(dest_dir).join(src_basename);
+        let src_stem = src_path.file_stem().unwrap();
+        let dest_path = std::path::PathBuf::from(dest_dir).join(src_stem);
 
         if !src_path.exists() {
             return Err(format!(
@@ -72,8 +71,6 @@ pub mod commands {
             Ok(_) => {
                 // find if there is a mod directory in the extracted files
                 let mod_dir = get_shallowest_mod_dir(tmp_dir_path);
-
-                // if None, remove tmp_dir and return error
                 match mod_dir {
                     Some(mod_dir) => {
                         // if dest_path exists, overwrite (merge) the mod directory.
