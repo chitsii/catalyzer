@@ -248,8 +248,8 @@ const ProfileSwitcher = () => {
   };
   const selectProfile = async (id: string) => {
     await setProfileActive(id);
-    // TODO: junkey solution. sometimes ui is not updated after profile change.
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    // FIXME: junkey solution. sometimes ui is not updated after profile switch
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     refresh();
   };
 
@@ -507,14 +507,13 @@ const GlobalMenu = () => {
             <p className="text-xs">👇リンク(ブラウザで開く)</p>
           </DropdownMenuLabel>
           <DropdownMenuItem>
-            <p
-              className="text-xs"
-              onClick={() => {
-                openLocalDir("https://github.com/CleverRaven/Cataclysm-DDA/");
-              }}
+            <Link
+              href="https://github.com/CleverRaven/Cataclysm-DDA/"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               リポジトリ
-            </p>
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>
@@ -603,15 +602,6 @@ export default function Home() {
                 現在のプリセット:
               </span>
               <ProfileSwitcher />
-              {/* {!!currentProfile?.game_path ? (
-                <p className="text-[10px] text-muted-foreground line-clamp-1">
-                  CDDAパス: {currentProfile.game_path}
-                </p>
-              ) : (
-                <p className="text-[10px] text-muted-foreground">
-                  🔨 CDDA本体パス未設定
-                </p>
-              )} */}
             </CSR>
           </div>
         </div>

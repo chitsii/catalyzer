@@ -160,7 +160,7 @@ export const columns: ColumnDef<Mod>[] = [
         <>
           {info.description && (
             <div>
-              <p className="text-xs text-muted-foreground line-clamp-4">
+              <p className="text-xs text-muted-foreground">
                 {info.description}
               </p>
             </div>

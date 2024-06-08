@@ -47,7 +47,7 @@ fn main() {
                 .targets([
                     LogTarget::Stdout,
                     LogTarget::Webview,
-                    LogTarget::Folder(crate::profile::get_config_root().join("logs")),
+                    LogTarget::Folder(crate::profile::get_executable_dir().join("logs")),
                 ])
                 .timezone_strategy(TimezoneStrategy::UseLocal)
                 .rotation_strategy(RotationStrategy::KeepOne)
@@ -156,7 +156,9 @@ fn open_mod_data(state: tauri::State<'_, AppState>) {
 
 #[tauri::command]
 fn tail_log() -> Vec<String> {
-    let log_path = profile::get_config_root().join("logs");
+    const MAX_LINES: usize = 20;
+
+    let log_path = profile::get_executable_dir().join("logs");
     let log_file = log_path
         .read_dir()
         .unwrap()
@@ -168,7 +170,6 @@ fn tail_log() -> Vec<String> {
         .unwrap();
     let content = read_to_string(log_file.path()).unwrap();
 
-    const MAX_LINES: usize = 20;
     let lines: Vec<String> = content.lines().map(|line| line.to_string()).collect();
     let start = if lines.len() > MAX_LINES {
         lines.len() - MAX_LINES
@@ -184,24 +185,23 @@ fn launch_game(state: tauri::State<'_, AppState>) -> Result<(), String> {
 
     let profile = setting.get_active_profile();
 
-    let game_path = profile.game_path.clone().unwrap();
-    let userdata_path = profile.profile_path.root.clone();
+    let game_path = profile.get_game_path();
+    let userdata_path = profile.get_profile_root_dir();
 
-    // game_pathが存在しない場合はエラーを返して表示する
-    if !game_path.exists() {
-        return Err(format!("Game path does not exist: {:?}", game_path));
+    match game_path {
+        Some(path) => {
+            profile.create_dir_if_unexist();
+            launch(path, userdata_path).map_err(|e| format!("Failed to launch the game: {}", e))?;
+        }
+        None => {
+            return Err("Game path is not set".to_string());
+        }
     }
-
-    profile.create_dir_if_unexist();
-    launch(game_path, userdata_path).map_err(|e| format!("Failed to launch the game: {}", e))?;
-
     Ok(())
 }
 
 #[cfg(target_os = "windows")]
 fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
-    let mut p = game_path.clone();
-    let file_name = p.file_name().unwrap().to_string_lossy();
     let options = format!(
         "cd /d {} && start cataclysm-tiles.exe --userdir {}\\",
         &game_path.parent().unwrap().to_string_lossy(),
@@ -212,10 +212,10 @@ fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
         .args(["/C", &options])
         .spawn()
         .map_err(|e| format!("Failed to launch the game: {}", e))?;
-
     Ok(())
 }
 
+#[allow(unused_variables)]
 #[cfg(target_os = "macos")]
 fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
     if game_path.extension().unwrap() != "app" {

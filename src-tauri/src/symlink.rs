@@ -98,7 +98,10 @@ pub fn create_symbolic_link(source_dir: &Path, target_dir: &Path) -> Result<()> 
     );
 
     use junction;
-    junction::create(target_dir, source_dir).map_err(anyhow::Error::from)
+    // Junctions are similar to symlinks, but are only available on Windows
+    // and are limited to directories.
+    // junction::create creates a junction at the target_dir that points to the source_dir.
+    junction::create(source_dir, target_dir).map_err(anyhow::Error::from)
 }
 
 pub mod commands {
@@ -111,8 +114,12 @@ pub mod commands {
         source_dir: String,
         target_dir: String,
     ) -> Result<(), String> {
-        create_symbolic_link(Path::new(&source_dir), Path::new(&target_dir))
-            .map_err(|e| e.to_string())?;
+        create_symbolic_link(Path::new(&source_dir), Path::new(&target_dir)).map_err(|e| {
+            format!(
+                "Failed to create symbolic link from {} to {}: {}",
+                source_dir, target_dir, e
+            )
+        })?;
 
         state.refresh_mod_save_mod_status().unwrap();
         Ok(())
@@ -123,7 +130,8 @@ pub mod commands {
         state: tauri::State<'_, AppState>,
         target_file: String,
     ) -> Result<(), String> {
-        remove_file(Path::new(&target_file)).map_err(|e| e.to_string())?;
+        remove_file(Path::new(&target_file))
+            .map_err(|e| format!("Failed to remove symlink at {}: {}", target_file, e))?;
         state.refresh_mod_save_mod_status().unwrap();
         Ok(())
     }

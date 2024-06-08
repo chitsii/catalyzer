@@ -8,15 +8,21 @@ pub mod commands {
     use logic::zip::fix_zip_fname_encoding;
     use tempfile::tempdir;
 
+    use crate::profile::Settings;
+
     /// Unzips a mod archive to a destination directory.
     /// src: Mod archive file path
-    /// dest_dir: プロファイルのmodディレクトリ
+    /// dest_dir: profile's mod directory
     #[tauri::command]
     pub fn unzip_mod_archive(
+        state: tauri::State<'_, AppState>,
         src: String,
-        dest_dir: String,
+        // dest_dir: String,
         exists_ok: Option<bool>,
     ) -> Result<(), String> {
+        let profile = state.get_active_profile().unwrap();
+        let dest_dir = profile.get_mod_dir();
+
         let src_path = std::path::PathBuf::from(src);
         let src_basename = src_path.file_name().unwrap();
         let dest_path = std::path::PathBuf::from(dest_dir).join(src_basename);
@@ -79,12 +85,12 @@ pub mod commands {
                                 Ok(_) => {}
                                 Err(e) => {
                                     tmp_dir.close().unwrap();
-                                    println!(
+                                    return Err(format!(
                                         "Failed to copy mod directory: {}, dest: {}",
                                         e,
                                         dest_path.to_string_lossy()
-                                    );
-                                    return Err(format!("Failed to copy mod directory: {}", e));
+                                    )
+                                    .to_string());
                                 }
                             }
                         } else {

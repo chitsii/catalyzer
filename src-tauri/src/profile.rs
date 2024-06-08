@@ -17,14 +17,14 @@ use tauri::api::path::{app_config_dir, config_dir, data_dir};
 const SETTINGS_FILENAME: &str = "setting.yaml";
 
 /// current_exeの親ディレクトリ
-pub fn get_config_root() -> PathBuf {
+pub fn get_executable_dir() -> PathBuf {
     let exe_path = std::env::current_exe().unwrap();
     exe_path.parent().unwrap().to_path_buf()
 }
 
 /// current_exe_dir/Profiles/{ProfileName}
 fn get_profile_dir(profile_name: &str) -> PathBuf {
-    let config_root = get_config_root();
+    let config_root = get_executable_dir();
     let profile_path = config_root.join("Profiles").join(profile_name);
     if !profile_path.exists() {
         fs::create_dir_all(&profile_path).unwrap();
@@ -34,7 +34,7 @@ fn get_profile_dir(profile_name: &str) -> PathBuf {
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserDataPaths {
-    pub root: PathBuf,
+    root: PathBuf,
     mods: PathBuf,
     config: PathBuf,
     font: PathBuf,
@@ -60,10 +60,10 @@ impl UserDataPaths {
 pub struct Profile {
     id: String,
     name: String,
-    pub game_path: Option<PathBuf>,  // ゲームのインストール先
-    pub profile_path: UserDataPaths, // thisApp.exe/Proiles/{ProfileName}
-    mod_status: Vec<Mod>,            // プロファイル内のModの状態
-    is_active: bool,                 // アクティブなプロファイルかどうか
+    game_path: Option<PathBuf>,  // ゲームのインストール先
+    profile_path: UserDataPaths, // thisApp.exe/Proiles/{ProfileName}
+    mod_status: Vec<Mod>,        // プロファイル内のModの状態
+    is_active: bool,             // アクティブなプロファイルかどうか
 }
 impl Profile {
     pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
@@ -77,7 +77,6 @@ impl Profile {
             is_active: false,
         }
     }
-
     pub fn create_dir_if_unexist(&self) {
         let paths = [
             // Must-have:
@@ -95,6 +94,15 @@ impl Profile {
                 fs::create_dir_all(path).unwrap();
             }
         }
+    }
+    pub fn get_game_path(&self) -> Option<PathBuf> {
+        self.game_path.clone()
+    }
+    pub fn get_profile_root_dir(&self) -> PathBuf {
+        self.profile_path.root.clone()
+    }
+    pub fn get_mod_dir(&self) -> PathBuf {
+        self.profile_path.mods.clone()
     }
 }
 impl Default for Profile {
@@ -118,7 +126,7 @@ impl Default for Settings {
         Self {
             language: "ja".into(),
             game_config_path: UserDataPaths::new(PathBuf::new()),
-            mod_data_path: get_config_root().join("ModData"),
+            mod_data_path: get_executable_dir().join("ModData"),
             profiles: vec![Profile::default()],
         }
     }
@@ -131,6 +139,8 @@ impl Settings {
 
         // CataclysmDDA: src/path_info.cppを参照
         if cfg!(windows) {
+            // Windowsのユーザファイルはデフォルトではゲームのインストール先に保存されるが
+            // ランチャーを通じて起動するとプロファイルディレクトリにセーブを保存する
             let profile_root_path = profile.profile_path.root.clone();
             self.game_config_path = UserDataPaths::new(profile_root_path);
         } else if cfg!(macos) {
@@ -180,10 +190,6 @@ impl Settings {
             fs::rename(&game_save_dir, backup_dir)?;
         }
         debug!(
-            "Creating symlink: {:?} -> {:?}",
-            profile_save_dir, game_save_dir
-        );
-        println!(
             "Creating symlink: {:?} -> {:?}",
             profile_save_dir, game_save_dir
         );
@@ -243,7 +249,7 @@ impl Settings {
     }
 
     pub fn new() -> Self {
-        let config_file = get_config_root().join(SETTINGS_FILENAME);
+        let config_file = get_executable_dir().join(SETTINGS_FILENAME);
         if !config_file.exists() {
             let mut settings = Self::default();
             settings.post_init();
@@ -329,7 +335,6 @@ impl Settings {
             Ok(data) => data,
             Err(e) => {
                 warn!("Failed to list symlinks: {}", e);
-                println!("Failed to list symlinks: {}", e);
                 vec![]
             }
         };
@@ -433,7 +438,7 @@ trait Config {
 
 impl Config for Settings {
     fn write_file(&self) {
-        let config_root = get_config_root();
+        let config_root = get_executable_dir();
         if !config_root.exists() {
             fs::create_dir_all(&config_root).unwrap();
         }
@@ -444,7 +449,7 @@ impl Config for Settings {
         file.write_all(serialized.as_bytes()).unwrap();
     }
     fn read_file(&mut self) -> Settings {
-        let config_root = get_config_root();
+        let config_root = get_executable_dir();
         let config_file = config_root.join(SETTINGS_FILENAME);
         let input = fs::read_to_string(config_file).unwrap();
         let deserialized: Result<Settings, serde_yaml::Error> = serde_yaml::from_str(&input);
@@ -479,6 +484,12 @@ impl AppState {
     pub fn get_settings(&self) -> Option<Settings> {
         let settings = self.settings.lock().unwrap();
         Some(settings.clone())
+    }
+
+    pub fn get_active_profile(&self) -> Option<Profile> {
+        let settings = self.settings.lock().unwrap();
+        let profile = settings.get_active_profile();
+        Some(profile)
     }
 }
 
