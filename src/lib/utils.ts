@@ -35,7 +35,8 @@ export const popUp = (title: "success" | "failed", msg: string) => {
   }
   toast(title.toUpperCase(), {
     description: msg,
-    position: "top-right",
+    position: "bottom-center",
     className: "z-50",
+    closeButton: true,
   });
 };

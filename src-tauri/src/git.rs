@@ -24,7 +24,7 @@ fn init(target_dir: String) -> Result<Repository, String> {
 fn commit(repo: &Repository, message: &str) -> Result<(), String> {
     debug!("Committing changes to repository");
 
-    let sig = Signature::now("CataclysmLauncher", "Nothing").unwrap();
+    let sig = Signature::now("Catalyzer", "Nothing").unwrap();
 
     match repo.head() {
         Ok(data) => {

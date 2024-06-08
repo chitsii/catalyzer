@@ -11,22 +11,15 @@ const NotoSansMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Cataclysm Launcher",
-  description: "Cataclysm: Dark Days Ahead Launcher",
+  title: "Catalyzer",
+  description: "Catalyzer - yet another Cataclysm:DDA launcher.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ja" suppressHydrationWarning>
       <body className={NotoSansMono.className}>
-        <ThemeProvider
-          themes={["light", "dark", "twilight"]}
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-        >
+        <ThemeProvider themes={["light", "dark", "twilight"]} attribute="class" defaultTheme="twilight" enableSystem>
           {children}
         </ThemeProvider>
         <Toaster />

@@ -16,7 +16,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -131,7 +130,7 @@ const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormP
           control={form.control}
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-sm">CDDAパス</FormLabel>
+              <FormLabel className="text-sm">Gameパス</FormLabel>
               <FormControl>
                 <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" {...field} />
               </FormControl>
@@ -407,24 +406,16 @@ const GlobalMenu = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div className="rounded-full hover:shadow-lg hover:shadow-accent-foreground">
+        <div className="rounded-2xl hover:shadow-lg hover:shadow-accent-foreground">
           <Image src="/assets/icon.png" alt="menu" width={80} height={80} />
         </div>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         <DropdownMenuGroup>
           {
-            // ゲーム起動
-            // ゲームパスがない場合は無効化
-            // ゲームパスがある場合は、そのパスを引数にしてゲームを起動する
+            // ゲーム起動; ゲームパスがない場合は無効化
             !!game_path ? (
-              <DropdownMenuItem
-                className="text-lg"
-                onClick={() => {
-                  // openLocalDir(game_path); // FIXME
-                  launchGame();
-                }}
-              >
+              <DropdownMenuItem className="text-lg" onClick={() => launchGame()}>
                 <Play className="mr-4 h-4 w-4" />
                 ゲーム起動
               </DropdownMenuItem>
@@ -435,18 +426,18 @@ const GlobalMenu = () => {
                   "
                 >
                   <Play className="mr-4 h-4 w-4" />
-                  CDDAパス未設定
+                  Gameパス未設定
                 </div>
               </DropdownMenuItem>
             )
           }
           <DropdownMenuSeparator />
           <DropdownMenuLabel>
-            <p className="text-xs">👇リンク(ブラウザで開く)</p>
+            <p className="text-xs">👇ブラウザで開く</p>
           </DropdownMenuLabel>
           <DropdownMenuItem>
             <Link href="https://github.com/CleverRaven/Cataclysm-DDA/" target="_blank" rel="noopener noreferrer">
-              リポジトリ
+              リポジトリ (GitHub)
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
@@ -499,7 +490,7 @@ export default function Home() {
           </div>
           <div className="flex-grow">
             <CSR>
-              <p className="text-xl font-semibold">Cataclysm: Dark Days Ahead Launcher</p>
+              <p className="text-xl font-semibold">Catalyzer</p>
               <span className="text-sm text-muted-foreground">現在のプリセット:</span>
               <ProfileSwitcher />
             </CSR>
@@ -507,20 +498,17 @@ export default function Home() {
         </div>
         <div className="w-full">
           <Tabs defaultValue="mods" className="w-full h-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger
                 value="mods"
-                className="text-lg"
                 onClick={() => {
                   refresh();
                 }}
               >
-                Mod一覧
+                Mod一覧({mods?.length})
               </TabsTrigger>
-              <TabsTrigger value="setting" className="text-lg">
-                設定
-              </TabsTrigger>
-              <TabsTrigger value="debug">debug</TabsTrigger>
+              <TabsTrigger value="setting">設定</TabsTrigger>
+              <TabsTrigger value="debug">ログ</TabsTrigger>
             </TabsList>
             <TabsContent value="mods">
               <div className="bg-muted/40">

@@ -5,24 +5,21 @@ import { fetch } from "@tauri-apps/api/http";
 import { GithubRelease } from "@/lib/types/github-release";
 import { Button } from "@/components/ui/button";
 
-const fetchReleases = async (
-  perPage: number = 2
-) => {
+const fetchReleases = async (perPage: number = 2) => {
   const response = await fetch<GithubRelease[]>(
     `https://api.github.com/repos/CleverRaven/Cataclysm-DDA/releases?per_page=${perPage}&page=1`,
     {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'CDDA-Launcher',
+        "X-GitHub-Api-Version": "2022-11-28",
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "Catalyzer",
         // 'Authorization': `token ${process.env.GITHUB_TOKEN}`
-      }
-    }
-  )
+      },
+    },
+  );
   return await response.data;
-}
-
+};
 
 const CDDARleases = () => {
   const [releases, setReleases] = React.useState<GithubRelease[]>([]);
@@ -41,13 +38,16 @@ const CDDARleases = () => {
 
   return (
     <>
-      <Button onClick={
-        () => {
+      <Button
+        onClick={() => {
           fetchReleases()
-            .then((data) => { setReleases(data); })
-            .catch((err) => { console.error(err); });
-        }
-      }
+            .then((data) => {
+              setReleases(data);
+            })
+            .catch((err) => {
+              console.error(err);
+            });
+        }}
       >
         リロード
       </Button>
@@ -67,22 +67,16 @@ const CDDARleases = () => {
                 })
               } */}
               <div>
-              <h2 className="font-bold text-lg">{r.name}</h2>
-              {/* <Badge>{r.published_at}</Badge> */}
-              {/* <Badge>{r.tag_name}</Badge> */}
-              <p className="text-xs whitespace-pre-line">{r.body}</p>
-              <p className="text-xs whitespace-pre-line">
-                {
-                  r.body?.replace(/\n+/g, '\n')
-                }
-              </p>
+                <h2 className="font-bold text-lg">{r.name}</h2>
+                {/* <Badge>{r.published_at}</Badge> */}
+                {/* <Badge>{r.tag_name}</Badge> */}
+                <p className="text-xs whitespace-pre-line">{r.body}</p>
+                <p className="text-xs whitespace-pre-line">{r.body?.replace(/\n+/g, "\n")}</p>
 
-              {/* <p>{JSON.stringify(r.assets)}</p> */}
-              {/* <p>published at {r.published_at}</p> */}
-              {/* <a href={r.html_url} target="_blank" rel="noreferrer">Link</a> */}
+                {/* <p>{JSON.stringify(r.assets)}</p> */}
+                {/* <p>published at {r.published_at}</p> */}
+                {/* <a href={r.html_url} target="_blank" rel="noreferrer">Link</a> */}
               </div>
-
-
             </div>
           );
         })}

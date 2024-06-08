@@ -18,7 +18,7 @@ export async function GitCmd(command: Command, args: GitArgs) {
   isClient &&
     (await invoke<string>(command, args)
       .then((response) => {
-        popUp("success", `'${command}' succeeded!`);
+        popUp("success", `'${command}' done.`);
       })
       .catch((err) => {
         error(err);
