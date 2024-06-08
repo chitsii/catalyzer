@@ -261,13 +261,6 @@ export const columns: ColumnDef<Mod>[] = [
                       >
                         <DrawerHeader>
                           <DrawerTitle>新規断面作成: {row.original.info.name}</DrawerTitle>
-                          <DrawerDescription>
-                            新規のブランチ名と、データを上書きしたい場合はModのzipファイルを選択してください。
-                            <span className="text-xs text-red-600">
-                              新規断面を作成すると、作業途中のファイルはリセットされます！
-                              <br />
-                            </span>
-                          </DrawerDescription>
                         </DrawerHeader>
                         <div className="flex place-content-center">
                           <form>
@@ -276,6 +269,7 @@ export const columns: ColumnDef<Mod>[] = [
                                 ブランチ名
                               </Label>
                               <Input
+                                key="newBranchName"
                                 type="text"
                                 autoComplete="off"
                                 autoCorrect="off"
@@ -283,7 +277,7 @@ export const columns: ColumnDef<Mod>[] = [
                                 spellCheck="false"
                                 name="newBranchName"
                                 id="newBranchName"
-                                placeholder="0.G, experimental_20240501 etc..."
+                                placeholder="0.G, experimental, 20240606 etc..."
                                 className="w-[450px]"
                                 onChange={async (e) => {
                                   setNewBranchName(e.target.value);
@@ -371,9 +365,7 @@ export const columns: ColumnDef<Mod>[] = [
                             </Button>
                           </form>
                         </div>
-                        <DrawerFooter>
-                          <DrawerClose>Cancel</DrawerClose>
-                        </DrawerFooter>
+                        <DrawerFooter></DrawerFooter>
                       </DrawerContent>
                     </Drawer>
                   </DropdownMenuItem>

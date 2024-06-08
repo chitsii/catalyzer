@@ -7,7 +7,7 @@ import path from "path";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { CheckIcon, PencilIcon, Trash2Icon, Edit3, LucideExternalLink, Play, PlayIcon } from "lucide-react";
+import { CheckIcon, PencilIcon, Trash2Icon, Edit3, LucideExternalLink, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,49 +21,32 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  // DialogPortal,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorThemeSelector } from "@/components/theme-seletor";
-
 import { ModsTable } from "@/components/datatable/mod-table/table-mods";
 import CSR from "@/components/csr/csr";
-
 import { useAtom } from "jotai";
-import {
-  refreshModsAtom,
-  modsAtom,
-  settingAtom,
-  Profile,
-  store as AtomStore,
-  refreshSettingAtom,
-  activeProfileAtom,
-} from "@/components/atoms";
+import { refreshModsAtom, modsAtom, settingAtom, Profile, refreshSettingAtom } from "@/components/atoms";
 import { ask } from "@tauri-apps/api/dialog";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
-
 import { popUp } from "@/lib/utils";
-import { openLocalDir, unzipModArchive, launchGame } from "@/lib/api";
-
-import { addProfile, setProfileActive, removeProfile, editProfile } from "@/lib/api";
-
+import { addProfile, setProfileActive, removeProfile, editProfile, unzipModArchive, launchGame } from "@/lib/api";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-
-import { debug } from "tauri-plugin-log-api";
 import { AreaForLog } from "@/components/logger";
 
 const profileFormSchema = z.object({
-  name: z.string().min(1).max(45).trim(),
-  game_path: z.string().max(255).trim(),
+  name: z.string().min(1).max(30).trim(),
+  game_path: z
+    .string()
+    .max(255)
+    .trim()
+    .refine((value) => {
+      return value.endsWith("cataclysm-tiles.exe" || "Cataclysm.app");
+    }, "Game path must end with cataclysm-tiles.exe or Cataclysm.app"),
 });
 
 type ProfileFormProps = {
@@ -109,39 +92,32 @@ const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormP
     handleDialogItemOpenChange(false); // close dialog
   };
 
+  const InputField = ({ name, title }: { name: "name" | "game_path"; title: string }) => {
+    return (
+      <FormField
+        name={name}
+        control={form.control}
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel className="text-xs">{title}</FormLabel>
+            <FormControl>
+              <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    );
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-        <FormField
-          name="name"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-xs">プロファイル名</FormLabel>
-              <FormControl>
-                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          name="game_path"
-          control={form.control}
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="text-sm">Gameパス</FormLabel>
-              <FormControl>
-                <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {InputField({ name: "name", title: "プロファイル名" })}
+        {InputField({ name: "game_path", title: "Gameパス" })}
         <Button
           type="submit"
           onClick={async () => {
-            // check submit is valid
             const isValid = await form.trigger();
             if (!isValid) return;
           }}
@@ -206,7 +182,7 @@ const ProfileSwitcher = () => {
   const selectProfile = async (id: string) => {
     await setProfileActive(id);
     // refresh();
-    // FIXME: junky way to reload page
+    // FIXME: junky way to update client side
     const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
     await sleep(400).then(() => {
       window.location.reload();
@@ -455,14 +431,14 @@ export default function Home() {
       const { appWindow } = window;
       appWindow.onFileDropEvent(async (ev) => {
         if (ev.payload.type !== "drop") return;
-        const does_install = await ask("ドロップしたファイルをModディレクトリに解凍しますか？", "CDDA Launcher");
+        const does_install = await ask("ドロップしたファイルをModディレクトリに解凍しますか？", "Catalyzer");
         if (!does_install) return;
         const [filepath] = ev.payload.paths;
         if (path.extname(filepath) === ".zip") {
           unzipModArchive(filepath);
           return;
         } else {
-          popUp("failed", "この形式はサポートしていません。");
+          popUp("failed", "サポートしていないファイル形式です。");
         }
       });
     };
@@ -477,7 +453,6 @@ export default function Home() {
     setUpDropEventAndAttachLogger();
   }, []);
 
-  // const [{ data: setting }] = useAtom(settingAtom);
   const [{ data: mods }] = useAtom(modsAtom);
   const [_, refresh] = useAtom(refreshModsAtom);
 
