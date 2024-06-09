@@ -230,7 +230,7 @@ fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
     Command::new("sh")
         .arg("-c")
         .arg(format!(
-            "cd '{}' && export DYLD_LIBRARY_PATH=. && export DYLD_FRAMEWORK_PATH=. && ./cataclysm-tiles --userdir '{}'",
+            "cd '{}' && export DYLD_LIBRARY_PATH=. && export DYLD_FRAMEWORK_PATH=. && ./cataclysm-tiles --userdir '{}/'",
             resource_dir.to_string_lossy(),
             userdata_path.to_string_lossy()
         ))

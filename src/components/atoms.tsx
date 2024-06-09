@@ -9,11 +9,6 @@ import { atomWithSuspenseQuery } from "jotai-tanstack-query";
 
 import { getSettings } from "@/lib/api";
 
-// atomWithStorage
-// ToDo: Remove this
-const defaultModDataDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/source";
-const defaultGameModDir = "/Users/fanjiang/programming/rust-lang/tauriv2/my-app/experiments/targets";
-
 type UserDataPaths = {
   root: string;
   mods: string;
@@ -36,7 +31,6 @@ type Profile = {
 type Settings = {
   language: string;
   mod_data_path: string;
-  game_config_path: UserDataPaths;
   profiles: Profile[];
 };
 

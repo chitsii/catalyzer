@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { useState } from "react";
 import {
@@ -14,16 +14,8 @@ import {
 } from "@tanstack/react-table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { openLocalDir} from "@/lib/api";
 import { DataTablePagination } from "@/components/datatable/pagenation";
 import { openModData } from "@/lib/api";
 
@@ -31,16 +23,9 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   fetchMods: () => void; // This is a function that refresh mod list;
-  gameModDir: string;
 }
 
-export function DataTable<TData, TValue>({
-  columns,
-  data,
-  fetchMods,
-  gameModDir,
-}: DataTableProps<TData, TValue>) {
-
+export function DataTable<TData, TValue>({ columns, data, fetchMods }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
@@ -50,11 +35,9 @@ export function DataTable<TData, TValue>({
     columns,
     autoResetPageIndex: false, // this is to prevent the table from resetting the page index when the data changes
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(
-      {
-        initialSync: false,
-      }
-    ),
+    getPaginationRowModel: getPaginationRowModel({
+      initialSync: false,
+    }),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
@@ -74,10 +57,8 @@ export function DataTable<TData, TValue>({
     meta: {
       // this is a meta object that is passed to all column and cell functions
       fetchMods: fetchMods,
-      gameModDir: gameModDir,
-    }
-  },
-  );
+    },
+  });
 
   return (
     <>
@@ -85,16 +66,17 @@ export function DataTable<TData, TValue>({
         <div className="w-full flex items-center py-4 justify-self-start">
           <Input
             placeholder="Search mods..."
-            autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
             value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-            onChange={(event) =>
-              table.getColumn("name")?.setFilterValue(event.target.value)
-            }
+            onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
             className="max-w-sm justify-self-start w-full"
           />
         </div>
         <div className="flex items-center justify-items-center ml-auto">
-          <DataTablePagination table={table}/>
+          <DataTablePagination table={table} />
         </div>
       </div>
       <ScrollArea className="h-mod-table rounded-md border">
@@ -105,14 +87,9 @@ export function DataTable<TData, TValue>({
                 {headerGroup.headers.map((header) => {
                   return (
                     <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
@@ -120,14 +97,9 @@ export function DataTable<TData, TValue>({
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
+                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
                   ))}
                 </TableRow>
               ))
@@ -135,16 +107,17 @@ export function DataTable<TData, TValue>({
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
                   Modが見つかりませんでした。
-                  <br/>
+                  <br />
                   <Button
-                  variant="ghost"
-                  className="text-primary underline hover:mouse-pointer"
-                  onClick={()=>{
-                    openModData();
-                  }}
+                    variant="ghost"
+                    className="text-primary underline hover:mouse-pointer"
+                    onClick={() => {
+                      openModData();
+                    }}
                   >
-                    <br/>
-                    管理ディレクトリにModを追加しましょう。<br/>
+                    <br />
+                    管理ディレクトリにModを追加しましょう。
+                    <br />
                     このウィンドウにZipファイルをドラッグ＆ドロップしても追加できます。
                   </Button>
                 </TableCell>
@@ -154,5 +127,5 @@ export function DataTable<TData, TValue>({
         </Table>
       </ScrollArea>
     </>
-  )
+  );
 }

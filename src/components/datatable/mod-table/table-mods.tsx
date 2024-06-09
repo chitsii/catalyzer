@@ -10,10 +10,11 @@ import { DataTable } from "./data-table";
 
 export type getModsProps = {
   mods: Mod[];
-}
+};
 
 function ModsTable({ mods }: getModsProps) {
-  const [{ data: settings }] = useAtom(settingAtom);
+  // const [{ data: profile }] = useAtom(activeProfileAtom);
+  // const [{ data: settings }] = useAtom(settingAtom);
   const [_, refresh] = useAtom(refreshModsAtom);
 
   return (
@@ -23,11 +24,11 @@ function ModsTable({ mods }: getModsProps) {
           columns={columns}
           data={mods}
           fetchMods={refresh}
-          gameModDir={settings ? settings.game_config_path.mods : ''}
+          // gameModDir={profile ? profile.profile_dir : ""}
         />
       </div>
     </CSR>
-  )
+  );
 }
 
 export { ModsTable };

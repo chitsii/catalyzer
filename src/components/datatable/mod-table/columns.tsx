@@ -18,9 +18,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Drawer,
-  DrawerClose,
+  // DrawerClose,
   DrawerContent,
-  DrawerDescription,
+  // DrawerDescription,
   DrawerFooter,
   DrawerHeader,
   DrawerTitle,
@@ -35,7 +35,6 @@ import { open, ask } from "@tauri-apps/api/dialog";
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
     fetchMods: () => void;
-    gameModDir: string;
   }
 }
 

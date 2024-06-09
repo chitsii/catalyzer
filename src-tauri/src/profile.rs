@@ -1,18 +1,15 @@
 use crate::prelude::*;
 
-use crate::git::commands::git_checkout;
-use crate::logic::utils::{copy_dir_all, remove_dir_all};
-use crate::model::Mod;
-// use crate::symlink::commands::{create_symlink, remove_symlink};
 use crate::git::git_checkout_logic;
 use crate::logic::utils::get_modinfo_path;
+use crate::logic::utils::remove_dir_all;
+use crate::model::Mod;
 use crate::symlink::create_symbolic_link;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::api::path::{app_config_dir, config_dir, data_dir};
 
 const SETTINGS_FILENAME: &str = "setting.yaml";
 
@@ -115,14 +112,12 @@ impl Default for Profile {
 pub struct Settings {
     pub language: String,
     pub mod_data_path: PathBuf,
-    pub game_config_path: UserDataPaths,
     pub profiles: Vec<Profile>,
 }
 impl Default for Settings {
     fn default() -> Self {
         Self {
             language: "ja".into(),
-            game_config_path: UserDataPaths::new(PathBuf::new()),
             mod_data_path: get_executable_dir().join("moddata"),
             profiles: vec![Profile::default()],
         }
@@ -161,10 +156,7 @@ impl Settings {
         let profile = &self.get_active_profile();
 
         // CataclysmDDA: src/path_info.cppを参照
-        let profile_root_path = self.get_game_config_root();
-        self.game_config_path = UserDataPaths::new(profile_root_path);
         self.mutate_state_mod_status(profile).unwrap();
-        self.switch_save_dir_symlink(profile).unwrap();
         self.write_file();
     }
     fn create_dirs_if_unexist(&self) {
@@ -173,47 +165,6 @@ impl Settings {
             if !path.exists() {
                 fs::create_dir_all(path).unwrap();
             }
-        }
-    }
-
-    fn switch_save_dir_symlink(&self, profile: &Profile) -> Result<()> {
-        if cfg!(target_os = "windows") {
-            // Windowsの場合は何もしない
-            // ゲームの起動オプションにより元々プロファイルディレクトリにセーブを保存しているので
-            return Ok(());
-        } else if cfg!(target_os = "macos") {
-            // MacOsでも何もしない
-            return Ok(());
-
-            // [Outdated]
-            // // MacOsの場合、固定のセーブディレクトリから
-            // // Profileのセーブディレクトリへシンボリックリンクを張る
-            // let game_save_dir = self.game_config_path.save.clone();
-            // let profile_save_dir = profile.profile_path.save.clone();
-            // if !game_save_dir.exists() {
-            //     debug!("game_save_dir does not exist so do nothing");
-            //     return Ok(());
-            // }
-
-            // // game_save_dirが通常のディレクトリならrenameする。シンボリックリンクなら消す
-            // let meta = game_save_dir.symlink_metadata().unwrap();
-            // if meta.file_type().is_symlink() {
-            //     fs::remove_file(&game_save_dir)?;
-            // } else {
-            //     let backup_dir = game_save_dir.with_file_name(format!(
-            //         "save_backup_{}",
-            //         chrono::Local::now().format("%Y%m%d%H%M%S")
-            //     ));
-            //     fs::rename(&game_save_dir, backup_dir)?;
-            // }
-            // debug!(
-            //     "Creating symlink: {:?} -> {:?}",
-            //     profile_save_dir, game_save_dir
-            // );
-            // create_symbolic_link(&profile_save_dir, &game_save_dir)?;
-        } else {
-            // その他のOSは未対応
-            panic!("Unsupported OS.");
         }
     }
 
@@ -252,7 +203,7 @@ impl Settings {
                 let src = Path::new(&m.local_path);
                 if src.exists() {
                     let dir_name = src.file_name().context("Failed to get file name").unwrap();
-                    let dest = self.game_config_path.mods.join(dir_name);
+                    let dest = self.get_active_profile().profile_path.mods.join(dir_name);
                     create_symbolic_link(src, &dest).unwrap_or_else(|e| {
                         warn!("{}", e);
                     });
@@ -311,8 +262,6 @@ impl Settings {
             .context("Failed to apply mod status")?;
         self.mutate_state_mod_status(&target_profile)
             .context("Failed to mutate state mod status")?;
-        self.switch_save_dir_symlink(&target_profile)
-            .context("Failed to switch save dir symlink")?;
 
         self.write_file();
         Ok(())
@@ -438,15 +387,12 @@ impl Settings {
 
     #[cfg(target_os = "macos")]
     pub fn get_game_mod_dir(&self) -> PathBuf {
-        let game_config = self.game_config_path.clone();
-        game_config.mods.clone()
+        self.get_active_profile().profile_path.mods.clone()
     }
 
     #[cfg(target_os = "windows")]
     pub fn get_game_mod_dir(&self) -> PathBuf {
-        let profile = self.get_active_profile();
-        debug!("Active profile: {:?}", profile);
-        profile.profile_path.mods.clone()
+        self.get_active_profile().profile_path.mods.clone()
     }
 }
 
