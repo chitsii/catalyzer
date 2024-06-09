@@ -79,7 +79,7 @@
       {
         "fullscreen": false,
         "height": 1000,
-        "width": 600,
+        "width": 800,
         "resizable": true,
         "title": "Catalyzer"
       }
