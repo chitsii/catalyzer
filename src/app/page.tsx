@@ -30,7 +30,7 @@ import { useAtom } from "jotai";
 import { refreshModsAtom, modsAtom, settingAtom, Profile, refreshSettingAtom } from "@/components/atoms";
 import { ask } from "@tauri-apps/api/dialog";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
-import { popUp } from "@/lib/utils";
+import { popUp, windowReload } from "@/lib/utils";
 import { addProfile, setProfileActive, removeProfile, editProfile, unzipModArchive, launchGame } from "@/lib/api";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
@@ -181,12 +181,7 @@ const ProfileSwitcher = () => {
 
   const selectProfile = async (id: string) => {
     await setProfileActive(id);
-    // refresh();
-    // FIXME: junky way to update client side
-    const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
-    await sleep(400).then(() => {
-      window.location.reload();
-    });
+    await windowReload();
   };
 
   const currentProfile = profileList.find((p) => p.is_active);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { windowReload } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +42,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/datatable/pagenation";
-import { GitCmd, openModData } from "@/lib/api";
+import { openModData, installAllMods, uninstallAllMods, fetchMods } from "@/lib/api";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -79,14 +80,25 @@ export function CommandMenu() {
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Mod操作">
+          <CommandItem key="noodle">ヌードルを頼む🍜</CommandItem>
           <CommandItem
-            key="noodle"
-            // className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg shadow-lg hover:from-blue-600 hover:to-purple-600 transition duration-300"
+            key="cmd-all-mod-install"
+            onSelect={async () => {
+              await installAllMods();
+              await windowReload();
+            }}
           >
-            ヌードルを頼む🍜
+            Install all mods to current profile
           </CommandItem>
-          <CommandItem key="cmd-all-mod-install">Install all mods to current profile</CommandItem>
-          <CommandItem key="cmd-all-mod-uninstall">Uninstall all mods from current profile</CommandItem>
+          <CommandItem
+            key="cmd-all-mod-uninstall"
+            onSelect={async () => {
+              await uninstallAllMods();
+              await windowReload();
+            }}
+          >
+            Uninstall all mods from current profile
+          </CommandItem>
         </CommandGroup>
       </CommandList>
     </CommandDialog>

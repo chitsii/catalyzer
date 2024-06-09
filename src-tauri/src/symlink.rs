@@ -116,6 +116,11 @@ pub mod commands {
     pub fn link_to_target_subdir(mod_data_path: &Path, target_dir: &Path) -> Result<()> {
         let mod_name = Path::new(&mod_data_path).file_name().unwrap();
         let target_path = target_dir.join(mod_name);
+
+        debug!(
+            "Creating symlink from {:?} to {:?}",
+            &mod_data_path, &target_path
+        );
         create_symbolic_link(Path::new(&mod_data_path), &target_path)?;
         Ok(())
     }
@@ -125,6 +130,8 @@ pub mod commands {
     pub fn unlink_target_subdir(mod_data_path: &Path, target_dir: &Path) -> Result<()> {
         let mod_name = Path::new(&mod_data_path).file_name().unwrap();
         let symlink_path = target_dir.join(mod_name);
+
+        debug!("Removing symlink from {:?}", &symlink_path);
         match remove_file(&symlink_path) {
             Ok(_) => debug!("Removed symlink at {}", symlink_path.display()),
             Err(e) => warn!("Could not remove symlink for: {}", e),

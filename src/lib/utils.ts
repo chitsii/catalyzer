@@ -40,3 +40,11 @@ export const popUp = (title: "success" | "failed", msg: string) => {
     closeButton: true,
   });
 };
+
+export const windowReload = async (sleep_time_ms: number = 400) => {
+  // FIXME: junky way to update client side
+  const sleep = () => new Promise((res) => setTimeout(res, sleep_time_ms));
+  await sleep().then(() => {
+    window.location.reload();
+  });
+};

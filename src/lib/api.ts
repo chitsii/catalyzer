@@ -42,8 +42,9 @@ const gitCommand = async (
 const listBranches = async (targetDir: string) => await invoke_safe("git_list_branches", { targetDir: targetDir }, []);
 
 const installMod = async (moddata_dir: string) => await invoke_safe("install_mod", { modDataPath: moddata_dir });
-
+const installAllMods = async () => await invoke_safe("install_all_mods", {});
 const uninstallMod = async (moddata_dir: string) => await invoke_safe("uninstall_mod", { modDataPath: moddata_dir });
+const uninstallAllMods = async () => await invoke_safe("uninstall_all_mods", {});
 
 const fetchMods = async () => await invoke_safe<Mod[]>("scan_mods", {}, []);
 
@@ -84,7 +85,9 @@ export {
   openModData,
   listBranches,
   installMod,
+  installAllMods,
   uninstallMod,
+  uninstallAllMods,
   fetchMods,
   unzipModArchive,
   addProfile,
