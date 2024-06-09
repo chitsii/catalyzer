@@ -45,7 +45,7 @@ const profileFormSchema = z.object({
     .max(255)
     .trim()
     .refine((value) => {
-      return value.endsWith("cataclysm-tiles.exe" || "Cataclysm.app");
+      return value.endsWith("cataclysm-tiles.exe") || value.endsWith("Cataclysm.app");
     }, "Game path must end with cataclysm-tiles.exe or Cataclysm.app"),
 });
 
