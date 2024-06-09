@@ -3,18 +3,6 @@
 import { useState, useEffect } from "react";
 import { windowReload } from "@/lib/utils";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Command,
   CommandDialog,
   CommandEmpty,
@@ -42,12 +30,12 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/datatable/pagenation";
-import { openModData, installAllMods, uninstallAllMods, fetchMods } from "@/lib/api";
+import { openModData, installAllMods, uninstallAllMods } from "@/lib/api";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  fetchMods: any; // function to fetch mods
+  fetchMods: any; // function to refresh mods that are displayed in the table
 }
 
 export function CommandMenu() {
@@ -66,10 +54,10 @@ export function CommandMenu() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="ナニニシマスカ? 🤖" />
+      <CommandInput placeholder="🤖< ナニニシマスカ?" />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Modダウンロード">
+        {/* <CommandGroup heading="Modダウンロード">
           <CommandItem
             key="cmd-mod-download-github"
             onSelect={() => {
@@ -78,9 +66,9 @@ export function CommandMenu() {
           >
             Download mods from Github
           </CommandItem>
-        </CommandGroup>
+        </CommandGroup> */}
         <CommandGroup heading="Mod操作">
-          <CommandItem key="noodle">ヌードルを頼む🍜</CommandItem>
+          {/* <CommandItem key="noodle">ヌードルを頼む🍜</CommandItem> */}
           <CommandItem
             key="cmd-all-mod-install"
             onSelect={async () => {
@@ -88,7 +76,7 @@ export function CommandMenu() {
               await windowReload();
             }}
           >
-            Install all mods to current profile
+            🚀 Install all mods
           </CommandItem>
           <CommandItem
             key="cmd-all-mod-uninstall"
@@ -97,7 +85,7 @@ export function CommandMenu() {
               await windowReload();
             }}
           >
-            Uninstall all mods from current profile
+            🗑 Uninstall all mods
           </CommandItem>
         </CommandGroup>
       </CommandList>

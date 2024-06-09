@@ -38,6 +38,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { AreaForLog } from "@/components/logger";
 
+import { AnimatePresence, motion, useAnimate, useAnimation } from "framer-motion";
+
 const profileFormSchema = z.object({
   name: z.string().min(1).max(20).trim(),
   game_path: z
@@ -185,7 +187,6 @@ const ProfileSwitcher = () => {
   };
 
   const currentProfile = profileList.find((p) => p.is_active);
-
   return (
     <div className="flex w-full">
       <div className="w-1/3 mb-2">
@@ -196,15 +197,9 @@ const ProfileSwitcher = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="hover:bg-primary-background" ref={dropdownTriggerRef}>
                 <Badge
-                  className="bg-gradient-to-r from-orange-500 to-purple-500 text-white text-sm rounded-full
+                  className="bg-gradient-to-r from-orange-500 to-purple-500 text-white rounded-full
                   hover:from-blue-600 hover:to-purple-600 hover:text-yellow-300
-                  w-32 break-all whitespace-normal line-clamp-3
-                  hover:mouse-pointer
-                  cursor-pointer
-                  hover:rotate-[-5deg]
-                  transition-transform
-                  duration-300
-                  ease-in-out"
+                  w-32 break-all whitespace-normal line-clamp-3"
                 >
                   {currentProfile ? currentProfile.name : "No Profile"}
                 </Badge>
@@ -503,74 +498,84 @@ export default function Home() {
         e.preventDefault();
       }}
     >
-      <div className="w-full overflow-hidden select-none bg-muted/40">
-        <div className="flex w-full h-[100px] gap-8 p-4 items-center">
-          <div className="flex-shrink-0 w-[100px] h-[100px] rounded-lg flex items-center justify-center">
-            <GlobalMenu />
-          </div>
-          <CSR>
-            <ProfileSwitcher />
-          </CSR>
-        </div>
-        <div className="w-full">
-          <Tabs defaultValue="mods" className="w-full h-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger
-                value="mods"
-                onClick={() => {
-                  refresh();
+      <AnimatePresence mode="wait">
+        <motion.div
+          initial={{ opacity: 0, scaleY: 0 }}
+          animate={{ opacity: 1, scaleY: 1 }}
+          exit={{ opacity: 0, scaleY: 0 }}
+          className="w-full overflow-hidden select-none bg-muted/40"
+        >
+          <div className="flex w-full h-[100px] gap-8 p-4 items-center">
+            <div className="flex-shrink-0 w-[100px] h-[100px] rounded-lg flex items-center justify-center">
+              <motion.div
+                whileHover={{
+                  // backgroundColor: ["#ff008c", "#7700ff", "rgb(230, 255, 0)", "#7700ff", "#ff008c"],
+                  scale: [1.0, 1.1, 1.0, 1.1, 1.0],
+                  borderRadius: ["100%", "90%", "80%", "90%", "100%"],
+                }}
+                transition={{
+                  duration: 3.0,
+                  repeat: Infinity,
+                  repeatDelay: 0,
                 }}
               >
-                Mod一覧
-              </TabsTrigger>
-              <TabsTrigger value="setting">設定</TabsTrigger>
-              <TabsTrigger value="debug">ログ</TabsTrigger>
-            </TabsList>
-            <TabsContent value="mods">
-              <div className="bg-muted/40">
-                <ModsTable mods={mods!} />
-              </div>
-            </TabsContent>
-            <TabsContent value="setting">
-              <div className="flex min-h-[calc(97vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
-                <div className="mx-auto grid w-full max-w-6xl gap-2">
-                  <h1 className="text-3xl font-semibold">設定</h1>
+                <GlobalMenu />
+              </motion.div>
+            </div>
+            <CSR>
+              <ProfileSwitcher />
+            </CSR>
+          </div>
+          <div className="w-full">
+            <Tabs defaultValue="mods" className="w-full h-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger
+                  value="mods"
+                  onClick={() => {
+                    refresh();
+                  }}
+                >
+                  Mod一覧
+                </TabsTrigger>
+                <TabsTrigger value="setting">設定</TabsTrigger>
+                <TabsTrigger value="debug">ログ</TabsTrigger>
+              </TabsList>
+              <TabsContent value="mods">
+                <div className="bg-muted/40">
+                  <ModsTable mods={mods!} />
                 </div>
-                <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
-                  <nav className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0">
-                    <Link href="#theme_setting" className="font-semibold text-primary">
-                      カラーテーマ
-                    </Link>
-                  </nav>
-                  <ScrollArea>
-                    <Card id="theme_setting" className="border-none">
-                      <CardHeader>
-                        <CardTitle>カラーテーマ</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ColorThemeSelector />
-                      </CardContent>
-                    </Card>
-                  </ScrollArea>
+              </TabsContent>
+              <TabsContent value="setting">
+                <div className="flex min-h-[calc(97vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
+                  <div className="mx-auto grid w-full max-w-6xl gap-2">
+                    <h1 className="text-3xl font-semibold">設定</h1>
+                  </div>
+                  <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
+                    <nav className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0">
+                      <Link href="#theme_setting" className="font-semibold text-primary">
+                        カラーテーマ
+                      </Link>
+                    </nav>
+                    <ScrollArea>
+                      <Card id="theme_setting" className="border-none">
+                        <CardHeader>
+                          <CardTitle>カラーテーマ</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <ColorThemeSelector />
+                        </CardContent>
+                      </Card>
+                    </ScrollArea>
+                  </div>
                 </div>
-              </div>
-            </TabsContent>
-            <TabsContent value="debug">
-              <AreaForLog />
-            </TabsContent>
-
-            <TabsContent value="releases">
-              <Link
-                href="https://github.com/CleverRaven/Cataclysm-DDA/releases"
-                className="text-primary"
-                target="_blank"
-              >
-                Cataclysm: Dark Days Ahead Releases
-              </Link>
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+              </TabsContent>
+              <TabsContent value="debug">
+                <AreaForLog />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </motion.div>
+      </AnimatePresence>
     </main>
   );
 }
