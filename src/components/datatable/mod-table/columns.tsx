@@ -407,7 +407,7 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "isInstalled",
-    header: "導入",
+    header: "導入状態",
     size: 50,
     cell: ({ row, table }) => {
       const isInstalled: boolean = row.getValue("isInstalled");
@@ -435,8 +435,8 @@ export const columns: ColumnDef<Mod>[] = [
               color={isInstalled ? "green" : "gray"}
               className="cursor-pointer"
             />
-            {"　"}
-            <p className="text-xs">{isInstalled ? "導入済" : "未導入"}</p>
+            {/* {"　"}
+            <p className="text-xs">{isInstalled ? "Y" : "N"}</p> */}
           </Toggle>
         </>
       );

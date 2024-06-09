@@ -446,13 +446,25 @@ const GlobalMenu = () => {
             }
             <DropdownMenuSeparator />
             <DropdownMenuLabel>
-              <p className="text-xs">👇ブラウザで開く</p>
+              <p className="text-xs">🌐ブラウザで開く</p>
             </DropdownMenuLabel>
             <DropdownMenuItem>
               <Link href="https://github.com/CleverRaven/Cataclysm-DDA/" target="_blank" rel="noopener noreferrer">
-                リポジトリ (GitHub)
+                Repository
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuItem>
+              <Link href="https://cdda-guide.nornagon.net/?lang=ja" target="_blank" rel="noopener noreferrer">
+                Hitchhikers Guide
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>
+              <p className="text-xs">🎈起動オプション</p>
+            </DropdownMenuLabel>
+            <DropdownMenuItem>asdf</DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -505,11 +517,9 @@ export default function Home() {
           <div className="flex-shrink-0 w-[100px] h-[100px] rounded-lg flex items-center justify-center">
             <GlobalMenu />
           </div>
-          <div className="flex-grow">
-            <CSR>
-              <ProfileSwitcher />
-            </CSR>
-          </div>
+          <CSR>
+            <ProfileSwitcher />
+          </CSR>
         </div>
         <div className="w-full">
           <Tabs defaultValue="mods" className="w-full h-full">
