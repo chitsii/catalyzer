@@ -51,6 +51,7 @@ const AreaForLog = () => {
       IS_LOGGER_ATTACHED = true;
       console.log("Log attached.");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Limit the number of log lines
@@ -68,7 +69,7 @@ const AreaForLog = () => {
   }, [getter]);
 
   return (
-    <div className="w-full h-[200] overflow-y-scroll text-green-400" ref={logContainerRef}>
+    <div className="w-full h-[200] overflow-y-scroll text-accent-foreground bg-accent" ref={logContainerRef}>
       <pre className="p-4 text-xs">{getter.slice(-MAX_LOG_LINES).join("\n")}</pre>
     </div>
   );

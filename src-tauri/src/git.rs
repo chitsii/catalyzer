@@ -165,7 +165,7 @@ pub mod commands {
         commit(&repo, "Initial commit").unwrap();
         reset_hard(&repo).unwrap();
 
-        state.refresh_mod_save_mod_status().unwrap();
+        state.refresh_and_save_mod_status().unwrap();
         Ok(())
     }
 
@@ -216,7 +216,7 @@ pub mod commands {
         create_if_unexist: bool,
     ) -> Result<(), String> {
         git_checkout_logic(target_dir, target_branch, create_if_unexist)?;
-        state.refresh_mod_save_mod_status().unwrap();
+        state.refresh_and_save_mod_status().unwrap();
         Ok(())
     }
 }

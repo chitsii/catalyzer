@@ -1,6 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+} from "@/components/ui/command";
+
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -17,13 +41,102 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/datatable/pagenation";
-import { openModData } from "@/lib/api";
+import { GitCmd, openModData } from "@/lib/api";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  fetchMods: () => void; // This is a function that refresh mod list;
+  fetchMods: any; // function to fetch mods
 }
+
+export function CommandMenu() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === "p" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setOpen((open) => !open);
+      }
+    };
+    document.addEventListener("keydown", down);
+    return () => document.removeEventListener("keydown", down);
+  }, []);
+
+  return (
+    <CommandDialog open={open} onOpenChange={setOpen}>
+      <CommandInput placeholder="ナニニシマスカ? 🤖" />
+      <CommandList>
+        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandGroup heading="Modダウンロード">
+          <CommandItem
+            key="cmd-mod-download-github"
+            onSelect={() => {
+              alert("Download mods from Nexus");
+            }}
+          >
+            Download mods from Github
+          </CommandItem>
+        </CommandGroup>
+        <CommandGroup heading="Mod操作">
+          <CommandItem
+            key="noodle"
+            // className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg shadow-lg hover:from-blue-600 hover:to-purple-600 transition duration-300"
+          >
+            ヌードルを頼む🍜
+          </CommandItem>
+          <CommandItem key="cmd-all-mod-install">Install all mods to current profile</CommandItem>
+          <CommandItem key="cmd-all-mod-uninstall">Uninstall all mods from current profile</CommandItem>
+        </CommandGroup>
+      </CommandList>
+    </CommandDialog>
+  );
+}
+const ActionButtons = () => {
+  const handleInstallAll = () => {
+    console.log("install");
+  };
+  const handleUninstallAll = () => {
+    console.log("uninstall");
+  };
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            size="icon"
+            className="bg-primary text-primary-foreground
+            hover:from-blue-600 hover:bg-gradient-to-r hover:to-purple-600 transition duration-300"
+          >
+            ACT
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="bg-transparent border-transparent">
+          <DropdownMenuItem>
+            <Button
+              size="sm"
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg shadow-lg hover:from-blue-600 hover:to-purple-600 transition duration-300"
+              onClick={handleInstallAll}
+            >
+              全てインストール
+            </Button>
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <Button
+              size="sm"
+              className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-2 rounded-lg shadow-lg hover:from-green-600 hover:to-teal-600 transition duration-300"
+              onClick={handleUninstallAll}
+            >
+              全てアンインストール
+            </Button>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+};
 
 export function DataTable<TData, TValue>({ columns, data, fetchMods }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -78,6 +191,10 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods }: DataTable
         <div className="flex items-center justify-items-center ml-auto">
           <DataTablePagination table={table} />
         </div>
+        <div className="flex items-center justify-items-center ml-auto">
+          {/* <ActionButtons /> */}
+          <CommandMenu />
+        </div>
       </div>
       <ScrollArea className="h-mod-table rounded-md border">
         <Table>
@@ -115,10 +232,10 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods }: DataTable
                       openModData();
                     }}
                   >
-                    <br />
-                    管理ディレクトリにModを追加しましょう。
-                    <br />
-                    このウィンドウにZipファイルをドラッグ＆ドロップしても追加できます。
+                    <div className="flex-none">
+                      <p>管理ディレクトリにModを追加しましょう。</p>
+                      <p>ここにzipファイルをドラッグ＆ドロップしても追加できます。</p>
+                    </div>
                   </Button>
                 </TableCell>
               </TableRow>

@@ -71,6 +71,8 @@ fn main() {
             launch_game,
             symlink::commands::install_mod,
             symlink::commands::uninstall_mod,
+            symlink::commands::install_all_mods,
+            symlink::commands::uninstall_all_mods,
             zip::commands::unzip_mod_archive,
             git::commands::git_init,
             git::commands::git_commit_changes,

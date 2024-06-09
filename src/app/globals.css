@@ -49,8 +49,10 @@
             --ring: 142.4 71.8% 29.2%;
         }
 
-        /* hsl(342deg 19% 20%) */
-        /* 51 33% 80%; */
+        /* pastel yellow 40deg 71% 78% */
+        /* pastel blue 220deg 82% 75% */
+        /* pastel gray 227deg 16% 56% */
+        /* pastel purple 262deg 27% 56% */
         .twilight {
             --background: 240, 11%, 14%;
             --foreground: 51 33% 80%;
@@ -64,8 +66,8 @@
             --secondary-foreground: 342 19% 20%;
             --muted: 341, 20%, 20%;
             --muted-foreground: 341, 28%, 75%;
-            --accent: 9 13% 19%;
-            --accent-foreground: 29 95% 60%;
+            --accent-foreground: 228, 38%, 80%;
+            --accent: 233, 23%, 19%;
             --destructive: 0 84.2% 60.2%;
             --destructive-foreground: 0 0% 98%;
             --border: 288 25% 40%;

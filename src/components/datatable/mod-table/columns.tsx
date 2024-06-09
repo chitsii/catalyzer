@@ -30,7 +30,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isNonEmptyStringOrArray, popUp } from "@/lib/utils";
-import { installMod, uninstallMod, GitCmd, openLocalDir, list_branches, unzipModArchive, fetchMods } from "@/lib/api";
+import {
+  installMod,
+  uninstallMod,
+  gitCommand,
+  openLocalDir,
+  listBranches,
+  unzipModArchive,
+  fetchMods,
+} from "@/lib/api";
 import { open, ask } from "@tauri-apps/api/dialog";
 
 declare module "@tanstack/react-table" {
@@ -184,7 +192,7 @@ export const columns: ColumnDef<Mod>[] = [
       const [newBranchName, setNewBranchName] = React.useState<string>("");
 
       const fetchBranches = async () => {
-        const branches = await list_branches(row.original.localPath);
+        const branches = await listBranches(row.original.localPath);
         const barnchesWithoutCurrent = branches.filter((branch) => branch != local_version.branchName);
         setBranches(barnchesWithoutCurrent);
       };
@@ -205,7 +213,7 @@ export const columns: ColumnDef<Mod>[] = [
                       onSubmit={(e: any) => {
                         e.preventDefault();
                         const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
-                        GitCmd("git_checkout", {
+                        gitCommand("git_checkout", {
                           targetDir: row.original.localPath,
                           targetBranch: selectedBranchName,
                           createIfUnexist: false,
@@ -322,7 +330,7 @@ export const columns: ColumnDef<Mod>[] = [
                                 if (!yes) return;
 
                                 //作業中のデータ削除
-                                GitCmd("git_reset_changes", {
+                                gitCommand("git_reset_changes", {
                                   targetDir: row.original.localPath,
                                 });
 
@@ -333,7 +341,7 @@ export const columns: ColumnDef<Mod>[] = [
                                   popUp("failed", "ブランチ名が入力されていません！");
                                   return;
                                 }
-                                GitCmd("git_checkout", {
+                                gitCommand("git_checkout", {
                                   targetDir: row.original.localPath,
                                   targetBranch: input_branch_name,
                                   createIfUnexist: true,
@@ -346,12 +354,12 @@ export const columns: ColumnDef<Mod>[] = [
                                   debug("unzip done.");
 
                                   // commit changes
-                                  GitCmd("git_commit_changes", {
+                                  gitCommand("git_commit_changes", {
                                     targetDir: row.original.localPath,
                                   });
                                 }
 
-                                GitCmd("git_reset_changes", {
+                                gitCommand("git_reset_changes", {
                                   targetDir: row.original.localPath,
                                 });
 
@@ -385,7 +393,7 @@ export const columns: ColumnDef<Mod>[] = [
                     onClick={() => {
                       info(`start managing section: ${JSON.stringify(row.original.localPath)}`);
                       const localPath = row.original.localPath;
-                      GitCmd("git_init", { targetDir: localPath });
+                      gitCommand("git_init", { targetDir: localPath });
 
                       // reload table
                       const f = table.options.meta?.fetchMods;

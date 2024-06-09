@@ -3,212 +3,78 @@ import { popUp } from "@/lib/utils";
 import { createId } from "@paralleldrive/cuid2";
 import { error, info, debug } from "tauri-plugin-log-api";
 import { invoke } from "@tauri-apps/api/tauri";
+import { Settings } from "@/components/atoms";
 
-type GitArgs = {
-  targetDir: string;
-  sourceBranch?: string;
-  targetBranch?: string;
-  createIfUnexist?: boolean;
-};
-
-type Command = "git_init" | "git_commit_changes" | "git_reset_changes" | "git_list_branches" | "git_checkout";
-
-export async function GitCmd(command: Command, args: GitArgs) {
+/// invoke_safe is a wrapper to safely execute invoke.
+/// We can only 'invoke' after window load when Next.js is used.
+export async function invoke_safe(command: string, arg_obj: any, default_response: any = null) {
   const isClient = typeof window !== "undefined";
-  isClient &&
-    (await invoke<string>(command, args)
-      .then((response) => {
-        popUp("success", `'${command}' done.`);
-      })
-      .catch((err) => {
-        error(err);
-        popUp("failed", err);
-      }));
-}
-
-// export async function openInBrowser(url: string) {
-//   const isClient = typeof window !== "undefined";
-//   isClient && invoke<string>("open_in_browser", { url: url });
-// }
-
-export async function launchGame() {
-  const isClient = typeof window !== "undefined";
-  isClient && invoke<string>("launch_game");
-}
-
-export async function openLocalDir(targetDir: string) {
-  info(`open mod data directory: ${targetDir}`);
-
-  const isClient = typeof window !== "undefined";
-  isClient && invoke<string>("open_dir", { targetDir: targetDir });
-}
-
-export async function openModData() {
-  const isClient = typeof window !== "undefined";
-  isClient && (await invoke<string>("open_mod_data"));
-}
-
-export async function list_branches(targetDir: string) {
-  const isClient = typeof window !== "undefined";
-  if (!isClient) return [];
-
-  const res = await invoke<string[]>("git_list_branches", {
-    targetDir: targetDir,
-  })
-    .then((response: string[]) => {
-      return response;
+  if (!isClient) return default_response;
+  let res: any = await invoke(command, arg_obj)
+    .then(() => {
+      info(`invoke: ${command} done.`);
     })
     .catch((err) => {
       error(err);
       popUp("failed", err);
-    });
-  return res ? res : [];
-}
-
-export async function installMod(mod_data_path: string) {
-  const isClient = typeof window !== "undefined";
-  isClient &&
-    (await invoke<string>("install_mod", { modDataPath: mod_data_path })
-      .then(() => {
-        info(`mod installed: ${mod_data_path}.`);
-      })
-      .catch((err) => {
-        error(err);
-        popUp("failed", err);
-      }));
-}
-export async function uninstallMod(mod_data_path: string) {
-  const isClient = typeof window !== "undefined";
-  isClient &&
-    (await invoke<string>("uninstall_mod", { modDataPath: mod_data_path })
-      .then(() => {
-        info(`mod uninstalled: ${mod_data_path}.`);
-      })
-      .catch((err) => {
-        error(err);
-        popUp("failed", err);
-      }));
-}
-
-export const fetchMods = async () => {
-  const isClient = typeof window !== "undefined";
-  if (!isClient) return [];
-
-  const res = await invoke<Mod[]>("scan_mods")
-    .then((response) => {
-      info(`scan mods. found: ${response.length}`);
-      return response;
-    })
-    .catch((err) => {
-      error(err);
       throw new Error(`found error: ${err}`);
     });
-  return res;
-};
+  return !!res ? res : default_response;
+}
 
-export const unzipModArchive = async (src: string, existsOk: boolean = false) => {
-  const isClient = typeof window !== "undefined";
-  isClient &&
-    (await invoke<string>("unzip_mod_archive", {
-      src: src,
-      existsOk: existsOk,
-    })
-      .then((response) => {
-        popUp("success", "Mod unzipped!");
-      })
-      .catch((err) => {
-        popUp("failed", err);
-      }));
-};
-
-export const addProfile = async (name: string, gamePath: string) => {
+const launchGame = async () => await invoke_safe("launch_game", {});
+const openLocalDir = async (targetDir: string) => await invoke_safe("open_dir", { targetDir: targetDir });
+const openModData = async () => await invoke_safe("open_mod_data", {});
+const gitCommand = async (
+  command: "git_init" | "git_commit_changes" | "git_reset_changes" | "git_list_branches" | "git_checkout",
+  args: {
+    targetDir: string;
+    sourceBranch?: string;
+    targetBranch?: string;
+    createIfUnexist?: boolean;
+  },
+) => await invoke_safe(command, args);
+const listBranches = async (targetDir: string) => await invoke_safe("git_list_branches", { targetDir: targetDir }, []);
+const installMod = async (moddata_dir: string) => await invoke_safe("install_mod", { modDataPath: moddata_dir });
+const uninstallMod = async (moddata_dir: string) => await invoke_safe("uninstall_mod", { modDataPath: moddata_dir });
+const fetchMods = async () => await invoke_safe("scan_mods", []);
+const unzipModArchive = async (src: string, existsOk?: boolean) =>
+  await invoke_safe("unzip_mod_archive", { src: src, existsOk: existsOk });
+const getSettings = async () => await invoke_safe("get_settings", {});
+const addProfile = async (name: string, gamePath: string) => {
   const args = {
     id: createId(),
     name: name,
     gamePath: gamePath,
   };
-  const isClient = typeof window !== "undefined";
-  isClient &&
-    (await invoke<string>("add_profile", args)
-      .then((response) => {
-        popUp("success", "Profile added!");
-      })
-      .catch((err) => {
-        popUp("failed", err);
-      }));
+  await invoke_safe("add_profile", args);
 };
-
-import { Settings } from "@/components/atoms";
-
-export const getSettings = async () => {
-  const isClient = typeof window !== "undefined";
-  if (!isClient) return null;
-
-  const res = await invoke<Settings>("get_settings")
-    .then((response) => {
-      info(`refresh settings.`);
-      return response;
-    })
-    .catch((err) => {
-      error(err);
-      // throw new Error(err);
-      throw new Error(`found error: ${err}`);
-    });
-  return res;
-};
-
-export const setProfileActive = async (profileId: string) => {
-  const isClient = typeof window !== "undefined";
-  isClient &&
-    (await invoke<string>("set_profile_active", { profileId: profileId })
-      .then((response) => {
-        popUp("success", response);
-      })
-      .catch((err) => {
-        popUp("failed", err);
-      }));
-};
-
-export const removeProfile = async (profileId: string) => {
-  const isClient = typeof window !== "undefined";
-  isClient &&
-    (await invoke<string>("remove_profile", { profileId: profileId })
-      .then((response) => {
-        popUp("success", response);
-      })
-      .catch((err) => {
-        popUp("failed", err);
-      }));
-};
-
-export const editProfile = async (profileId: string, name: string, gamePath: string) => {
+const removeProfile = async (profileId: string) => await invoke_safe("remove_profile", { profileId: profileId });
+const editProfile = async (profileId: string, name: string, gamePath: string) => {
   const args = {
     profileId: profileId,
     name: name,
     gamePath: gamePath,
   };
-
-  const isClient = typeof window !== "undefined";
-  isClient &&
-    invoke<string>("edit_profile", args)
-      .then((response) => {
-        popUp("success", response);
-      })
-      .catch((err) => {
-        popUp("failed", err);
-      });
+  await invoke_safe("edit_profile", args);
 };
+const setProfileActive = async (profileId: string) => await invoke_safe("set_profile_active", { profileId: profileId });
+const tailLog = async () => await invoke_safe("tail_log", []);
 
-export const tailLog = async () => {
-  const isClient = typeof window !== "undefined";
-  if (!isClient) return [];
-  const res = await invoke<string[]>("tail_log")
-    .then((response) => {
-      info("read log file.");
-      return response;
-    })
-    .catch((err) => {
-      error(err);
-    });
-  return res ? res : [];
+export {
+  gitCommand,
+  getSettings,
+  launchGame,
+  openLocalDir,
+  openModData,
+  listBranches,
+  installMod,
+  uninstallMod,
+  fetchMods,
+  unzipModArchive,
+  addProfile,
+  setProfileActive,
+  removeProfile,
+  editProfile,
+  tailLog,
 };

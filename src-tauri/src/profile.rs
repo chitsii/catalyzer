@@ -92,6 +92,12 @@ impl Profile {
             }
         }
     }
+    pub fn get_mod_local_paths(&self) -> Vec<PathBuf> {
+        self.mod_status
+            .iter()
+            .map(|m| PathBuf::from(&m.local_path))
+            .collect::<Vec<PathBuf>>()
+    }
     pub fn get_game_path(&self) -> Option<PathBuf> {
         self.game_path.clone()
     }
@@ -366,12 +372,8 @@ impl Settings {
         Ok(mods)
     }
 
-    #[cfg(target_os = "macos")]
-    pub fn get_game_mod_dir(&self) -> PathBuf {
-        self.get_active_profile().profile_path.mods.clone()
-    }
-
-    #[cfg(target_os = "windows")]
+    /// ゲームのModディレクトリを取得
+    /// プラットフォーム共通でプロファイルのmodディレクトリを返す
     pub fn get_game_mod_dir(&self) -> PathBuf {
         self.get_active_profile().profile_path.mods.clone()
     }
@@ -420,7 +422,7 @@ impl AppState {
             settings: Mutex::new(Settings::new()),
         }
     }
-    pub fn refresh_mod_save_mod_status(&self) -> Result<Vec<Mod>> {
+    pub fn refresh_and_save_mod_status(&self) -> Result<Vec<Mod>> {
         let mut settings = self.settings.lock().unwrap();
         let profile = settings.get_active_profile();
         let mods = settings.mutate_state_mod_status(&profile)?;

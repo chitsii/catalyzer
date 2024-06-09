@@ -112,24 +112,35 @@ pub mod commands {
     use super::*;
     use crate::profile::AppState;
 
+    /// 対象ディレクトリに同名のシンボリックリンクを作成する
+    pub fn link_to_target_subdir(mod_data_path: &Path, target_dir: &Path) -> Result<()> {
+        let mod_name = Path::new(&mod_data_path).file_name().unwrap();
+        let target_path = target_dir.join(mod_name);
+        create_symbolic_link(Path::new(&mod_data_path), &target_path)?;
+        Ok(())
+    }
+
+    /// 対象ディレクトリ内の同名のシンボリックリンクを削除する
+    /// シンボリックリンクが存在しない場合は何もしない
+    pub fn unlink_target_subdir(mod_data_path: &Path, target_dir: &Path) -> Result<()> {
+        let mod_name = Path::new(&mod_data_path).file_name().unwrap();
+        let symlink_path = target_dir.join(mod_name);
+        match remove_file(&symlink_path) {
+            Ok(_) => debug!("Removed symlink at {}", symlink_path.display()),
+            Err(e) => warn!("Could not remove symlink for: {}", e),
+        }
+        Ok(())
+    }
+
     #[tauri::command]
     pub fn install_mod(
         state: tauri::State<'_, AppState>,
         mod_data_path: String,
-        // target_dir: String,
     ) -> Result<(), String> {
-        let mod_name = Path::new(&mod_data_path).file_name().unwrap();
         let target_dir = state.get_game_mod_dir();
-        let target_path = target_dir.join(mod_name);
-
-        create_symbolic_link(Path::new(&mod_data_path), &target_path).map_err(|e| {
-            format!(
-                "Failed to create symbolic link from {} to {:?}: {}",
-                mod_data_path, target_path, e
-            )
-        })?;
-
-        state.refresh_mod_save_mod_status().unwrap();
+        link_to_target_subdir(Path::new(&mod_data_path), &target_dir)
+            .map_err(|e| format!("Failed to create symlink: {}", e))?;
+        state.refresh_and_save_mod_status().unwrap();
         Ok(())
     }
 
@@ -138,19 +149,43 @@ pub mod commands {
         state: tauri::State<'_, AppState>,
         mod_data_path: String,
     ) -> Result<(), String> {
-        // get symlink path
+        unlink_target_subdir(Path::new(&mod_data_path), &state.get_game_mod_dir())
+            .map_err(|e| format!("Failed to remove symlink: {}", e))?;
+        Ok(())
+    }
 
-        let mod_name = Path::new(&mod_data_path).file_name().unwrap();
-        let symlink_dir = state.get_game_mod_dir();
-        let symlink_path = symlink_dir.join(mod_name);
-        debug!("Removing symlink at {}", symlink_path.display());
-        remove_file(&symlink_path).map_err(|e| {
-            format!(
-                "Failed to remove symlink at {}: {}",
-                symlink_path.display(),
-                e
-            )
-        })?;
+    #[tauri::command]
+    pub fn install_all_mods(state: tauri::State<'_, AppState>) -> Result<(), String> {
+        let setting = state.get_settings().unwrap();
+        let profile = setting.get_active_profile();
+        let mod_data_paths = profile.get_mod_local_paths();
+
+        for mod_data_path in mod_data_paths {
+            match link_to_target_subdir(Path::new(&mod_data_path), &state.get_game_mod_dir()) {
+                Ok(_) => {}
+                Err(e) => {
+                    warn!("Mod install fail: {}", e);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub fn uninstall_all_mods(state: tauri::State<'_, AppState>) -> Result<(), String> {
+        let setting = state.get_settings().unwrap();
+        let profile = setting.get_active_profile();
+        let mod_data_paths = profile.get_mod_local_paths();
+
+        for mod_data_path in mod_data_paths {
+            let symlink_path = Path::new(&mod_data_path);
+            match unlink_target_subdir(symlink_path, &state.get_game_mod_dir()) {
+                Ok(_) => {}
+                Err(e) => {
+                    warn!("Mod uninstall fail: {}", e);
+                }
+            }
+        }
         Ok(())
     }
 }

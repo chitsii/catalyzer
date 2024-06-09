@@ -201,7 +201,9 @@ const ProfileSwitcher = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="hover:bg-primary-background" ref={dropdownTriggerRef}>
                 <Badge
-                  className="w-32 break-all whitespace-normal line-clamp-3 text-primary-foreground
+                  className="bg-gradient-to-r from-orange-500 to-purple-500 text-white text-sm rounded-full
+                  hover:from-blue-600 hover:to-purple-600 hover:text-yellow-300
+                  w-32 break-all whitespace-normal line-clamp-3
                   hover:mouse-pointer
                   cursor-pointer
                   hover:rotate-[-5deg]
@@ -419,7 +421,7 @@ const GlobalMenu = () => {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <div className="rounded-2xl hover:shadow-lg hover:shadow-accent-foreground cursor-pointer">
+          <div className="rounded-2xl cursor-pointer hover:scale-110 duration-300 transition-transform">
             <Image src="/assets/icon.png" alt="menu" width={80} height={80} />
           </div>
         </DropdownMenuTrigger>
@@ -460,12 +462,6 @@ const GlobalMenu = () => {
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>
-              <p className="text-xs">🎈起動オプション</p>
-            </DropdownMenuLabel>
-            <DropdownMenuItem>asdf</DropdownMenuItem>
-          </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
     </>

@@ -29,6 +29,7 @@
     "@tauri-apps/api": "^1.5.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "cmdk": "^1.0.0",
     "jotai": "^2.8.0",
     "jotai-tanstack-query": "^0.8.5",
     "lucide-react": "^0.376.0",

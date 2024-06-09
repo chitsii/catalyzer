@@ -12,6 +12,9 @@
   "tauri": {
     "allowlist": {
       "all": false,
+      "globalShortcut": {
+        "all": true
+      },
       "shell": {
         "all": false,
         "execute": false,
@@ -22,8 +25,8 @@
         "all": false,
         "ask": true,
         "confirm": false,
-        "message": false,
-        "open": false,
+        "message": true,
+        "open": true,
         "save": false
       },
       "fs": {
