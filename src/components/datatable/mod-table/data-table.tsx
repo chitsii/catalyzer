@@ -104,51 +104,6 @@ export function CommandMenu() {
     </CommandDialog>
   );
 }
-const ActionButtons = () => {
-  const handleInstallAll = () => {
-    console.log("install");
-  };
-  const handleUninstallAll = () => {
-    console.log("uninstall");
-  };
-
-  return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="icon"
-            className="bg-primary text-primary-foreground
-            hover:from-blue-600 hover:bg-gradient-to-r hover:to-purple-600 transition duration-300"
-          >
-            ACT
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="bg-transparent border-transparent">
-          <DropdownMenuItem>
-            <Button
-              size="sm"
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg shadow-lg hover:from-blue-600 hover:to-purple-600 transition duration-300"
-              onClick={handleInstallAll}
-            >
-              全てインストール
-            </Button>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Button
-              size="sm"
-              className="w-full bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-2 rounded-lg shadow-lg hover:from-green-600 hover:to-teal-600 transition duration-300"
-              onClick={handleUninstallAll}
-            >
-              全てアンインストール
-            </Button>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
-  );
-};
 
 export function DataTable<TData, TValue>({ columns, data, fetchMods }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
