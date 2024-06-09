@@ -39,7 +39,7 @@ import { useForm } from "react-hook-form";
 import { AreaForLog } from "@/components/logger";
 
 const profileFormSchema = z.object({
-  name: z.string().min(1).max(30).trim(),
+  name: z.string().min(1).max(20).trim(),
   game_path: z
     .string()
     .max(255)
@@ -192,187 +192,225 @@ const ProfileSwitcher = () => {
   const currentProfile = profileList.find((p) => p.is_active);
 
   return (
-    <>
-      <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" ref={dropdownTriggerRef}>
-            <Badge className="text-primary-foreground hover:mouse-pointer hover:bg-primary cursor-pointer hover:skew-x-12 hover:scale=[1.1] hover:rotate-[-12deg] transition-transform duration-300 ease-in-out">
-              {currentProfile ? currentProfile.name : "No Profile"}
-            </Badge>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          hidden={hasOpenDialog}
-          onCloseAutoFocus={(event) => {
-            if (focusRef.current) {
-              focusRef.current.focus();
-              focusRef.current = null;
-              event.preventDefault();
-            }
-          }}
-        >
-          <DropdownMenuLabel>プロファイルを選択</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {profileList.length === 0 ? (
-            <DropdownMenuItem>
-              <span className="text-secondary">No Profiles</span>
-            </DropdownMenuItem>
-          ) : (
-            profileList.map((profile: any) => {
-              return (
-                <DropdownMenuItem
-                  key={profile.id}
-                  onClick={async (e) => {
-                    e.preventDefault();
-                    await selectProfile(profile.id);
-                  }}
-                  className="flex items-center px-3 text-sm text-primary grid-cols-2"
+    <div className="flex w-full">
+      <div className="w-1/3 mb-2">
+        <p className="text-xl font-semibold">Catalyzer</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">現在のプリセット:</p>
+        <>
+          <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="hover:bg-primary-background" ref={dropdownTriggerRef}>
+                <Badge
+                  className="w-32 break-all whitespace-normal line-clamp-3 text-primary-foreground
+                  hover:mouse-pointer
+                  cursor-pointer
+                  hover:rotate-[-5deg]
+                  transition-transform
+                  duration-300
+                  ease-in-out"
                 >
-                  {profile.is_active ? (
-                    <CheckIcon className="mx-4 h-4 w-4 col-span-1" />
-                  ) : (
-                    <div className="col-span-1"></div>
-                  )}
-                  <span className="col-span-1">{profile.name}</span>
-                </DropdownMenuItem>
-              );
-            })
-          )}
-          <DropdownMenuSeparator />
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
-              <span>編集</span>
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DialogItem
-                triggerChildren={
-                  <>
-                    <LucideExternalLink className="mr-4 h-4 w-4" />
-                    <span>新規追加</span>
-                  </>
+                  {currentProfile ? currentProfile.name : "No Profile"}
+                </Badge>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              hidden={hasOpenDialog}
+              onCloseAutoFocus={(event) => {
+                if (focusRef.current) {
+                  focusRef.current.focus();
+                  focusRef.current = null;
+                  event.preventDefault();
                 }
-                onSelect={handleDialogItemSelect}
-                onOpenChange={handleDialogItemOpenChange}
-              >
-                <DialogTitle className="DialogTitle">新規追加</DialogTitle>
-                <DialogDescription className="DialogDescription">プロファイルを新規追加します。</DialogDescription>
-                <ProfileForm handleDialogItemOpenChange={handleDialogItemOpenChange} />
-              </DialogItem>
+              }}
+            >
+              <DropdownMenuLabel>プロファイルを選択</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {/* プロファイル更新 ==== */}
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <>
-                    <Edit3 className="mr-4 h-4 w-4" />
-                    <span>更新</span>
-                  </>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
-                  {profileList.filter((profile) => profile.id !== "default").length === 0 ? (
-                    <DropdownMenuItem>
-                      <span className="text-muted-foreground">項目無し</span>
+              {profileList.length === 0 ? (
+                <DropdownMenuItem>
+                  <span className="text-secondary">No Profiles</span>
+                </DropdownMenuItem>
+              ) : (
+                profileList.map((profile: any) => {
+                  return (
+                    <DropdownMenuItem
+                      key={profile.id}
+                      onClick={async (e) => {
+                        e.preventDefault();
+                        await selectProfile(profile.id);
+                      }}
+                      className="flex items-center px-3 text-sm text-primary grid-cols-2"
+                    >
+                      {profile.is_active ? (
+                        <CheckIcon className="mx-4 h-4 w-4 col-span-1" />
+                      ) : (
+                        <div className="col-span-1"></div>
+                      )}
+                      <span className="col-span-1">{profile.name}</span>
                     </DropdownMenuItem>
-                  ) : (
-                    profileList.map((profile) => {
-                      // default profile is not editable.
-                      if (profile.id === "default") return null;
-
-                      return (
-                        <DialogItem
-                          key={profile.id}
-                          triggerChildren={
-                            <>
-                              <PencilIcon className="mr-4 h-4 w-4" />
-                              <span>{profile.name}</span>
-                            </>
-                          }
-                          onSelect={handleDialogItemSelect}
-                          onOpenChange={handleDialogItemOpenChange}
-                        >
-                          <DialogTitle className="DialogTitle">Add</DialogTitle>
-                          <DialogDescription className="DialogDescription">
-                            プロファイルを更新します。
-                          </DialogDescription>
-                          <ProfileForm
-                            handleDialogItemOpenChange={handleDialogItemOpenChange}
-                            targetProfile={profile}
-                          />
-                        </DialogItem>
-                      );
-                    })
-                  )}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              {/* === */}
-
+                  );
+                })
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <>
-                    <Trash2Icon className="mr-4 h-4 w-4 text-destructive" />
-                    <span className="text-destructive">削除</span>
-                  </>
+                  <span>編集</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
-                  {profileList.filter((profile) => profile.id !== "default").length === 0 ? (
-                    <DropdownMenuItem>
-                      <span className="text-muted-foreground">項目無し</span>
-                    </DropdownMenuItem>
-                  ) : (
-                    profileList.map((profile: any) => {
-                      // default profile is not removable.
-                      if (profile.id === "default") return null;
+                  <DialogItem
+                    triggerChildren={
+                      <>
+                        <LucideExternalLink className="mr-4 h-4 w-4" />
+                        <span>新規追加</span>
+                      </>
+                    }
+                    onSelect={handleDialogItemSelect}
+                    onOpenChange={handleDialogItemOpenChange}
+                  >
+                    <DialogTitle className="DialogTitle">新規追加</DialogTitle>
+                    <DialogDescription className="DialogDescription">プロファイルを新規追加します。</DialogDescription>
+                    <ProfileForm handleDialogItemOpenChange={handleDialogItemOpenChange} />
+                  </DialogItem>
+                  <DropdownMenuSeparator />
+                  {/* プロファイル更新 ==== */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <>
+                        <Edit3 className="mr-4 h-4 w-4" />
+                        <span>更新</span>
+                      </>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {profileList.filter((profile) => profile.id !== "default").length === 0 ? (
+                        <DropdownMenuItem>
+                          <span className="text-muted-foreground">項目無し</span>
+                        </DropdownMenuItem>
+                      ) : (
+                        profileList.map((profile) => {
+                          // default profile is not editable.
+                          if (profile.id === "default") return null;
 
-                      return (
-                        <DialogItem
-                          key={profile.id}
-                          triggerChildren={
-                            <>
-                              <Trash2Icon className="mr-4 h-4 w-4" />
-                              <span>{profile.name}</span>
-                            </>
-                          }
-                          onSelect={() => {}}
-                          onOpenChange={handleDialogItemOpenChange}
-                        >
-                          <DialogTitle className="DialogTitle">プロファイル削除</DialogTitle>
-                          <DialogDescription>
-                            <p>本当に以下のプロファイルを削除しますか？</p>
-                            <div className="p-4">
-                              <ul className="list-disc">
-                                <li className="text-destructive text-xs">Name: {profile.name}</li>
-                                <li className="text-destructive text-xs">Game Path: {profile.game_path}</li>
-                                <li className="text-destructive text-xs">
-                                  Active: {JSON.stringify(!!profile.is_active)}
-                                </li>
-                                <li className="text-destructive text-xs">(Unique ID: {profile.id})</li>
-                              </ul>
-                            </div>
-                          </DialogDescription>
-                          <Button
-                            onClick={async () => {
-                              removeProfile(profile.id);
-                              // refresh settings
-                              refresh();
-                              // close dialog
-                              handleDialogItemOpenChange(false);
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </DialogItem>
-                      );
-                    })
-                  )}
+                          return (
+                            <DialogItem
+                              key={profile.id}
+                              triggerChildren={
+                                <>
+                                  <PencilIcon className="mr-4 h-4 w-4" />
+                                  <span>{profile.name}</span>
+                                </>
+                              }
+                              onSelect={handleDialogItemSelect}
+                              onOpenChange={handleDialogItemOpenChange}
+                            >
+                              <DialogTitle className="DialogTitle">Add</DialogTitle>
+                              <DialogDescription className="DialogDescription">
+                                プロファイルを更新します。
+                              </DialogDescription>
+                              <ProfileForm
+                                handleDialogItemOpenChange={handleDialogItemOpenChange}
+                                targetProfile={profile}
+                              />
+                            </DialogItem>
+                          );
+                        })
+                      )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  {/* === */}
+
+                  <DropdownMenuSeparator />
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <>
+                        <Trash2Icon className="mr-4 h-4 w-4 text-destructive" />
+                        <span className="text-destructive">削除</span>
+                      </>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      {profileList.filter((profile) => profile.id !== "default").length === 0 ? (
+                        <DropdownMenuItem>
+                          <span className="text-muted-foreground">項目無し</span>
+                        </DropdownMenuItem>
+                      ) : (
+                        profileList.map((profile: any) => {
+                          // default profile is not removable.
+                          if (profile.id === "default") return null;
+
+                          return (
+                            <DialogItem
+                              key={profile.id}
+                              triggerChildren={
+                                <>
+                                  <Trash2Icon className="mr-4 h-4 w-4" />
+                                  <span>{profile.name}</span>
+                                </>
+                              }
+                              onSelect={() => {}}
+                              onOpenChange={handleDialogItemOpenChange}
+                            >
+                              <DialogTitle className="DialogTitle">プロファイル削除</DialogTitle>
+                              <DialogDescription>
+                                <p>本当に以下のプロファイルを削除しますか？</p>
+                                <div className="p-4">
+                                  <ul className="list-disc">
+                                    <li className="text-destructive text-xs">Name: {profile.name}</li>
+                                    <li className="text-destructive text-xs">Game Path: {profile.game_path}</li>
+                                    <li className="text-destructive text-xs">
+                                      Active: {JSON.stringify(!!profile.is_active)}
+                                    </li>
+                                    <li className="text-destructive text-xs">(Unique ID: {profile.id})</li>
+                                  </ul>
+                                </div>
+                              </DialogDescription>
+                              <Button
+                                onClick={async () => {
+                                  removeProfile(profile.id);
+                                  // refresh settings
+                                  refresh();
+                                  // close dialog
+                                  handleDialogItemOpenChange(false);
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            </DialogItem>
+                          );
+                        })
+                      )}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </>
+      </div>
+      <div className="w-2/3 text-xs text-muted-foreground break-all">
+        {currentProfile ? (
+          <div>
+            {!!currentProfile.game_path ? (
+              <p>
+                Gameパス
+                <span className="line-clamp-2 bg-accent text-accent-foreground">{currentProfile.game_path}</span>
+              </p>
+            ) : null}
+            {!!currentProfile.profile_path.root ? (
+              <p>
+                ユーザファイル
+                <span className="line-clamp-2 bg-accent text-accent-foreground">
+                  {currentProfile.profile_path.root}
+                </span>
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No Profile</p>
+        )}
+      </div>
+    </div>
   );
 };
+
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 
 const GlobalMenu = () => {
   const [{ data: setting }] = useAtom(settingAtom);
@@ -380,45 +418,47 @@ const GlobalMenu = () => {
   const game_path = current_profile ? current_profile.game_path : null;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <div className="rounded-2xl hover:shadow-lg hover:shadow-accent-foreground">
-          <Image src="/assets/icon.png" alt="menu" width={80} height={80} />
-        </div>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuGroup>
-          {
-            // ゲーム起動; ゲームパスがない場合は無効化
-            !!game_path ? (
-              <DropdownMenuItem className="text-lg" onClick={() => launchGame()}>
-                <Play className="mr-4 h-4 w-4" />
-                ゲーム起動
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem>
-                <div
-                  className="text-lg text-gray-500 cursor-not-allowed pointer-events-none flex items-center
-                  "
-                >
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <div className="rounded-2xl hover:shadow-lg hover:shadow-accent-foreground cursor-pointer">
+            <Image src="/assets/icon.png" alt="menu" width={80} height={80} />
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuGroup>
+            {
+              // ゲーム起動; ゲームパスがない場合は無効化
+              !!game_path ? (
+                <DropdownMenuItem className="text-lg" onClick={() => launchGame()}>
                   <Play className="mr-4 h-4 w-4" />
-                  Gameパス未設定
-                </div>
-              </DropdownMenuItem>
-            )
-          }
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>
-            <p className="text-xs">👇ブラウザで開く</p>
-          </DropdownMenuLabel>
-          <DropdownMenuItem>
-            <Link href="https://github.com/CleverRaven/Cataclysm-DDA/" target="_blank" rel="noopener noreferrer">
-              リポジトリ (GitHub)
-            </Link>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                  ゲーム起動
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem>
+                  <div
+                    className="text-lg text-gray-500 cursor-not-allowed pointer-events-none flex items-center
+                  "
+                  >
+                    <Play className="mr-4 h-4 w-4" />
+                    Gameパス未設定
+                  </div>
+                </DropdownMenuItem>
+              )
+            }
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>
+              <p className="text-xs">👇ブラウザで開く</p>
+            </DropdownMenuLabel>
+            <DropdownMenuItem>
+              <Link href="https://github.com/CleverRaven/Cataclysm-DDA/" target="_blank" rel="noopener noreferrer">
+                リポジトリ (GitHub)
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 };
 
@@ -465,8 +505,6 @@ export default function Home() {
           </div>
           <div className="flex-grow">
             <CSR>
-              <p className="text-xl font-semibold">Catalyzer</p>
-              <span className="text-sm text-muted-foreground">現在のプリセット:</span>
               <ProfileSwitcher />
             </CSR>
           </div>
@@ -500,10 +538,6 @@ export default function Home() {
                     <Link href="#theme_setting" className="font-semibold text-primary">
                       カラーテーマ
                     </Link>
-                    {/* <Link href="#language_setting"
-                      className="font-semibold text-primary">
-                      言語
-                    </Link> */}
                   </nav>
                   <ScrollArea>
                     <Card id="theme_setting" className="border-none">
@@ -514,14 +548,6 @@ export default function Home() {
                         <ColorThemeSelector />
                       </CardContent>
                     </Card>
-                    {/* <Card id="theme_setting" className="border-none">
-                      <CardHeader>
-                        <CardTitle>言語</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        TODO
-                      </CardContent>
-                    </Card> */}
                   </ScrollArea>
                 </div>
               </div>

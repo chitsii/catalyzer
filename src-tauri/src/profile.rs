@@ -57,10 +57,10 @@ impl UserDataPaths {
 pub struct Profile {
     id: String,
     name: String,
-    game_path: Option<PathBuf>,  // ゲームのインストール先
-    profile_path: UserDataPaths, // thisApp.exe/Proiles/{ProfileName}
-    mod_status: Vec<Mod>,        // プロファイル内のModの状態
-    is_active: bool,             // アクティブなプロファイルかどうか
+    game_path: Option<PathBuf>, // cataclysm-tile.exe または Cataclysm.appのパス
+    profile_path: UserDataPaths, // thisApp.exe/proiles/{ProfileName}
+    mod_status: Vec<Mod>,       // プロファイル内のModの状態
+    is_active: bool,            // アクティブなプロファイルかどうか
 }
 impl Profile {
     pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
@@ -131,25 +131,6 @@ impl Settings {
     }
 }
 impl Settings {
-    #[cfg(target_os = "windows")]
-    fn get_game_config_root(&self) -> PathBuf {
-        // Windowsのユーザファイルはデフォルトではゲームのインストール先に保存されるが、
-        // このランチャーを通じて起動するとプロファイルディレクトリにセーブを保存
-        let profile = &self.get_active_profile();
-        profile.profile_path.root.clone()
-    }
-    #[cfg(target_os = "macos")]
-    fn get_game_config_root(&self) -> PathBuf {
-        // MacOsのユーザファイルはランチャー使わなければ以下で固定
-        // ~/Library/Application Support/Cataclysm/*
-        // let data_dir = data_dir().unwrap();
-        // data_dir.join("Cataclysm")
-
-        // このランチャーを通じて起動するとプロファイルディレクトリにセーブを保存
-        let profile = &self.get_active_profile();
-        profile.profile_path.root.clone()
-    }
-
     fn post_init(&mut self) {
         self.create_dirs_if_unexist();
 

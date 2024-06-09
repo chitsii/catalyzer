@@ -3,7 +3,7 @@
 import React from "react";
 import { info, error, debug } from "tauri-plugin-log-api";
 import { ColumnDef, RowData } from "@tanstack/react-table";
-import { GitGraphIcon } from "lucide-react";
+import { GitGraphIcon, FolderSymlink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Toggle } from "@/components/ui/toggle";
 import {
   Drawer,
   // DrawerClose,
@@ -172,7 +173,7 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "localVersion",
-    header: "Version",
+    header: "データ断面",
     size: 50,
     cell: ({ row, table }) => {
       const local_version: LocalVersion = row.getValue("localVersion");
@@ -406,36 +407,37 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "isInstalled",
-    header: "Status",
+    header: "導入",
     size: 50,
     cell: ({ row, table }) => {
       const isInstalled: boolean = row.getValue("isInstalled");
       return (
         <>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="text-xs" variant={isInstalled ? "installed" : "notInstalled"}>
-                {isInstalled ? "Installed" : "Not Installed"}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem
-                onClick={() => {
-                  const mod_data_dir = row.original.localPath;
-                  if (isInstalled) {
-                    uninstallMod(mod_data_dir);
-                  } else {
-                    installMod(mod_data_dir);
-                  }
-                  // reload table
-                  const f = table.options.meta?.fetchMods;
-                  if (f) f();
-                }}
-              >
-                {isInstalled ? "Uninstall" : "Install"}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Toggle
+            aria-label="toggle_install"
+            variant="outline"
+            data-state={isInstalled ? "installed" : "notInstalled"}
+            onPressedChange={(e) => {
+              const mod_data_dir = row.original.localPath;
+              if (isInstalled) {
+                uninstallMod(mod_data_dir);
+              } else {
+                installMod(mod_data_dir);
+              }
+              // reload table
+              const f = table.options.meta?.fetchMods;
+              if (f) f();
+            }}
+          >
+            <FolderSymlink
+              strokeWidth={3}
+              size={22}
+              color={isInstalled ? "green" : "gray"}
+              className="cursor-pointer"
+            />
+            {"　"}
+            <p className="text-xs">{isInstalled ? "導入済" : "未導入"}</p>
+          </Toggle>
         </>
       );
     },
