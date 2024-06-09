@@ -145,10 +145,14 @@ impl Settings {
     }
     #[cfg(target_os = "macos")]
     fn get_game_config_root(&self) -> PathBuf {
-        // MacOsのユーザファイルは以下で固定
+        // MacOsのユーザファイルはランチャー使わなければ以下で固定
         // ~/Library/Application Support/Cataclysm/*
-        let data_dir = data_dir().unwrap();
-        data_dir.join("Cataclysm")
+        // let data_dir = data_dir().unwrap();
+        // data_dir.join("Cataclysm")
+
+        // このランチャーを通じて起動するとプロファイルディレクトリにセーブを保存
+        let profile = &self.get_active_profile();
+        profile.profile_path.root.clone()
     }
 
     fn post_init(&mut self) {
@@ -159,7 +163,7 @@ impl Settings {
         // CataclysmDDA: src/path_info.cppを参照
         let profile_root_path = self.get_game_config_root();
         self.game_config_path = UserDataPaths::new(profile_root_path);
-        self.mutate_state_mod_status(profile).unwrap(); // FIXME
+        self.mutate_state_mod_status(profile).unwrap();
         self.switch_save_dir_symlink(profile).unwrap();
         self.write_file();
     }
@@ -178,36 +182,39 @@ impl Settings {
             // ゲームの起動オプションにより元々プロファイルディレクトリにセーブを保存しているので
             return Ok(());
         } else if cfg!(target_os = "macos") {
-            // MacOsの場合、固定のセーブディレクトリを
-            // Profileのセーブディレクトリにシンボリックリンクする
-            let game_save_dir = self.game_config_path.save.clone();
-            let profile_save_dir = profile.profile_path.save.clone();
-            if !game_save_dir.exists() {
-                debug!("game_save_dir does not exist so do nothing");
-                return Ok(());
-            }
+            // MacOsでも何もしない
+            return Ok(());
 
-            // game_save_dirが通常のディレクトリならrenameする。シンボリックリンクなら消す
-            let meta = game_save_dir.symlink_metadata().unwrap();
-            if meta.file_type().is_symlink() {
-                fs::remove_file(&game_save_dir)?;
-            } else {
-                let backup_dir = game_save_dir.with_file_name(format!(
-                    "save_backup_{}",
-                    chrono::Local::now().format("%Y%m%d%H%M%S")
-                ));
-                fs::rename(&game_save_dir, backup_dir)?;
-            }
-            debug!(
-                "Creating symlink: {:?} -> {:?}",
-                profile_save_dir, game_save_dir
-            );
-            create_symbolic_link(&profile_save_dir, &game_save_dir)?;
+            // [Outdated]
+            // // MacOsの場合、固定のセーブディレクトリから
+            // // Profileのセーブディレクトリへシンボリックリンクを張る
+            // let game_save_dir = self.game_config_path.save.clone();
+            // let profile_save_dir = profile.profile_path.save.clone();
+            // if !game_save_dir.exists() {
+            //     debug!("game_save_dir does not exist so do nothing");
+            //     return Ok(());
+            // }
+
+            // // game_save_dirが通常のディレクトリならrenameする。シンボリックリンクなら消す
+            // let meta = game_save_dir.symlink_metadata().unwrap();
+            // if meta.file_type().is_symlink() {
+            //     fs::remove_file(&game_save_dir)?;
+            // } else {
+            //     let backup_dir = game_save_dir.with_file_name(format!(
+            //         "save_backup_{}",
+            //         chrono::Local::now().format("%Y%m%d%H%M%S")
+            //     ));
+            //     fs::rename(&game_save_dir, backup_dir)?;
+            // }
+            // debug!(
+            //     "Creating symlink: {:?} -> {:?}",
+            //     profile_save_dir, game_save_dir
+            // );
+            // create_symbolic_link(&profile_save_dir, &game_save_dir)?;
         } else {
             // その他のOSは未対応
             panic!("Unsupported OS.");
         }
-        Ok(())
     }
 
     /// プロファイルのmod_statusを元に、

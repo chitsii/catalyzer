@@ -1,8 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![allow(unused_imports)]
-mod prelude {
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod prelude {
+    #![allow(unused_imports)]
     pub use crate::model::{LocalVersion, Mod, ModInfo};
     pub use crate::profile::AppState;
 
@@ -19,18 +19,16 @@ use tauri_plugin_log::{LogTarget, RotationStrategy, TimezoneStrategy};
 use prelude::*;
 
 use std::{fs::read_to_string, process::Command};
-use tauri::{api::path::executable_dir, Manager};
+use tauri::Manager;
 
 mod logic;
-use logic::utils::get_modinfo_path;
 
 mod model;
-use model::{LocalVersion, Mod, ModInfo};
+use model::Mod;
 
 mod git;
-use git::open;
 mod profile;
-use profile::{AppState, Profile, Settings};
+use profile::AppState;
 mod symlink;
 mod zip;
 
@@ -56,11 +54,9 @@ fn main() {
                 .build(),
         )
         .setup(|app| {
-            info!("\n\n");
             info!("=======================");
             info!("  Welcome, Surviver！  ");
-            info!("=======================");
-            info!("\n\n");
+            info!("=======================\n\n");
             // 開発時だけdevtoolsを表示する。
             #[cfg(debug_assertions)]
             app.get_window("main").unwrap().open_devtools();
@@ -226,9 +222,24 @@ fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
         return Err(format!("Game path does not exist: {:?}", game_path));
     }
     debug!("Launching game: {:?}", &game_path);
-    Command::new("open")
-        .arg(game_path)
+
+    let resource_dir = game_path.join("Contents").join("Resources");
+    resource_dir.try_exists().unwrap();
+
+    // refer to: Cataclysm.app/Contents/MacOS/Cataclysm.sh
+    Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "cd '{}' && export DYLD_LIBRARY_PATH=. && export DYLD_FRAMEWORK_PATH=. && ./cataclysm-tiles --userdir '{}'",
+            resource_dir.to_string_lossy(),
+            userdata_path.to_string_lossy()
+        ))
         .spawn()
         .map_err(|e| format!("Failed to launch the game: {}", e))?;
+
+    // Command::new("open")
+    //     .arg(game_path)
+    //     .spawn()
+    //     .map_err(|e| format!("Failed to launch the game: {}", e))?;
     Ok(())
 }
