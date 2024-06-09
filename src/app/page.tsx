@@ -410,8 +410,6 @@ const ProfileSwitcher = () => {
   );
 };
 
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-
 const GlobalMenu = () => {
   const [{ data: setting }] = useAtom(settingAtom);
   const current_profile = setting ? setting.profiles.find((p) => p.is_active) : null;
@@ -497,7 +495,11 @@ export default function Home() {
   const [_, refresh] = useAtom(refreshModsAtom);
 
   return (
-    <main>
+    <main
+      onContextMenu={(e) => {
+        e.preventDefault();
+      }}
+    >
       <div className="w-full overflow-hidden select-none bg-muted/40">
         <div className="flex w-full h-[100px] gap-8 p-4 items-center">
           <div className="flex-shrink-0 w-[100px] h-[100px] rounded-lg flex items-center justify-center">
