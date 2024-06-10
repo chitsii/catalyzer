@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Catalyzer
 
-## Getting Started
+A cross-platform and lightweight mod manager & launcher for [Cataclysm: Dark Days Ahead](https://github.com/CleverRaven/Cataclysm-DDA).
 
-First, run the development server:
+![demo_v0 1 0_3](https://github.com/chitsii/catalyzer/assets/59207213/81f5584e-8f30-437a-b379-80544c8eee50)
+
+## Features
+
+- **Manage custom user profiles**
+  - Each profile retains its own mod set, mod version (git branch), user files, and game path, which enables switching between different game versions with preferred mods installed.
+- **git based mod management**
+  - Add, remove, or update mod versions.
+
+## Installation & Usage
+
+Download the latest release from the release page, move it to your desired location then run it. 
+
+You may need to create a new profile to start managing mods. Default profile is created with the game path set to the default game path for the respective OS, but if game was not there, path is set to None. You can set the game path in a new profile.
+
+MacOS (arm64) and Windows (x86_64) are supported.
+
+## Why?
+
+Because there was no launcher for MacOS!
+
+## Planned Features
+
+- Multilingual support
+- Download mods from Github via integrated git client
+- Font / Soundpack presets
+- Something to alleviate the burden of updating mod (llm powered Json editor maybe?)
+
+*** 
+
+# カタライザー
+
+クロスプラットフォームで軽量な[Cataclysm: Dark Days Ahead](https://github.com/CleverRaven/Cataclysm-DDA)向けMod管理ツールです。
+
+## 機能
+- **カスタムユーザープロファイルの管理**
+  - Modラインナップ、各Modのデータ断面、セーブおよびコンフィグ設定をプリセットに記録した状態にセットアップし、実行対象となるゲームのバージョンを起動できます。
+- **gitベースのMod管理**
+  - 各々のModのバージョンを追加、削除、または更新
+
+## インストール方法
+
+リリースページから最新のリリースをダウンロードして、希望の場所に解凍
+MacOS (arm64), Windows (x86_64)をサポートしています。
+
+## なんでつくったん
+
+MacOsに対応したランチャーがなかったんや！
+
+## 今後の予定
+
+- 多言語対応
+- 統合gitクライアントを使用してGithubからModをダウンロード
+- フォント/サウンドパックプリセット
+- Modメンテナンスツール（LLMを使ったJsonスキーマ検証など）
+
+---
+
+### Build from source
+
+1. Install Rust latest stable from [here](https://www.rust-lang.org/tools/install). Minimum version: 1.70
+2. Install tauri-cli
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cargo install tauri-cli
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Clone this repository and navigate to the root directory.
+4. Run the following command to build the project.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cargo tauri build
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+For building the project in development mode, run the following command.
 
-## Learn More
+```bash
+cargo tauri dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+For more information, refer to [Tauri](https://github.com/tauri-apps/tauri).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+---
