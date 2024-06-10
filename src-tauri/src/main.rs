@@ -15,6 +15,7 @@ mod prelude {
 
 use log::LevelFilter;
 use tauri_plugin_log::{LogTarget, RotationStrategy, TimezoneStrategy};
+use tauri_plugin_window_state;
 
 use prelude::*;
 
@@ -40,6 +41,9 @@ fn main() {
     let app_state = AppState::new();
 
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_window_state::Builder::default().build()
+        )
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
@@ -97,7 +101,13 @@ fn main() {
 fn scan_mods(state: tauri::State<'_, AppState>) -> Result<Vec<Mod>, String> {
     let settings = state.get_settings().unwrap();
 
-    let mods = settings.scan_mods().unwrap();
+    let mods = match settings.scan_mods() {
+        Ok(mods) => mods,
+        Err(e) => {
+            warn!("Failed to scan mods: {}", e);
+            Vec::new()
+        }
+    };
     Ok(mods)
 }
 
