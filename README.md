@@ -2,7 +2,7 @@
 
 A cross-platform and lightweight mod manager & launcher for [Cataclysm: Dark Days Ahead](https://github.com/CleverRaven/Cataclysm-DDA).
 
-![demo_v0 1 0_3](https://github.com/chitsii/catalyzer/assets/59207213/81f5584e-8f30-437a-b379-80544c8eee50)
+![Demo v0 1 0 loop count](https://github.com/chitsii/catalyzer/assets/59207213/2b76ab61-6fd4-403f-90fa-6a7ccf8aaa06)
 
 ## Features
 
