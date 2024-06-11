@@ -43,7 +43,8 @@ import { open, ask } from "@tauri-apps/api/dialog";
 
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
-    fetchMods: () => void;
+    fetchMods: typeof fetchMods;
+    t: (key: string) => string; // i18n
   }
 }
 
@@ -84,7 +85,9 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "name",
-    header: "Name",
+    header: ({ table }) => {
+      return table.options.meta?.t("mod_name");
+    },
     enableResizing: false,
     size: 50,
     cell: ({ row }) => {
@@ -136,7 +139,9 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "info",
-    header: "Description",
+    header: ({ table }) => {
+      return table.options.meta?.t("mod_description");
+    },
     size: 50,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
@@ -181,7 +186,9 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "localVersion",
-    header: "データ断面",
+    header: ({ table }) => {
+      return table.options.meta?.t("mod_version");
+    },
     size: 50,
     cell: ({ row, table }) => {
       const local_version: LocalVersion = row.getValue("localVersion");
@@ -221,12 +228,18 @@ export const columns: ColumnDef<Mod>[] = [
                         table.options.meta?.fetchMods(); // reload table
                       }}
                     >
-                      <p>バージョン変更</p>
+                      <p>
+                        {/* バージョン変更 */}
+                        {table.options.meta?.t("mod_versin_switch")}
+                      </p>
                       <div className="grid grid-cols-3 gap-2">
                         <div className="col-span-2 min-w-[120px]">
                           <Select name="selectedVersionSwitchTo">
                             <SelectTrigger>
-                              <SelectValue placeholder="切り替え先..." />
+                              <SelectValue
+                                placeholder={// 切替先...
+                                table.options.meta?.t("mod_switch_to")}
+                              />
                             </SelectTrigger>
                             <SelectContent>
                               {branches.length > 0 ? (
@@ -237,7 +250,8 @@ export const columns: ColumnDef<Mod>[] = [
                                 ))
                               ) : (
                                 <SelectItem value="dummy" disabled={true}>
-                                  切替可能な断面がありません
+                                  {/* 切替可能な断面がありません */}
+                                  {table.options.meta?.t("mod_there_is_no_switchable_branch")}
                                 </SelectItem>
                               )}
                             </SelectContent>
@@ -259,7 +273,8 @@ export const columns: ColumnDef<Mod>[] = [
                       <DrawerTrigger>
                         <div className="flex gap-1">
                           <GitGraphIcon size={16} />
-                          新規断面を作成
+                          {/* 新規断面を作成 */}
+                          {table.options.meta?.t("mod_create_new_branch")}
                         </div>
                       </DrawerTrigger>
                       <DrawerContent
@@ -274,7 +289,8 @@ export const columns: ColumnDef<Mod>[] = [
                           <form>
                             <div className="flex-none">
                               <Label htmlFor="newBranchName" className="text-xs">
-                                ブランチ名
+                                {/* ブランチ名 */}
+                                {table.options.meta?.t("mod_branch_name")}
                               </Label>
                               <Input
                                 key="newBranchName"
@@ -402,7 +418,8 @@ export const columns: ColumnDef<Mod>[] = [
                   >
                     <div className="flex gap-1">
                       <GitGraphIcon size={16} />
-                      断面管理を始める
+                      {/* 断面管理を始める */}
+                      {table.options.meta?.t("mod_start_versioning")}
                     </div>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -415,7 +432,9 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "isInstalled",
-    header: "導入状態",
+    header: ({ table }) => {
+      return table.options.meta?.t("mod_state");
+    },
     size: 50,
     cell: ({ row, table }) => {
       const isInstalled: boolean = row.getValue("isInstalled");
@@ -443,8 +462,6 @@ export const columns: ColumnDef<Mod>[] = [
               color={isInstalled ? "green" : "gray"}
               className="cursor-pointer"
             />
-            {/* {"　"}
-            <p className="text-xs">{isInstalled ? "Y" : "N"}</p> */}
           </Toggle>
         </>
       );

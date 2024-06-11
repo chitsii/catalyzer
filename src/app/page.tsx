@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState, useRef, ReactNode } from "react";
+// React
+import { useEffect, useState, useRef, ReactNode, useTransition } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import path from "path";
+
+// Components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { CheckIcon, PencilIcon, Trash2Icon, Edit3, LucideExternalLink, Play } from "lucide-react";
+import { CheckIcon, PencilIcon, Trash2Icon, Edit3, LucideExternalLink, Play, Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -26,19 +29,29 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorThemeSelector } from "@/components/theme-seletor";
 import { ModsTable } from "@/components/datatable/mod-table/table-mods";
 import CSR from "@/components/csr/csr";
+import { ScrollArea } from "@radix-ui/react-scroll-area";
+import { AreaForLog } from "@/components/logger";
+
+// State
 import { useAtom } from "jotai";
 import { refreshModsAtom, modsAtom, settingAtom, Profile, refreshSettingAtom } from "@/components/atoms";
+
+// Utils
 import { ask } from "@tauri-apps/api/dialog";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { popUp, windowReload } from "@/lib/utils";
 import { addProfile, setProfileActive, removeProfile, editProfile, unzipModArchive, launchGame } from "@/lib/api";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { AreaForLog } from "@/components/logger";
 
+// animation
 import { AnimatePresence, motion, useAnimate, useAnimation } from "framer-motion";
+
+// i18n
+import "@/i18n/config";
+import { LanguageSelector } from "@/components/language-selector";
+import { useTranslation } from "react-i18next";
 
 const profileFormSchema = z.object({
   name: z.string().min(1).max(20).trim(),
@@ -56,8 +69,9 @@ type ProfileFormProps = {
   handleDialogItemOpenChange: (open: boolean) => void;
 };
 const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormProps) => {
-  const [_, refresh] = useAtom(refreshSettingAtom);
+  const { t } = useTranslation();
 
+  const [_, refresh] = useAtom(refreshSettingAtom);
   const defaultValues = targetProfile
     ? {
         name: targetProfile.name,
@@ -67,7 +81,6 @@ const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormP
         name: "",
         game_path: "",
       };
-
   const form = useForm<z.infer<typeof profileFormSchema>>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: defaultValues,
@@ -115,8 +128,8 @@ const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormP
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-        {InputField({ name: "name", title: "プロファイル名" })}
-        {InputField({ name: "game_path", title: "Gameパス" })}
+        {InputField({ name: "name", title: t("profile_name") })}
+        {InputField({ name: "game_path", title: t("game_path") })}
         <Button
           type="submit"
           onClick={async () => {
@@ -162,6 +175,8 @@ const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: Dialo
 };
 
 const ProfileSwitcher = () => {
+  const { t } = useTranslation();
+
   const [{ data: settings }] = useAtom(settingAtom);
   const [_, refresh] = useAtom(refreshSettingAtom);
   const profileList = settings ? settings.profiles : [];
@@ -191,7 +206,10 @@ const ProfileSwitcher = () => {
     <div className="flex w-full">
       <div className="w-1/3 mb-2">
         <p className="text-xl font-semibold">Catalyzer</p>
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">現在のプリセット:</p>
+        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+          {/* 現在のプリセット: */}
+          {t("current_profile")}:
+        </p>
         <>
           <DropdownMenu open={dropdownOpen} onOpenChange={(isOpen) => setDropdownOpen(isOpen)}>
             <DropdownMenuTrigger asChild>
@@ -263,7 +281,7 @@ const ProfileSwitcher = () => {
                     <ProfileForm handleDialogItemOpenChange={handleDialogItemOpenChange} />
                   </DialogItem>
                   <DropdownMenuSeparator />
-                  {/* プロファイル更新 ==== */}
+                  {/* プロファイル更新 */}
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
                       <>
@@ -307,8 +325,7 @@ const ProfileSwitcher = () => {
                       )}
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
-                  {/* === */}
-
+                  {/* プロファイル削除 */}
                   <DropdownMenuSeparator />
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
@@ -381,13 +398,15 @@ const ProfileSwitcher = () => {
           <div>
             {!!currentProfile.game_path ? (
               <p>
-                Gameパス
+                {/* Gameパス */}
+                {t("game_path")}:
                 <span className="line-clamp-2 bg-accent text-accent-foreground">{currentProfile.game_path}</span>
               </p>
             ) : null}
             {!!currentProfile.profile_path.root ? (
               <p>
-                ユーザファイル
+                {/* ユーザファイル */}
+                {t("userfile")}:
                 <span className="line-clamp-2 bg-accent text-accent-foreground">
                   {currentProfile.profile_path.root}
                 </span>
@@ -402,7 +421,8 @@ const ProfileSwitcher = () => {
   );
 };
 
-const GlobalMenu = () => {
+const KaniMenu = () => {
+  const { t } = useTranslation();
   const [{ data: setting }] = useAtom(settingAtom);
   const current_profile = setting ? setting.profiles.find((p) => p.is_active) : null;
   const game_path = current_profile ? current_profile.game_path : null;
@@ -422,7 +442,8 @@ const GlobalMenu = () => {
               !!game_path ? (
                 <DropdownMenuItem className="text-lg" onClick={() => launchGame()}>
                   <Play className="mr-4 h-4 w-4" />
-                  ゲーム起動
+                  {/* ゲーム起動 */}
+                  {t("launch_game")}
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem>
@@ -438,16 +459,22 @@ const GlobalMenu = () => {
             }
             <DropdownMenuSeparator />
             <DropdownMenuLabel>
-              <p className="text-xs">🌐ブラウザで開く</p>
+              <p className="text-xs">
+                🌐
+                {/* ブラウザで開く */}
+                {t("open_in_browser")}
+              </p>
             </DropdownMenuLabel>
             <DropdownMenuItem>
               <Link href="https://github.com/CleverRaven/Cataclysm-DDA/" target="_blank" rel="noopener noreferrer">
-                Repository
+                {/* Repository */}
+                {t("repository")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <Link href="https://cdda-guide.nornagon.net/?lang=ja" target="_blank" rel="noopener noreferrer">
-                Hitchhikers Guide
+              <Link href="https://cdda-guide.nornagon.net" target="_blank" rel="noopener noreferrer">
+                {/* Hitchhikers Guide */}
+                {t("hitchhikers_guide")}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -461,6 +488,8 @@ const GlobalMenu = () => {
 let IS_LOGGER_ATTACHED = false;
 
 export default function Home() {
+  const { t, i18n } = useTranslation();
+
   useEffect(() => {
     const setUpDropEvent = async () => {
       const window = await import("@tauri-apps/api/window");
@@ -509,7 +538,6 @@ export default function Home() {
             <div className="flex-shrink-0 w-[100px] h-[100px] rounded-lg flex items-center justify-center">
               <motion.div
                 whileHover={{
-                  // backgroundColor: ["#ff008c", "#7700ff", "rgb(230, 255, 0)", "#7700ff", "#ff008c"],
                   scale: [1.0, 1.1, 1.0, 1.1, 1.0],
                   borderRadius: ["100%", "90%", "80%", "90%", "100%"],
                 }}
@@ -519,7 +547,7 @@ export default function Home() {
                   repeatDelay: 0,
                 }}
               >
-                <GlobalMenu />
+                <KaniMenu />
               </motion.div>
             </div>
             <CSR>
@@ -529,16 +557,15 @@ export default function Home() {
           <div className="w-full">
             <Tabs defaultValue="mods" className="w-full h-full">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger
-                  value="mods"
-                  onClick={() => {
-                    refresh();
-                  }}
-                >
-                  Mod一覧
+                <TabsTrigger value="mods" onClick={() => refresh()}>
+                  {/* Mod一覧 */}
+                  {t("mods")}
                 </TabsTrigger>
-                <TabsTrigger value="setting">設定</TabsTrigger>
-                <TabsTrigger value="debug">ログ</TabsTrigger>
+                <TabsTrigger value="setting">{t("settings")}</TabsTrigger>
+                <TabsTrigger value="debug">
+                  {/* ログ */}
+                  {t("logs")}
+                </TabsTrigger>
               </TabsList>
               <TabsContent value="mods">
                 <div className="bg-muted/40">
@@ -548,21 +575,33 @@ export default function Home() {
               <TabsContent value="setting">
                 <div className="flex min-h-[calc(97vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
                   <div className="mx-auto grid w-full max-w-6xl gap-2">
-                    <h1 className="text-3xl font-semibold">設定</h1>
+                    <h1 className="text-3xl font-semibold">
+                      {/* 設定 */}
+                      {t("settings")}
+                    </h1>
                   </div>
                   <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
-                    <nav className="grid gap-4 text-sm text-muted-foreground" x-chunk="dashboard-04-chunk-0">
-                      <Link href="#theme_setting" className="font-semibold text-primary">
-                        カラーテーマ
-                      </Link>
-                    </nav>
                     <ScrollArea>
                       <Card id="theme_setting" className="border-none">
                         <CardHeader>
-                          <CardTitle>カラーテーマ</CardTitle>
+                          <CardTitle>
+                            {/* カラーテーマ */}
+                            {t("color_theme")}
+                          </CardTitle>
                         </CardHeader>
                         <CardContent>
                           <ColorThemeSelector />
+                        </CardContent>
+                      </Card>
+                      <Card id="language_setting" className="border-none">
+                        <CardHeader>
+                          <CardTitle>
+                            {/* 言語 */}
+                            {t("language")}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <LanguageSelector i18n={i18n} />
                         </CardContent>
                       </Card>
                     </ScrollArea>

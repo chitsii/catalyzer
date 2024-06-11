@@ -1,19 +1,18 @@
-"use client";
+// "use client";
 
 import { useState, useEffect } from "react";
 import { windowReload } from "@/lib/utils";
 import {
-  Command,
+  // Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
-  CommandShortcut,
+  // CommandSeparator,
+  // CommandShortcut,
 } from "@/components/ui/command";
-
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -31,11 +30,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/datatable/pagenation";
 import { openModData, installAllMods, uninstallAllMods } from "@/lib/api";
+import { useTranslation } from "react-i18next";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   fetchMods: any; // function to refresh mods that are displayed in the table
+  t: (k: string) => string; // i18n function
 }
 
 export function CommandMenu() {
@@ -93,7 +94,7 @@ export function CommandMenu() {
   );
 }
 
-export function DataTable<TData, TValue>({ columns, data, fetchMods }: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
@@ -125,6 +126,7 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods }: DataTable
     meta: {
       // this is a meta object that is passed to all column and cell functions
       fetchMods: fetchMods,
+      t: t,
     },
   });
 
@@ -178,7 +180,8 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods }: DataTable
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  Modが見つかりませんでした。
+                  {/* Modが見つかりませんでした。 */}
+                  {t("no_mods_found")}
                   <br />
                   <Button
                     variant="ghost"
@@ -188,8 +191,10 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods }: DataTable
                     }}
                   >
                     <div className="flex-none">
-                      <p>管理ディレクトリにModを追加しましょう。</p>
-                      <p>ここにzipファイルをドラッグ＆ドロップしても追加できます。</p>
+                      <p>{t("add_mods_to_data_directory")}</p>
+                      <p>{t("its_okay_to_drop_zip_files_here")}</p>
+                      {/* <p>管理ディレクトリにModを追加しましょう。</p>
+                      <p>ここにzipファイルをドラッグ＆ドロップしても追加できます。</p> */}
                     </div>
                   </Button>
                 </TableCell>
