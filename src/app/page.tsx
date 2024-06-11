@@ -488,7 +488,7 @@ const KaniMenu = () => {
 
 let IS_LOGGER_ATTACHED = false;
 
-function Home() {
+export default function Home() {
   const { t, i18n } = useTranslation();
 
   useEffect(() => {
@@ -619,6 +619,3 @@ function Home() {
     </main>
   );
 }
-
-import { appWithTranslation } from "next-i18next";
-export default appWithTranslation(Home);
