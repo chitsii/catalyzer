@@ -30,7 +30,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/datatable/pagenation";
 import { openModData, installAllMods, uninstallAllMods } from "@/lib/api";
-import { useTranslation } from "react-i18next";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -118,11 +117,6 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
       columnFilters,
       rowSelection,
     },
-    defaultColumn: {
-      size: 200, //starting column size
-      minSize: 50, //enforced during column resizing
-      maxSize: 500, //enforced during column resizing
-    },
     meta: {
       // this is a meta object that is passed to all column and cell functions
       fetchMods: fetchMods,
@@ -153,7 +147,7 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
           <CommandMenu />
         </div>
       </div>
-      <ScrollArea className="h-mod-table rounded-md border">
+      <ScrollArea className="h-[480px] rounded-md border">
         <Table>
           <TableHeader className="sticky top-0 bg-secondary">
             {table.getHeaderGroups().map((headerGroup) => (

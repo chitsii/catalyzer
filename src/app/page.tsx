@@ -51,7 +51,7 @@ import { AnimatePresence, motion, useAnimate, useAnimation } from "framer-motion
 // i18n
 import "@/i18n/config";
 import { LanguageSelector } from "@/components/language-selector";
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/config"; //"next-i18next";
 
 const profileFormSchema = z.object({
   name: z.string().min(1).max(20).trim(),
@@ -215,9 +215,10 @@ const ProfileSwitcher = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="hover:bg-primary-background" ref={dropdownTriggerRef}>
                 <Badge
-                  className="bg-gradient-to-r from-orange-500 to-purple-500 text-white rounded-full
+                  className="w-24
+                  bg-gradient-to-r from-orange-500 to-purple-500 text-white rounded-full
                   hover:from-blue-600 hover:to-purple-600 hover:text-yellow-300
-                  w-32 break-all whitespace-normal line-clamp-3"
+                  break-all whitespace-normal line-clamp-3"
                 >
                   {currentProfile ? currentProfile.name : "No Profile"}
                 </Badge>
@@ -487,7 +488,7 @@ const KaniMenu = () => {
 
 let IS_LOGGER_ATTACHED = false;
 
-export default function Home() {
+function Home() {
   const { t, i18n } = useTranslation();
 
   useEffect(() => {
@@ -618,3 +619,6 @@ export default function Home() {
     </main>
   );
 }
+
+import { appWithTranslation } from "next-i18next";
+export default appWithTranslation(Home);

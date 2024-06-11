@@ -283,7 +283,9 @@ export const columns: ColumnDef<Mod>[] = [
                         }}
                       >
                         <DrawerHeader>
-                          <DrawerTitle>新規断面作成: {row.original.info.name}</DrawerTitle>
+                          <DrawerTitle>
+                            {table.options.meta?.t("mod_create_new_branch")}: {row.original.info.name}
+                          </DrawerTitle>
                         </DrawerHeader>
                         <div className="flex place-content-center">
                           <form>
@@ -314,11 +316,18 @@ export const columns: ColumnDef<Mod>[] = [
                             </div>
                             <div className="flex-none">
                               <Label htmlFor="zip_file" className="text-xs">
-                                zipファイル
+                                {/* zipファイル */}
+                                {table.options.meta?.t("zip_file")}
                               </Label>
-                              <br />
+                              <p className="text-xs">
+                                {uploadFilePath
+                                  ? path.parse(uploadFilePath).base
+                                  : // "ファイルが選択されていません"
+                                    table.options.meta?.t("file_not_selected")}
+                              </p>
                               <Button
                                 type="button"
+                                size="sm"
                                 onClick={async () => {
                                   const pathModule = await import("@tauri-apps/api/path");
                                   const { downloadDir } = pathModule;
@@ -336,11 +345,13 @@ export const columns: ColumnDef<Mod>[] = [
                                   }
                                 }}
                               >
-                                ファイルを選択...
+                                {/* ファイルを選択... */}
+                                {table.options.meta?.t("select_zip_file")}
                               </Button>
-                              <p>{uploadFilePath ? path.parse(uploadFilePath).base : "ファイルが選択されていません"}</p>
                             </div>
+                            <br />
                             <Button
+                              size="sm"
                               onClick={async (e: any) => {
                                 let yes = await ask("新規断面を作成しますか？");
                                 if (!yes) return;

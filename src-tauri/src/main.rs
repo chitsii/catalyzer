@@ -160,7 +160,8 @@ fn open_dir(target_dir: String) {
 #[tauri::command]
 fn open_mod_data(state: tauri::State<'_, AppState>) {
     let setting = state.get_settings().unwrap();
-    open_dir(setting.mod_data_path.to_string_lossy().to_string());
+    let mod_dir_path = setting.get_mod_data_dir();
+    open_dir(mod_dir_path.to_str().unwrap().to_string());
 }
 
 #[tauri::command]

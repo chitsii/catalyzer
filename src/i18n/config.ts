@@ -1,11 +1,17 @@
+import { useParams } from "next/navigation";
+
 import i18n from "i18next";
-import { initReactI18next } from "react-i18next";
+import { initReactI18next, useTranslation as useTranslationOrg } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 
 i18n
   .use(initReactI18next)
   .use(LanguageDetector)
   .init({
+    lng: undefined, // to detece language on client side
+    detection: {
+      order: ["path", "htmlTag", "cookie", "navigator"],
+    },
     debug: true,
     fallbackLng: "en",
     interpolation: {
@@ -48,6 +54,9 @@ i18n
           no_mods_found: "Empty.",
           add_mods_to_data_directory: "Click to Open Mod Directory to add some.",
           its_okay_to_drop_zip_files_here: "Or, you can just dropping zip files here!",
+          zip_file: "Zip File. (Optional. This will be data for the new branch.)",
+          select_zip_file: "Select File",
+          file_not_selected: "Curretly no file selected.",
         },
       },
       ja: {
@@ -86,9 +95,24 @@ i18n
           no_mods_found: "Modが見つかりませんでした",
           add_mods_to_data_directory: "ここをクリックして管理ディレクトリを開いてModを追加しましょう",
           its_okay_to_drop_zip_files_here: "単にzipファイルをドロップしても追加できます！",
+          zip_file: "Zipファイル(任意。新しい断面のデータとして使用されます)",
+          select_zip_file: "ファイルを選択",
+          file_not_selected: "現在ファイルは選択されていません",
         },
       },
     },
   });
 
-export default i18n;
+const runsOnServerSide = typeof window === "undefined";
+
+function useTranslation() {
+  const lang = useParams();
+  const ret = useTranslationOrg();
+  const { i18n } = ret;
+  if (runsOnServerSide && i18n.resolvedLanguage !== lang.lng) {
+    i18n.changeLanguage(lang.lng.toString());
+  }
+  return ret;
+}
+
+export { i18n, useTranslation };

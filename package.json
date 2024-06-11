@@ -37,6 +37,7 @@
     "jotai-tanstack-query": "^0.8.5",
     "lucide-react": "^0.376.0",
     "next": "14.2.3",
+    "next-i18next": "^15.3.0",
     "next-themes": "^0.3.0",
     "react": "^18",
     "react-dom": "^18",

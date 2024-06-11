@@ -7,7 +7,7 @@ import { useAtom } from "jotai";
 import { Mod, columns } from "./columns";
 import { DataTable } from "./data-table";
 
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/config"; //"next-i18next";
 
 export type getModsProps = {
   mods: Mod[];

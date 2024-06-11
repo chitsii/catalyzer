@@ -3,8 +3,7 @@
 import { Globe2 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
-
-import { useTranslation } from "react-i18next";
+import { useTranslation } from "@/i18n/config"; //"next-i18next";
 
 const LANGUAGES = {
   en: { nativeName: "English" },
