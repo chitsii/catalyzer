@@ -81,9 +81,9 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 750,
+        "height": 800,
         "width": 600,
-        "resizable": true,
+        "resizable": false,
         "title": "Catalyzer"
       }
     ]

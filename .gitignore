@@ -40,3 +40,4 @@ src-tauri/icons/*
 /work
 
 .xwin-cache
+cicd/*

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/command";
 import {
   ColumnDef,
+  ColumnSizingState,
   ColumnFiltersState,
   flexRender,
   getCoreRowModel,
@@ -24,12 +25,14 @@ import {
   SortingState,
   getSortedRowModel,
 } from "@tanstack/react-table";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/datatable/pagenation";
 import { openModData, installAllMods, uninstallAllMods } from "@/lib/api";
+import { ColumnResizer } from "@/components/datatable/mod-table/column-resize";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -98,6 +101,8 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [rowSelection, setRowSelection] = useState({});
 
+  const [colSizing, setColSizing] = useState<ColumnSizingState>({});
+
   const table = useReactTable({
     data,
     columns,
@@ -112,10 +117,12 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
     getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
     enableColumnResizing: false,
+    onColumnSizingChange: setColSizing,
     state: {
       sorting,
       columnFilters,
       rowSelection,
+      columnSizing: colSizing,
     },
     meta: {
       // this is a meta object that is passed to all column and cell functions
@@ -148,14 +155,21 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
         </div>
       </div>
       <ScrollArea className="h-[480px] rounded-md border">
-        <Table>
+        <Table style={{ width: table.getTotalSize() }}>
           <TableHeader className="sticky top-0 bg-secondary">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead key={header.id}>
+                    <TableHead
+                      key={header.id}
+                      className="relative"
+                      style={{
+                        width: header.getSize(),
+                      }}
+                    >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      <ColumnResizer header={header} />
                     </TableHead>
                   );
                 })}
@@ -167,7 +181,15 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell
+                      key={cell.id}
+                      style={{
+                        width: cell.column.getSize(),
+                        minWidth: cell.column.columnDef.minSize,
+                      }}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))

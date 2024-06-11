@@ -50,7 +50,7 @@ i18n
           mod_switch_to: "切り替え先...",
           mod_versin_switch: "バージョン切替",
           mod_description: "詳細説明",
-          mod_state: "導入状態",
+          mod_state: "導入",
           no_mods_found: "Modが見つかりませんでした",
           add_mods_to_data_directory: "ここをクリックして管理ディレクトリを開いてModを追加しましょう",
           its_okay_to_drop_zip_files_here: "単にzipファイルをドロップしても追加できます！",

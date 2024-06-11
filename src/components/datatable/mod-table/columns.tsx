@@ -78,6 +78,7 @@ export const columns: ColumnDef<Mod>[] = [
   {
     accessorKey: "rowIndex",
     header: "#",
+    size: 5,
     enableResizing: false,
     cell: ({ row }) => {
       return <p className="text-xs">{row.index + 1}</p>;
@@ -88,8 +89,9 @@ export const columns: ColumnDef<Mod>[] = [
     header: ({ table }) => {
       return table.options.meta?.t("mod_name");
     },
-    enableResizing: false,
-    size: 50,
+    // enableResizing: false,
+    size: 160,
+    minSize: 160,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
       if (info == null) return null;
@@ -142,7 +144,9 @@ export const columns: ColumnDef<Mod>[] = [
     header: ({ table }) => {
       return table.options.meta?.t("mod_description");
     },
-    size: 50,
+    size: 175,
+    minSize: 175,
+    // enableResizing: false,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
       if (info == null) return null;
@@ -190,6 +194,8 @@ export const columns: ColumnDef<Mod>[] = [
       return table.options.meta?.t("mod_version");
     },
     size: 50,
+    minSize: 50,
+    // enableResizing: false,
     cell: ({ row, table }) => {
       const local_version: LocalVersion = row.getValue("localVersion");
 
@@ -446,7 +452,9 @@ export const columns: ColumnDef<Mod>[] = [
     header: ({ table }) => {
       return table.options.meta?.t("mod_state");
     },
-    size: 50,
+    // size: 50,
+    // minSize: 50,
+    // enableResizing: false,
     cell: ({ row, table }) => {
       const isInstalled: boolean = row.getValue("isInstalled");
       return (
