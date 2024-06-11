@@ -1,11 +1,11 @@
 [package]
-name = "app"
+name = "catalyzer"
 version = "0.1.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "Catalyzer - A cross-platform and lightweight mod manager & launcher for Cataclysm: Dark Days Ahead."
+authors = ["chitsii"]
 license = ""
-repository = ""
-default-run = "app"
+repository = "https://github.com/chitsii/catalyzer"
+default-run = "catalyzer"
 edition = "2021"
 rust-version = "1.70"
 
@@ -37,7 +37,6 @@ zifu_core = "0.1.1"
 serde_yaml = "0.9.34"
 toml = "0.8.13"
 log = "0.4.21"
-cmd_lib = "1.9.4"
 
 [target.x86_64-pc-windows-msvc.dependencies]
 junction = "1.1.0"
