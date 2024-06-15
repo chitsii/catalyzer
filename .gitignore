@@ -41,3 +41,4 @@ src-tauri/icons/*
 
 .xwin-cache
 cicd/*
+src-tauri/sidecar/*

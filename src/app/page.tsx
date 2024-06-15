@@ -39,7 +39,15 @@ import { refreshModsAtom, modsAtom, settingAtom, Profile, refreshSettingAtom } f
 // Utils
 import { ask } from "@tauri-apps/api/dialog";
 import { popUp, windowReload } from "@/lib/utils";
-import { addProfile, setProfileActive, removeProfile, editProfile, unzipModArchive, launchGame } from "@/lib/api";
+import {
+  runPython,
+  addProfile,
+  setProfileActive,
+  removeProfile,
+  editProfile,
+  unzipModArchive,
+  launchGame,
+} from "@/lib/api";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -611,6 +619,15 @@ export default function Home() {
               </TabsContent>
               <TabsContent value="debug">
                 <AreaForLog />
+
+                <Button
+                  onClick={() => {
+                    runPython();
+                  }}
+                  className="w-full"
+                >
+                  python実行
+                </Button>
               </TabsContent>
             </Tabs>
           </div>

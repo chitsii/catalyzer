@@ -77,6 +77,8 @@ const setProfileActive = async (profileId: string) => await invoke_safe("set_pro
 
 const tailLog = async () => await invoke_safe<String[]>("tail_log", {}, []);
 
+const runPython = async () => await invoke_safe("run_python_hello");
+
 export {
   gitCommand,
   getSettings,
@@ -95,4 +97,5 @@ export {
   removeProfile,
   editProfile,
   tailLog,
+  runPython,
 };

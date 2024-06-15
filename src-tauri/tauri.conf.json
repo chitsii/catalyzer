@@ -18,8 +18,20 @@
       "shell": {
         "all": false,
         "execute": false,
-        "sidecar": false,
-        "open": true
+        "open": true,
+        "sidecar": true,
+        "scope": [
+          {
+            "name": "sidecar/rustpython",
+            "sidecar": true,
+            "args": [
+              "-c",
+              {
+                "validator": "string"
+              }
+            ]
+          }
+        ]
       },
       "dialog": {
         "all": false,
@@ -52,7 +64,6 @@
       "deb": {
         "depends": []
       },
-      "externalBin": [],
       "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
       "identifier": "com.tauri.catalyzer",
       "longDescription": "",
@@ -70,13 +81,8 @@
         "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
         "timestampUrl": ""
-      }
-    },
-    "security": {
-      "csp": null
-    },
-    "updater": {
-      "active": false
+      },
+      "externalBin": ["sidecar/rustpython"]
     },
     "windows": [
       {
@@ -86,6 +92,12 @@
         "resizable": false,
         "title": "Catalyzer"
       }
-    ]
+    ],
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    }
   }
 }
