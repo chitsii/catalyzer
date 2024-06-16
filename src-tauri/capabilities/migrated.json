@@ -12,6 +12,9 @@
     "menu:default",
     "tray:default",
     "dialog:allow-open",
-    "dialog:allow-ask"
+    "dialog:allow-ask",
+    "shell:allow-open",
+    "shell:allow-spawn",
+    "log:allow-log"
   ]
 }

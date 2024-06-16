@@ -177,7 +177,10 @@ const DialogItem = ({ triggerChildren, children, onSelect, onOpenChange }: Dialo
 const ProfileSwitcher = () => {
   const { t } = useTranslation();
 
-  const [{ data: settings }] = useAtom(settingAtom);
+  const [{ data: settings, isLoading, error }] = useAtom(settingAtom);
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
   const [_, refresh] = useAtom(refreshSettingAtom);
   const profileList = settings ? settings.profiles : [];
 
@@ -424,7 +427,10 @@ const ProfileSwitcher = () => {
 
 const KaniMenu = () => {
   const { t } = useTranslation();
-  const [{ data: setting }] = useAtom(settingAtom);
+  const [{ data: setting, isLoading, error }] = useAtom(settingAtom);
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+
   const current_profile = setting ? setting.profiles.find((p) => p.is_active) : null;
   const game_path = current_profile ? current_profile.game_path : null;
 
@@ -585,26 +591,26 @@ export default function Home() {
           exit={{ opacity: 0, scaleY: 0 }}
           className="w-full overflow-hidden select-none bg-muted/40"
         >
-          <div className="flex w-full h-[100px] gap-8 p-4 items-center">
-            <div className="flex-shrink-0 w-[100px] h-[100px] rounded-lg flex items-center justify-center">
-              <motion.div
-                whileHover={{
-                  scale: [1.0, 1.1, 1.0, 1.1, 1.0],
-                  borderRadius: ["100%", "90%", "80%", "90%", "100%"],
-                }}
-                transition={{
-                  duration: 3.0,
-                  repeat: Infinity,
-                  repeatDelay: 0,
-                }}
-              >
-                <KaniMenu />
-              </motion.div>
-            </div>
-            <CSR>
+          <CSR>
+            <div className="flex w-full h-[100px] gap-8 p-4 items-center">
+              <div className="flex-shrink-0 w-[100px] h-[100px] rounded-lg flex items-center justify-center">
+                <motion.div
+                  whileHover={{
+                    scale: [1.0, 1.1, 1.0, 1.1, 1.0],
+                    borderRadius: ["100%", "90%", "80%", "90%", "100%"],
+                  }}
+                  transition={{
+                    duration: 3.0,
+                    repeat: Infinity,
+                    repeatDelay: 0,
+                  }}
+                >
+                  <KaniMenu />
+                </motion.div>
+              </div>
               <ProfileSwitcher />
-            </CSR>
-          </div>
+            </div>
+          </CSR>
           <div className="w-full">
             <Tabs defaultValue="mods" className="w-full h-full">
               <TabsList className="grid w-full grid-cols-3">
@@ -647,8 +653,7 @@ export default function Home() {
                       <Card id="language_setting" className="border-none">
                         <CardHeader>
                           <CardTitle>
-                            {/* 言語 */}
-                            {t("language")}
+                            {/* 言語 */}/{t("language")}
                           </CardTitle>
                         </CardHeader>
                         <CardContent>

@@ -4,7 +4,8 @@ import { Atom, atom, PrimitiveAtom, useAtom, useAtomValue } from "jotai";
 import { createStore, Provider } from "jotai";
 import { Mod } from "@/components/datatable/mod-table/columns";
 import { atomWithStorage } from "jotai/utils";
-import { fetchMods } from "@/lib/api";
+
+import { handleIsTauri, fetchMods } from "@/lib/api";
 import { atomWithSuspenseQuery } from "jotai-tanstack-query";
 
 import { getSettings } from "@/lib/api";
@@ -38,17 +39,18 @@ const refreshSettingState = atom(0);
 const refreshSettingAtom = atom(
   (get) => get(refreshSettingState),
   (get, set) => {
-    // FIXME: asyncにしてリフレッシュを待てるようにする
     set(refreshSettingState, (c) => c + 1);
   },
 );
 const settingAtom = atomWithSuspenseQuery((get) => ({
-  enabled: typeof window !== "undefined",
+  enabled: handleIsTauri,
   queryKey: [get(refreshSettingState)],
   queryFn: async () => {
     const res = await getSettings();
     return res;
   },
+  retry: 10,
+  retryDelay: 500,
   staleTime: Infinity,
   refetchOnMount: "always",
 }));
@@ -67,10 +69,11 @@ const refreshModsAtom = atom(
   },
 );
 const modsAtom = atomWithSuspenseQuery((get) => ({
-  enabled: typeof window === "undefined",
+  enabled: handleIsTauri,
   queryKey: ["mods", get(refreshState), get(activeProfileAtom)],
   queryFn: async () => {
-    return fetchMods();
+    const res = await fetchMods();
+    return res;
   },
   staleTime: Infinity,
   refetchOnMount: "always",

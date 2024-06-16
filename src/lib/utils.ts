@@ -1,6 +1,8 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { info, warn, trace, error, debug, attachLogger } from "tauri-plugin-log-api";
+// import { info, warn, trace, error, debug, attachLogger } from "tauri-plugin-log-api";
+
+import { trace, info, error, attachConsole } from "@tauri-apps/plugin-log";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

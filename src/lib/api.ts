@@ -1,14 +1,22 @@
 import { Mod } from "@/components/datatable/mod-table/columns";
 import { popUp } from "@/lib/utils";
 import { createId } from "@paralleldrive/cuid2";
-import { error, info, debug } from "tauri-plugin-log-api";
+// import { error, info, debug } from "tauri-plugin-log-api";
+
+import { debug, trace, info, error, attachConsole } from "@tauri-apps/plugin-log";
+
 import { invoke } from "@tauri-apps/api/core";
 import { Settings } from "@/components/atoms";
 
+export const handleIsTauri = () => {
+  // @ts-ignore
+  return Boolean(typeof window !== "undefined" && window !== undefined); // && window.__TAURI_IPC__ !== undefined
+};
+
 /// invoke_safe is a wrapper to safely execute invoke.
 /// We can only 'invoke' after window load when Next.js is used.
-export async function invoke_safe<T>(command: string, arg_obj?: any, default_response?: T | undefined): Promise<T> {
-  const isClient = typeof window !== "undefined";
+export async function invoke_safe<T>(command: string, arg_obj: any, default_response?: T | undefined): Promise<T> {
+  const isClient = handleIsTauri();
   if (!isClient) return default_response as T;
 
   try {
@@ -51,7 +59,16 @@ const fetchMods = async () => await invoke_safe<Mod[]>("scan_mods", {}, []);
 const unzipModArchive = async (src: string, existsOk?: boolean) =>
   await invoke_safe("unzip_mod_archive", { src: src, existsOk: existsOk });
 
-const getSettings = async () => await invoke_safe<Settings>("get_settings");
+const getSettings = async () =>
+  await invoke_safe<Settings>(
+    "get_settings",
+    {},
+    {
+      language: "en",
+      mod_data_path: "",
+      profiles: [],
+    },
+  );
 
 const addProfile = async (name: string, gamePath: string) => {
   const args = {
