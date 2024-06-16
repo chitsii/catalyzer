@@ -30,11 +30,8 @@ export async function invoke_safe<T>(command: string, arg_obj: any, default_resp
     throw new Error(`found error: ${err}`);
   }
 }
-
 const launchGame = async () => await invoke_safe("launch_game", {});
-
 const openLocalDir = async (targetDir: string) => await invoke_safe("open_dir", { targetDir: targetDir });
-
 const openModData = async () => await invoke_safe("open_mod_data", {});
 
 const gitCommand = async (
@@ -46,7 +43,7 @@ const gitCommand = async (
     createIfUnexist?: boolean;
   },
 ) => await invoke_safe(command, args);
-
+const cloneModRepo = async (repoUrl: string) => await invoke_safe("git_clone_mod_repo", { url: repoUrl });
 const listBranches = async (targetDir: string) => await invoke_safe("git_list_branches", { targetDir: targetDir }, []);
 
 const installMod = async (moddata_dir: string) => await invoke_safe("install_mod", { modDataPath: moddata_dir });
@@ -95,6 +92,7 @@ const setProfileActive = async (profileId: string) => await invoke_safe("set_pro
 const tailLog = async () => await invoke_safe<String[]>("tail_log", {}, []);
 
 export {
+  cloneModRepo,
   gitCommand,
   getSettings,
   launchGame,

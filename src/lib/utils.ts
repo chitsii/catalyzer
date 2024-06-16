@@ -29,7 +29,7 @@ export function isNonEmptyStringOrArray(value: unknown): value is string | strin
 
 import { toast } from "sonner";
 
-export const popUp = (title: "success" | "failed", msg: string) => {
+export const popUp = (title: "success" | "failed" | "info", msg: string) => {
   if (title === "success") {
     !!msg ? info(msg) : info(title);
   } else if (title === "failed") {
