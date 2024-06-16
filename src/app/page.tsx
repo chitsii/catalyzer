@@ -1,7 +1,7 @@
 "use client";
 
 // React
-import { useEffect, useState, useRef, ReactNode, useTransition } from "react";
+import { useEffect, useState, useRef, ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import path from "path";
@@ -46,7 +46,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 // animation
-import { AnimatePresence, motion, useAnimate, useAnimation } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 
 // i18n
 import "@/i18n/config";
@@ -522,47 +522,6 @@ export default function Home() {
       return () => {
         unlisten();
       };
-
-      // appWindow.onDragDropEvent(async (ev: any) => {
-      //   // onFileDropEvent(async (ev: any) => {
-      //   if (ev.payload.type !== "drop") return;
-      //   const does_install = await ask("ドロップしたファイルをModディレクトリに解凍しますか？", "Catalyzer");
-      //   if (!does_install) return;
-      //   const [filepath] = ev.payload.paths;
-      //   if (path.extname(filepath) === ".zip") {
-      //     unzipModArchive(filepath);
-      //     return;
-      //   } else {
-      //     popUp("failed", "サポートしていないファイル形式です。");
-      //   }
-      // });
-
-      // * import { getCurrent } from "@tauri-apps/api/webview";
-      // * const unlisten = await getCurrent().onDragDropEvent((event) => {
-      // *  if (event.payload.type === 'hover') {
-      // *    console.log('User hovering', event.payload.paths);
-      // *  } else if (event.payload.type === 'drop') {
-      // *    console.log('User dropped', event.payload.paths);
-      // *  } else {
-      // *    console.log('File drop cancelled');
-      // *  }
-      // * });
-      // *
-      // * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-      // * unlisten();
-
-      // appWindow.onFileDropEvent(async (ev: any) => {
-      //   if (ev.payload.type !== "drop") return;
-      //   const does_install = await ask("ドロップしたファイルをModディレクトリに解凍しますか？", "Catalyzer");
-      //   if (!does_install) return;
-      //   const [filepath] = ev.payload.paths;
-      //   if (path.extname(filepath) === ".zip") {
-      //     unzipModArchive(filepath);
-      //     return;
-      //   } else {
-      //     popUp("failed", "サポートしていないファイル形式です。");
-      //   }
-      // });
     };
 
     const setUpDropEventAndAttachLogger = async () => {
