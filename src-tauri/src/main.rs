@@ -44,7 +44,6 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        // .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
@@ -88,6 +87,7 @@ fn main() {
             git::commands::git_reset_changes,
             git::commands::git_list_branches,
             git::commands::git_checkout,
+            git::commands::git_clone_mod_repo,
             profile::commands::get_settings,
             profile::commands::add_profile,
             profile::commands::remove_profile,

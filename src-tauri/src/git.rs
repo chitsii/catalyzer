@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use git2::{Branch, Repository, Signature};
+use git2::{Branch, BranchType, Repository, Signature};
 
 pub fn open(target_dir: String) -> Result<Repository, String> {
     debug!("Opening repository at {}", target_dir);
@@ -23,9 +23,7 @@ fn init(target_dir: String) -> Result<Repository, String> {
 
 fn commit(repo: &Repository, message: &str) -> Result<(), String> {
     debug!("Committing changes to repository");
-
     let sig = Signature::now("Catalyzer", "Nothing").unwrap();
-
     match repo.head() {
         Ok(data) => {
             let tree_id = {
@@ -54,12 +52,6 @@ fn commit(repo: &Repository, message: &str) -> Result<(), String> {
             repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[])
                 .unwrap();
             Ok(())
-
-            // let tree_id = repo.index().unwrap().write_tree().unwrap();
-            // let tree = repo.find_tree(tree_id).unwrap();
-            // repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[])
-            //     .unwrap();
-            // Ok(())
         }
     }
 }
@@ -77,13 +69,17 @@ fn reset_hard(repo: &Repository) -> Result<(), String> {
 pub fn list_branches(repo: &Repository) -> Result<Vec<String>, String> {
     debug!("Listing branches in repository");
     let mut branches = Vec::new();
-    for branch in repo.branches(None).unwrap() {
+
+    let local_branches = repo.branches(Some(BranchType::Local)).unwrap();
+
+    for branch in local_branches {
         let (branch, _) = branch.unwrap();
         let branch_name = branch.name().unwrap().unwrap();
         let branch_name = branch_name.split('/').last().unwrap();
 
         branches.push(branch_name.to_string());
     }
+    debug!("Found branches: {:?}", branches);
     Ok(branches)
 }
 
@@ -128,7 +124,7 @@ fn checkout(repo: &Repository, branch_name: &str, create_if_unexist: bool) -> Re
     }
 }
 
-pub fn git_checkout_logic(
+pub fn try_checkout_to(
     target_dir: String,
     target_branch: String,
     create_if_unexist: bool,
@@ -143,9 +139,42 @@ pub fn git_checkout_logic(
     Ok(())
 }
 
+fn git_clone(url: &str, target_dir: &Path) -> Result<Repository, String> {
+    debug!("Cloning repository from {} to {:?}", url, &target_dir);
+    let repo = match Repository::clone(url, target_dir) {
+        Ok(repo) => repo,
+        Err(e) => return Err(format!("Failed to clone repository: {}", e)),
+    };
+    Ok(repo)
+}
+
 pub mod commands {
     use super::*;
     use crate::profile::AppState;
+
+    #[tauri::command]
+    pub fn git_clone_mod_repo(
+        state: tauri::State<'_, AppState>,
+        url: String,
+    ) -> Result<(), String> {
+        let setting = state.get_settings().unwrap();
+        let mod_data_dir = setting.get_mod_data_dir();
+
+        let repo_name = url.split('/').last().unwrap();
+        let repo_name = repo_name.replace(".git", "");
+        let target_dir = mod_data_dir.join(repo_name);
+
+        let repo = git_clone(&url, &target_dir).map_err(|e| e.to_string())?;
+        let cloned_dir = repo.path().parent().unwrap(); // .gitの親フォルダ
+        debug!("Repository cloned to {:?}", cloned_dir);
+
+        let is_mod = crate::logic::utils::is_mod_dir(cloned_dir);
+        if !is_mod {
+            std::fs::remove_dir_all(cloned_dir).unwrap();
+            return Err("Not a mod repository！".to_string());
+        }
+        Ok(())
+    }
 
     #[tauri::command]
     /// Initialize a git repository at the target directory.
@@ -161,7 +190,7 @@ pub mod commands {
             return Err(format!("Repository already exists at {}", target_dir));
         }
         let repo = init(target_dir).unwrap();
-        debug!("Repository initialized at {}", repo.path().display());
+        debug!("Repository initialized at {:?}", repo.path());
         commit(&repo, "Initial commit").unwrap();
         reset_hard(&repo).unwrap();
 
@@ -215,7 +244,7 @@ pub mod commands {
         target_branch: String,
         create_if_unexist: bool,
     ) -> Result<(), String> {
-        git_checkout_logic(target_dir, target_branch, create_if_unexist)?;
+        try_checkout_to(target_dir, target_branch, create_if_unexist)?;
         state.refresh_and_save_mod_status().unwrap();
         Ok(())
     }

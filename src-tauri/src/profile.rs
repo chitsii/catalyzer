@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use crate::git::git_checkout_logic;
+use crate::git::try_checkout_to;
 use crate::logic::utils::get_modinfo_path;
 use crate::logic::utils::remove_dir_all;
 use crate::model::Mod;
@@ -170,7 +170,7 @@ impl Settings {
         profile.mod_status.iter().for_each(|m| {
             // ローカルブランチがあればチェックアウト
             if let Some(local_version) = &m.local_version {
-                git_checkout_logic(
+                try_checkout_to(
                     m.local_path.clone(),
                     local_version.branch_name.clone(),
                     false,
