@@ -226,6 +226,14 @@ export const columns: ColumnDef<Mod>[] = [
                       onSubmit={(e: any) => {
                         e.preventDefault();
                         const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
+                        // 現在と同じブランチには切り替えない
+                        if (selectedBranchName == "") {
+                          // popUp("info", "未選択です");
+                          return;
+                        } else if (selectedBranchName == local_version.branchName) {
+                          // popUp("info", "既に選択されているバージョンです");
+                          return;
+                        }
                         gitCommand("git_checkout", {
                           targetDir: row.original.localPath,
                           targetBranch: selectedBranchName,
@@ -245,6 +253,7 @@ export const columns: ColumnDef<Mod>[] = [
                               <SelectValue
                                 placeholder={// 切替先...
                                 table.options.meta?.t("mod_switch_to")}
+                                defaultValue={""}
                               />
                             </SelectTrigger>
                             <SelectContent>

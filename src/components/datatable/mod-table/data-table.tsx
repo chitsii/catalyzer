@@ -1,18 +1,4 @@
-// "use client";
-
-import { useState, useEffect } from "react";
-import { windowReload } from "@/lib/utils";
-import {
-  // Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  // CommandSeparator,
-  // CommandShortcut,
-} from "@/components/ui/command";
+import { useState } from "react";
 import {
   ColumnDef,
   ColumnSizingState,
@@ -25,14 +11,14 @@ import {
   SortingState,
   getSortedRowModel,
 } from "@tanstack/react-table";
-
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { DataTablePagination } from "@/components/datatable/pagenation";
-import { openModData, installAllMods, uninstallAllMods } from "@/lib/api";
+import { openModData } from "@/lib/api";
 import { ColumnResizer } from "@/components/datatable/mod-table/column-resize";
+import { CommandPalette } from "@/components/command-palette";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
@@ -40,62 +26,6 @@ interface DataTableProps<TData, TValue> {
   fetchMods: any; // function to refresh mods that are displayed in the table
   t: (k: string) => string; // i18n function
 }
-
-export function CommandMenu() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "p" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        setOpen((open) => !open);
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
-
-  return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="🤖< ナニニシマスカ?" />
-      <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
-        {/* <CommandGroup heading="Modダウンロード">
-          <CommandItem
-            key="cmd-mod-download-github"
-            onSelect={() => {
-              alert("Download mods from Nexus");
-            }}
-          >
-            Download mods from Github
-          </CommandItem>
-        </CommandGroup> */}
-        <CommandGroup heading="Mod操作">
-          {/* <CommandItem key="noodle">ヌードルを頼む🍜</CommandItem> */}
-          <CommandItem
-            key="cmd-all-mod-install"
-            onSelect={async () => {
-              await installAllMods();
-              await windowReload();
-            }}
-          >
-            🚀 Install all mods
-          </CommandItem>
-          <CommandItem
-            key="cmd-all-mod-uninstall"
-            onSelect={async () => {
-              await uninstallAllMods();
-              await windowReload();
-            }}
-          >
-            🗑 Uninstall all mods
-          </CommandItem>
-        </CommandGroup>
-      </CommandList>
-    </CommandDialog>
-  );
-}
-
 export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -150,8 +80,7 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
           <DataTablePagination table={table} />
         </div>
         <div className="flex items-center justify-items-center ml-auto">
-          {/* <ActionButtons /> */}
-          <CommandMenu />
+          <CommandPalette />
         </div>
       </div>
       <ScrollArea className="h-[480px] rounded-md border">
