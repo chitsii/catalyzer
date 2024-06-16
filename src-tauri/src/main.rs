@@ -88,6 +88,7 @@ fn main() {
             git::commands::git_list_branches,
             git::commands::git_checkout,
             git::commands::git_clone_mod_repo,
+            git::commands::git_fetch_all_mods,
             profile::commands::get_settings,
             profile::commands::add_profile,
             profile::commands::remove_profile,

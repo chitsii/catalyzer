@@ -32,18 +32,18 @@ import { Label } from "@/components/ui/label";
 import { isNonEmptyStringOrArray, popUp } from "@/lib/utils";
 import {
   installMod,
-  uninstallMod,
+  uninstallMods,
   gitCommand,
   openLocalDir,
   listBranches,
   unzipModArchive,
-  fetchMods,
+  listMods,
 } from "@/lib/api";
 import { open, ask } from "@tauri-apps/plugin-dialog";
 
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
-    fetchMods: typeof fetchMods;
+    fetchMods: typeof listMods;
     t: (key: string) => string; // i18n
   }
 }
@@ -100,22 +100,25 @@ export const columns: ColumnDef<Mod>[] = [
           {info.name && (
             <div>
               <p
-                className="text-sm text-primary cursor-pointer hover:underline"
+                className="text-xs text-primary cursor-pointer leading-tight hover:underline"
                 onClick={() => {
                   openLocalDir(row.original.localPath);
                 }}
               >
-                {info.name}
+                {
+                  // Remove color tags
+                  info.name.replace(/<color_[a-z_]+>|<\/color>/g, "")
+                }
               </p>
             </div>
           )}
           {isNonEmptyStringOrArray(info.authors) && (
             <p className="text-xs text-muted-foreground">
-              作成者 {Array.isArray(info.authors) ? info.authors.map((author) => author).join(",") : info.authors}
+              作成 {Array.isArray(info.authors) ? info.authors.map((author) => author).join(",") : info.authors}
             </p>
           )}
           {isNonEmptyStringOrArray(info.maintainers) && (
-            <p className="text-xs text-muted-foreground">メンテナ {info.maintainers}</p>
+            <p className="text-xs text-muted-foreground">保守 {info.maintainers}</p>
           )}
           {info.category && <Badge variant="category">{info.category}</Badge>}
         </div>
@@ -154,10 +157,10 @@ export const columns: ColumnDef<Mod>[] = [
         <>
           {info.description && (
             <div>
-              <p className="text-xs text-muted-foreground">{info.description}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">{info.description}</p>
             </div>
           )}
-          <div className="pt-1 pl-4 text-[11px] text-muted-foreground leading-tight">
+          <div className="pt-1 pl-4 text-[9px] text-muted-foreground leading-tight">
             {Object.keys(info).map((k) => {
               const value = info[k as keyof ModInfo];
               // 前のカラムで表示済み
@@ -228,7 +231,7 @@ export const columns: ColumnDef<Mod>[] = [
                         const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
                         // 現在と同じブランチには切り替えない
                         if (selectedBranchName == "") {
-                          // popUp("info", "未選択です");
+                          // popUp("info", "未選択
                           return;
                         } else if (selectedBranchName == local_version.branchName) {
                           // popUp("info", "既に選択されているバージョンです");
@@ -324,7 +327,7 @@ export const columns: ColumnDef<Mod>[] = [
                                   setNewBranchName(e.target.value);
                                 }}
                               />
-                              <p className="text-sm">
+                              <p className="text-xs">
                                 {"> "}
                                 {newBranchName}
                               </p>
@@ -477,7 +480,7 @@ export const columns: ColumnDef<Mod>[] = [
             onPressedChange={(e) => {
               const mod_data_dir = row.original.localPath;
               if (isInstalled) {
-                uninstallMod(mod_data_dir);
+                uninstallMods(mod_data_dir);
               } else {
                 installMod(mod_data_dir);
               }

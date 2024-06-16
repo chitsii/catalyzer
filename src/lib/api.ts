@@ -45,13 +45,15 @@ const gitCommand = async (
 ) => await invoke_safe(command, args);
 const cloneModRepo = async (repoUrl: string) => await invoke_safe("git_clone_mod_repo", { url: repoUrl });
 const listBranches = async (targetDir: string) => await invoke_safe("git_list_branches", { targetDir: targetDir }, []);
+const gitFetch = async (targetDir: string) => await invoke_safe("git_fetch_origin", { targetDir: targetDir });
+const gitFetchAllMods = async () => await invoke_safe("git_fetch_all_mods", {});
 
 const installMod = async (moddata_dir: string) => await invoke_safe("install_mod", { modDataPath: moddata_dir });
 const installAllMods = async () => await invoke_safe("install_all_mods", {});
-const uninstallMod = async (moddata_dir: string) => await invoke_safe("uninstall_mod", { modDataPath: moddata_dir });
+const uninstallMods = async (moddata_dir: string) => await invoke_safe("uninstall_mod", { modDataPath: moddata_dir });
 const uninstallAllMods = async () => await invoke_safe("uninstall_all_mods", {});
 
-const fetchMods = async () => await invoke_safe<Mod[]>("scan_mods", {}, []);
+const listMods = async () => await invoke_safe<Mod[]>("scan_mods", {}, []);
 
 const unzipModArchive = async (src: string, existsOk?: boolean) =>
   await invoke_safe("unzip_mod_archive", { src: src, existsOk: existsOk });
@@ -92,6 +94,8 @@ const setProfileActive = async (profileId: string) => await invoke_safe("set_pro
 const tailLog = async () => await invoke_safe<String[]>("tail_log", {}, []);
 
 export {
+  gitFetch,
+  gitFetchAllMods,
   cloneModRepo,
   gitCommand,
   getSettings,
@@ -101,9 +105,9 @@ export {
   listBranches,
   installMod,
   installAllMods,
-  uninstallMod,
+  uninstallMods,
   uninstallAllMods,
-  fetchMods,
+  listMods,
   unzipModArchive,
   addProfile,
   setProfileActive,

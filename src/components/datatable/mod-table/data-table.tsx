@@ -64,7 +64,7 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
   return (
     <>
       <div className="flex">
-        <div className="w-full flex items-center py-4 justify-self-start">
+        <div className="w-full flex items-center pb-2 justify-self-start">
           <Input
             placeholder="Search mods..."
             autoComplete="off"
@@ -73,10 +73,10 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
             spellCheck="false"
             value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
             onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
-            className="max-w-sm justify-self-start w-full"
+            className="max-w-sm justify-self-start w-full text-xs"
           />
         </div>
-        <div className="flex items-center justify-items-center ml-auto">
+        <div className="flex items-center justify-items-center ml-auto text-xs">
           <DataTablePagination table={table} />
         </div>
         <div className="flex items-center justify-items-center ml-auto">

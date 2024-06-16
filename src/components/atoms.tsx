@@ -5,7 +5,7 @@ import { createStore, Provider } from "jotai";
 import { Mod } from "@/components/datatable/mod-table/columns";
 import { atomWithStorage } from "jotai/utils";
 
-import { handleIsTauri, fetchMods } from "@/lib/api";
+import { handleIsTauri, listMods } from "@/lib/api";
 import { atomWithSuspenseQuery } from "jotai-tanstack-query";
 
 import { getSettings } from "@/lib/api";
@@ -72,7 +72,7 @@ const modsAtom = atomWithSuspenseQuery((get) => ({
   enabled: handleIsTauri,
   queryKey: ["mods", get(refreshState), get(activeProfileAtom)],
   queryFn: async () => {
-    const res = await fetchMods();
+    const res = await listMods();
     return res;
   },
   staleTime: Infinity,

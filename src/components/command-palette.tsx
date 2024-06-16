@@ -13,7 +13,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { installAllMods, uninstallAllMods, cloneModRepo } from "@/lib/api";
+import { installAllMods, uninstallAllMods, cloneModRepo, gitFetch, gitFetchAllMods } from "@/lib/api";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -96,7 +96,7 @@ export function CommandPalette() {
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if (e.key === "p" && (e.metaKey || e.ctrlKey)) {
+      if ((e.key === "p" || e.key === "k") && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setOpen((open) => !open);
       }
@@ -135,6 +135,15 @@ export function CommandPalette() {
             }}
           >
             🗑 Uninstall all mods
+          </CommandItem>
+          <CommandItem
+            key="cmd-all-mod-install"
+            onSelect={async () => {
+              await gitFetchAllMods();
+              await windowReload();
+            }}
+          >
+            ✨ Fetch version info
           </CommandItem>
         </CommandGroup>
       </CommandList>

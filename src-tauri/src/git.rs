@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 use git2::{Branch, BranchType, Repository, Signature};
+use std::collections::HashSet;
 
 pub fn open(target_dir: String) -> Result<Repository, String> {
     debug!("Opening repository at {}", target_dir);
@@ -68,19 +69,23 @@ fn reset_hard(repo: &Repository) -> Result<(), String> {
 
 pub fn list_branches(repo: &Repository) -> Result<Vec<String>, String> {
     debug!("Listing branches in repository");
-    let mut branches = Vec::new();
 
-    let local_branches = repo.branches(Some(BranchType::Local)).unwrap();
+    let mut branches = HashSet::new();
 
-    for branch in local_branches {
+    repo.branches(None).unwrap().for_each(|branch| {
         let (branch, _) = branch.unwrap();
         let branch_name = branch.name().unwrap().unwrap();
         let branch_name = branch_name.split('/').last().unwrap();
 
-        branches.push(branch_name.to_string());
-    }
+        if branch_name == "HEAD" {
+            return;
+        }
+        branches.insert(branch_name.to_string());
+    });
+
     debug!("Found branches: {:?}", branches);
-    Ok(branches)
+    let response = branches.into_iter().collect();
+    Ok(response)
 }
 
 fn git_create_branch<'a>(
@@ -148,9 +153,46 @@ fn git_clone(url: &str, target_dir: &Path) -> Result<Repository, String> {
     Ok(repo)
 }
 
+fn git_fetch(repo: &Repository) -> Result<(), String> {
+    debug!("Fetching all from repository");
+    if let Ok(mut remote) = repo.find_remote("origin") {
+        match remote.fetch(&["refs/heads/*:refs/heads/*"], None, None) {
+            Ok(_) => (),
+            Err(e) => error!("Failed to fetch from remote: {}", e),
+        }
+    }
+
+    Ok(())
+}
+
 pub mod commands {
     use super::*;
     use crate::profile::AppState;
+
+    #[tauri::command]
+    pub fn git_fetch_all_mods(state: tauri::State<'_, AppState>) -> Result<(), String> {
+        let setting = state.get_settings().unwrap();
+        let mod_data_dir = setting.get_mod_data_dir();
+
+        debug!("Fetching all mods");
+
+        for entry in std::fs::read_dir(mod_data_dir).unwrap() {
+            debug!("Fetching mod: {:?}", entry);
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if path.is_dir() {
+                if let Ok(repo) = open(path.to_str().unwrap().to_string()) {
+                    match git_fetch(&repo) {
+                        Ok(_) => {}
+                        Err(e) => {
+                            debug!("Failed to fetch origin: {}", e);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 
     #[tauri::command]
     pub fn git_clone_mod_repo(
