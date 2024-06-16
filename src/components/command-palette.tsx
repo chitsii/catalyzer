@@ -90,7 +90,6 @@ const CloneModFormDialog = ({ open, setOpen }: CloneModFormDialogProps) => {
     </Dialog>
   );
 };
-
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
 
@@ -108,45 +107,51 @@ export function CommandPalette() {
   const [openCloneDialog, setOpenCloneDialog] = useState(false);
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="🤖< ナニニシマスカ?" />
-      <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Mod操作">
-          {/* <CommandItem key="noodle">ヌードルを頼む🍜</CommandItem> */}
-          <CommandItem key="cmd-mod-clone" onSelect={() => setOpenCloneDialog(true)}>
-            Download mods from Github
-          </CommandItem>
-          {openCloneDialog && <CloneModFormDialog open={openCloneDialog} setOpen={setOpenCloneDialog} />}
-          <CommandItem
-            key="cmd-all-mod-install"
-            onSelect={async () => {
-              await installAllMods();
-              await windowReload();
-            }}
-          >
-            🚀 Install all mods
-          </CommandItem>
-          <CommandItem
-            key="cmd-all-mod-uninstall"
-            onSelect={async () => {
-              await uninstallAllMods();
-              await windowReload();
-            }}
-          >
-            🗑 Uninstall all mods
-          </CommandItem>
-          <CommandItem
-            key="cmd-all-mod-install"
-            onSelect={async () => {
-              await gitFetchAllMods();
-              await windowReload();
-            }}
-          >
-            ✨ Fetch version info
-          </CommandItem>
-        </CommandGroup>
-      </CommandList>
-    </CommandDialog>
+    <>
+      <p className="text-sm text-muted-foreground cursor-pointer" onClick={() => setOpen(true)}>
+        <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+          <span className="text-xs">⌘</span>P
+        </kbd>
+      </p>
+      <CommandDialog open={open} onOpenChange={setOpen}>
+        <CommandInput placeholder="🤖< ナニニシマスカ?" />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandGroup heading="Mod操作">
+            <CommandItem key="cmd-mod-clone" onSelect={() => setOpenCloneDialog(true)}>
+              🧬 Clone mod repository
+            </CommandItem>
+            {openCloneDialog && <CloneModFormDialog open={openCloneDialog} setOpen={setOpenCloneDialog} />}
+            <CommandItem
+              key="cmd-all-mod-install"
+              onSelect={async () => {
+                await installAllMods();
+                await windowReload();
+              }}
+            >
+              🚀 Activate all mods
+            </CommandItem>
+            <CommandItem
+              key="cmd-all-mod-uninstall"
+              onSelect={async () => {
+                await uninstallAllMods();
+                await windowReload();
+              }}
+            >
+              🗑 Deactivate all mods
+            </CommandItem>
+            <CommandItem
+              key="cmd-all-mod-install"
+              onSelect={async () => {
+                await gitFetchAllMods();
+                await windowReload();
+              }}
+            >
+              ✨ Fetch remote version info
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+    </>
   );
 }

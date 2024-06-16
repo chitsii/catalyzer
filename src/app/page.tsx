@@ -51,7 +51,7 @@ import { AnimatePresence, motion } from "framer-motion";
 // i18n
 import "@/i18n/config";
 import { LanguageSelector } from "@/components/language-selector";
-import { useTranslation } from "@/i18n/config"; //"next-i18next";
+import { useTranslation } from "@/i18n/config";
 
 const profileFormSchema = z.object({
   name: z.string().min(1).max(20).trim(),
@@ -591,12 +591,12 @@ export default function Home() {
               <TabsContent value="setting">
                 <div className="flex min-h-[calc(97vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
                   <div className="mx-auto grid w-full max-w-6xl gap-2">
-                    <h1 className="text-3xl font-semibold">
+                    <h1 className="text-xl font-semibold">
                       {/* 設定 */}
                       {t("settings")}
                     </h1>
                   </div>
-                  <div className="mx-auto grid w-full max-w-6xl items-start gap-6 md:grid-cols-[180px_1fr] lg:grid-cols-[250px_1fr]">
+                  <div className="mx-auto grid w-full max-w-6xl items-start gap-6">
                     <ScrollArea>
                       <Card id="theme_setting" className="border-none">
                         <CardHeader>
@@ -612,7 +612,8 @@ export default function Home() {
                       <Card id="language_setting" className="border-none">
                         <CardHeader>
                           <CardTitle>
-                            {/* 言語 */}/{t("language")}
+                            {/* 言語 */}
+                            {t("language")}
                           </CardTitle>
                         </CardHeader>
                         <CardContent>

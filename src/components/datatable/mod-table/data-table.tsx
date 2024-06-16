@@ -63,8 +63,8 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
 
   return (
     <>
-      <div className="flex">
-        <div className="w-full flex items-center pb-2 justify-self-start">
+      <div className="my-2 flex justify-items-center items-center">
+        <div className="w-full">
           <Input
             placeholder="Search mods..."
             autoComplete="off"

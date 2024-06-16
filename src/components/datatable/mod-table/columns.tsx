@@ -120,7 +120,7 @@ export const columns: ColumnDef<Mod>[] = [
           {isNonEmptyStringOrArray(info.maintainers) && (
             <p className="text-xs text-muted-foreground">保守 {info.maintainers}</p>
           )}
-          {info.category && <Badge variant="category">{info.category}</Badge>}
+          {/* {info.category && <Badge variant="category">{info.category}</Badge>} */}
         </div>
       );
     },
