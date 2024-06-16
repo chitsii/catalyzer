@@ -46,7 +46,8 @@ const settingAtom = atomWithSuspenseQuery((get) => ({
   enabled: typeof window !== "undefined",
   queryKey: [get(refreshSettingState)],
   queryFn: async () => {
-    return getSettings();
+    const res = await getSettings();
+    return res;
   },
   staleTime: Infinity,
   refetchOnMount: "always",

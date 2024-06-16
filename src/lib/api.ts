@@ -2,7 +2,7 @@ import { Mod } from "@/components/datatable/mod-table/columns";
 import { popUp } from "@/lib/utils";
 import { createId } from "@paralleldrive/cuid2";
 import { error, info, debug } from "tauri-plugin-log-api";
-import { invoke } from "@tauri-apps/api/tauri";
+import { invoke } from "@tauri-apps/api/core";
 import { Settings } from "@/components/atoms";
 
 /// invoke_safe is a wrapper to safely execute invoke.

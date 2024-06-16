@@ -14,12 +14,12 @@ mod prelude {
 }
 
 use log::LevelFilter;
-use tauri_plugin_log::{LogTarget, RotationStrategy, TimezoneStrategy};
+use tauri::Manager;
+use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 
 use prelude::*;
 
 use std::{fs::read_to_string, process::Command};
-use tauri::Manager;
 
 mod logic;
 
@@ -40,13 +40,20 @@ fn main() {
     let app_state = AppState::new();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         // .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
-                    LogTarget::Stdout,
-                    LogTarget::Webview,
-                    LogTarget::Folder(crate::profile::get_executable_dir().join("logs")),
+                    Target::new(TargetKind::Stdout),
+                    Target::new(TargetKind::Webview),
+                    Target::new(TargetKind::Folder {
+                        path: crate::profile::get_executable_dir().join("logs"),
+                        file_name: Some("catalyzer.log".to_string()),
+                    }),
                 ])
                 .timezone_strategy(TimezoneStrategy::UseLocal)
                 .rotation_strategy(RotationStrategy::KeepOne)
@@ -56,11 +63,12 @@ fn main() {
         )
         .setup(|app| {
             info!("=======================");
-            info!("  Welcome, Surviver！  ");
+            info!("  Welcome, Survivor！  ");
             info!("=======================\n\n");
             // 開発時だけdevtoolsを表示する。
             #[cfg(debug_assertions)]
-            app.get_window("main").unwrap().open_devtools();
+            app.get_webview_window("main").unwrap().open_devtools();
+            // app.get_window("main").unwrap().open_devtools();
             Ok(())
         })
         .manage(app_state)

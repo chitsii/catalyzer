@@ -37,7 +37,7 @@ import { useAtom } from "jotai";
 import { refreshModsAtom, modsAtom, settingAtom, Profile, refreshSettingAtom } from "@/components/atoms";
 
 // Utils
-import { ask } from "@tauri-apps/api/dialog";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { popUp, windowReload } from "@/lib/utils";
 import { addProfile, setProfileActive, removeProfile, editProfile, unzipModArchive, launchGame } from "@/lib/api";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -493,20 +493,70 @@ export default function Home() {
 
   useEffect(() => {
     const setUpDropEvent = async () => {
-      const window = await import("@tauri-apps/api/window");
-      const { appWindow } = window;
-      appWindow.onFileDropEvent(async (ev) => {
-        if (ev.payload.type !== "drop") return;
-        const does_install = await ask("ドロップしたファイルをModディレクトリに解凍しますか？", "Catalyzer");
-        if (!does_install) return;
-        const [filepath] = ev.payload.paths;
-        if (path.extname(filepath) === ".zip") {
-          unzipModArchive(filepath);
-          return;
+      const { getCurrent } = await import("@tauri-apps/api/webviewWindow");
+      const unlisten = await getCurrent().onDragDropEvent(async (ev) => {
+        if (ev.payload.type === "dropped") {
+          const does_install = await ask(
+            `ZipファイルをModディレクトリに解凍しますか？\n${ev.payload.paths}`,
+            "Catalyzer",
+          );
+          if (!does_install) return;
+          const [filepath] = ev.payload.paths;
+          if (path.extname(filepath) === ".zip") {
+            unzipModArchive(filepath);
+            return;
+          } else {
+            popUp("failed", "サポートしていないファイル形式です。");
+          }
         } else {
-          popUp("failed", "サポートしていないファイル形式です。");
+          return;
         }
       });
+
+      return () => {
+        unlisten();
+      };
+
+      // appWindow.onDragDropEvent(async (ev: any) => {
+      //   // onFileDropEvent(async (ev: any) => {
+      //   if (ev.payload.type !== "drop") return;
+      //   const does_install = await ask("ドロップしたファイルをModディレクトリに解凍しますか？", "Catalyzer");
+      //   if (!does_install) return;
+      //   const [filepath] = ev.payload.paths;
+      //   if (path.extname(filepath) === ".zip") {
+      //     unzipModArchive(filepath);
+      //     return;
+      //   } else {
+      //     popUp("failed", "サポートしていないファイル形式です。");
+      //   }
+      // });
+
+      // * import { getCurrent } from "@tauri-apps/api/webview";
+      // * const unlisten = await getCurrent().onDragDropEvent((event) => {
+      // *  if (event.payload.type === 'hover') {
+      // *    console.log('User hovering', event.payload.paths);
+      // *  } else if (event.payload.type === 'drop') {
+      // *    console.log('User dropped', event.payload.paths);
+      // *  } else {
+      // *    console.log('File drop cancelled');
+      // *  }
+      // * });
+      // *
+      // * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+      // * unlisten();
+
+      // appWindow.onFileDropEvent(async (ev: any) => {
+      //   if (ev.payload.type !== "drop") return;
+      //   const does_install = await ask("ドロップしたファイルをModディレクトリに解凍しますか？", "Catalyzer");
+      //   if (!does_install) return;
+      //   const [filepath] = ev.payload.paths;
+      //   if (path.extname(filepath) === ".zip") {
+      //     unzipModArchive(filepath);
+      //     return;
+      //   } else {
+      //     popUp("failed", "サポートしていないファイル形式です。");
+      //   }
+      // });
     };
 
     const setUpDropEventAndAttachLogger = async () => {

@@ -39,7 +39,7 @@ import {
   unzipModArchive,
   fetchMods,
 } from "@/lib/api";
-import { open, ask } from "@tauri-apps/api/dialog";
+import { open, ask } from "@tauri-apps/plugin-dialog";
 
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {

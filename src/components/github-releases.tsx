@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { fetch } from "@tauri-apps/api/http";
+import { fetch } from "@tauri-apps/plugin-http";
 import { GithubRelease } from "@/lib/types/github-release";
 import { Button } from "@/components/ui/button";
 
