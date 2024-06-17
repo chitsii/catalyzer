@@ -1,7 +1,6 @@
 import { Mod } from "@/components/datatable/mod-table/columns";
 import { popUp } from "@/lib/utils";
 import { createId } from "@paralleldrive/cuid2";
-// import { error, info, debug } from "tauri-plugin-log-api";
 
 import { debug, trace, info, error, attachConsole } from "@tauri-apps/plugin-log";
 

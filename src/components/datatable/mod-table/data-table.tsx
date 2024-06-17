@@ -83,7 +83,7 @@ export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTa
           <CommandPalette />
         </div>
       </div>
-      <ScrollArea className="h-[480px] rounded-md border">
+      <ScrollArea className="h-[550px] rounded-md border">
         <Table style={{ width: table.getTotalSize() }}>
           <TableHeader className="sticky top-0 bg-secondary">
             {table.getHeaderGroups().map((headerGroup) => (

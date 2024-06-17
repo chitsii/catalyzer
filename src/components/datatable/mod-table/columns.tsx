@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { info, error, debug } from "tauri-plugin-log-api";
+import { info, error, debug } from "@tauri-apps/plugin-log";
 import { ColumnDef, RowData } from "@tanstack/react-table";
 import { GitGraphIcon, FolderSymlink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,15 +18,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Toggle } from "@/components/ui/toggle";
 import {
-  Drawer,
-  // DrawerClose,
-  DrawerContent,
-  // DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isNonEmptyStringOrArray, popUp } from "@/lib/utils";
@@ -96,7 +95,7 @@ export const columns: ColumnDef<Mod>[] = [
       const info: ModInfo = row.getValue("info");
       if (info == null) return null;
       return (
-        <div>
+        <div className="leading-tight">
           {info.name && (
             <div>
               <p
@@ -113,12 +112,12 @@ export const columns: ColumnDef<Mod>[] = [
             </div>
           )}
           {isNonEmptyStringOrArray(info.authors) && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[10px] text-muted-foreground">
               作成 {Array.isArray(info.authors) ? info.authors.map((author) => author).join(",") : info.authors}
             </p>
           )}
           {isNonEmptyStringOrArray(info.maintainers) && (
-            <p className="text-xs text-muted-foreground">保守 {info.maintainers}</p>
+            <p className="text-[10px] text-muted-foreground">保守 {info.maintainers}</p>
           )}
           {/* {info.category && <Badge variant="category">{info.category}</Badge>} */}
         </div>
@@ -204,6 +203,7 @@ export const columns: ColumnDef<Mod>[] = [
 
       const [branches, setBranches] = React.useState<string[]>(["foo", "bar"]);
       const [dialogOpen, setDialogOpen] = React.useState(false);
+      const [dropdownOpen, setDropdownOpen] = React.useState(false);
       const [uploadFilePath, setUploadFilePath] = React.useState<string>("");
       const [newBranchName, setNewBranchName] = React.useState<string>("");
 
@@ -217,9 +217,21 @@ export const columns: ColumnDef<Mod>[] = [
         <div>
           {local_version ? (
             <>
-              <DropdownMenu>
+              <DropdownMenu
+                onOpenChange={(isOpen) => {
+                  if (isOpen) {
+                    fetchBranches();
+                  }
+                  setDropdownOpen(isOpen);
+                }}
+                open={dropdownOpen}
+              >
                 <DropdownMenuTrigger asChild>
-                  <Button variant="notInstalled" size="sm" className="ml-2 text-[10px]" onMouseEnter={fetchBranches}>
+                  <Button
+                    variant="notInstalled"
+                    className="w-16 h-10 p-0 ml-2 text-[10px] break-all line-clamp-2 whitespace-normal"
+                    onMouseEnter={fetchBranches}
+                  >
                     {local_version.branchName}
                   </Button>
                 </DropdownMenuTrigger>
@@ -284,146 +296,135 @@ export const columns: ColumnDef<Mod>[] = [
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={(e) => {
-                      e.preventDefault();
+                      setDropdownOpen(false);
+                      setDialogOpen(true);
                     }}
-                  >
-                    <Drawer open={dialogOpen} onOpenChange={setDialogOpen}>
-                      <DrawerTrigger>
-                        <div className="flex gap-1">
-                          <GitGraphIcon size={16} />
-                          {/* 新規断面を作成 */}
-                          {table.options.meta?.t("mod_create_new_branch")}
-                        </div>
-                      </DrawerTrigger>
-                      <DrawerContent
-                        onInteractOutside={(e) => {
-                          e.preventDefault();
-                        }}
-                      >
-                        <DrawerHeader>
-                          <DrawerTitle>
-                            {table.options.meta?.t("mod_create_new_branch")}: {row.original.info.name}
-                          </DrawerTitle>
-                        </DrawerHeader>
-                        <div className="flex place-content-center">
-                          <form>
-                            <div className="flex-none">
-                              <Label htmlFor="newBranchName" className="text-xs">
-                                {/* ブランチ名 */}
-                                {table.options.meta?.t("mod_branch_name")}
-                              </Label>
-                              <Input
-                                key="newBranchName"
-                                type="text"
-                                autoComplete="off"
-                                autoCorrect="off"
-                                autoCapitalize="off"
-                                spellCheck="false"
-                                name="newBranchName"
-                                id="newBranchName"
-                                placeholder="0.G, experimental, 20240606 etc..."
-                                className="w-[450px]"
-                                onChange={async (e) => {
-                                  setNewBranchName(e.target.value);
-                                }}
-                              />
-                              <p className="text-xs">
-                                {"> "}
-                                {newBranchName}
-                              </p>
-                            </div>
-                            <div className="flex-none">
-                              <Label htmlFor="zip_file" className="text-xs">
-                                {/* zipファイル */}
-                                {table.options.meta?.t("zip_file")}
-                              </Label>
-                              <p className="text-xs">
-                                {uploadFilePath
-                                  ? path.parse(uploadFilePath).base
-                                  : // "ファイルが選択されていません"
-                                    table.options.meta?.t("file_not_selected")}
-                              </p>
-                              <Button
-                                type="button"
-                                size="sm"
-                                onClick={async () => {
-                                  const pathModule = await import("@tauri-apps/api/path");
-                                  const { downloadDir } = pathModule;
-
-                                  const selected = await open({
-                                    directory: false,
-                                    multiple: false,
-                                    filters: [{ name: "Zip", extensions: ["zip"] }],
-                                    defaultPath: await downloadDir(),
-                                  });
-                                  if (selected == null || Array.isArray(selected)) {
-                                    return;
-                                  } else {
-                                    setUploadFilePath(
-                                      selected.path, // .replace(/\\/g, "/")
-                                    );
-                                  }
-                                }}
-                              >
-                                {/* ファイルを選択... */}
-                                {table.options.meta?.t("select_zip_file")}
-                              </Button>
-                            </div>
-                            <br />
+                  ></DropdownMenuItem>
+                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogTrigger>
+                      <div className="flex gap-1">
+                        <GitGraphIcon size={16} />
+                        {/* 新規断面を作成 */}
+                        {table.options.meta?.t("mod_create_new_branch")}
+                      </div>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>
+                          {table.options.meta?.t("mod_create_new_branch")}: {row.original.info.name}
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="flex place-content-center">
+                        <form className="flex-none">
+                          <Label htmlFor="newBranchName" className="text-xs">
+                            {/* ブランチ名 */}
+                            {table.options.meta?.t("mod_branch_name")}
+                          </Label>
+                          <Input
+                            key="newBranchName"
+                            type="text"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            name="newBranchName"
+                            id="newBranchName"
+                            placeholder="0.H, experimental, 20240606 etc..."
+                            className="w-[450px]"
+                            onChange={(e) => {
+                              setNewBranchName(e.target.value);
+                            }}
+                          />
+                          <p className="text-xs">
+                            {"> "}
+                            {newBranchName}
+                          </p>
+                          <div className="flex-none">
+                            <Label htmlFor="zip_file" className="text-xs">
+                              {/* zipファイル */}
+                              {table.options.meta?.t("zip_file")}
+                            </Label>
+                            <p className="text-xs">
+                              {uploadFilePath
+                                ? path.parse(uploadFilePath).base
+                                : // "ファイルが選択されていません"
+                                  table.options.meta?.t("file_not_selected")}
+                            </p>
                             <Button
+                              type="button"
                               size="sm"
-                              onClick={async (e: any) => {
-                                let yes = await ask("新規断面を作成しますか？");
-                                if (!yes) return;
+                              onClick={async () => {
+                                const pathModule = await import("@tauri-apps/api/path");
+                                const { downloadDir } = pathModule;
 
-                                //作業中のデータ削除
-                                gitCommand("git_reset_changes", {
-                                  targetDir: row.original.localPath,
+                                const selected = await open({
+                                  directory: false,
+                                  multiple: false,
+                                  filters: [{ name: "Zip", extensions: ["zip"] }],
+                                  defaultPath: await downloadDir(),
                                 });
-
-                                // ブランチを作成, 既存ファイルを削除
-                                const input_branch_name = newBranchName;
-
-                                if (input_branch_name == null) {
-                                  popUp("failed", "ブランチ名が入力されていません！");
+                                if (selected == null || Array.isArray(selected)) {
                                   return;
+                                } else {
+                                  setUploadFilePath(selected.path);
                                 }
-                                gitCommand("git_checkout", {
-                                  targetDir: row.original.localPath,
-                                  targetBranch: input_branch_name,
-                                  createIfUnexist: true,
-                                });
-                                debug("checkout done.");
-
-                                // zipファイルを展開
-                                if (!!uploadFilePath) {
-                                  unzipModArchive(uploadFilePath, true);
-                                  debug("unzip done.");
-
-                                  // commit changes
-                                  gitCommand("git_commit_changes", {
-                                    targetDir: row.original.localPath,
-                                  });
-                                }
-
-                                gitCommand("git_reset_changes", {
-                                  targetDir: row.original.localPath,
-                                });
-
-                                // reload table
-                                table.options.meta?.fetchMods();
-                                // close dialog
-                                setDialogOpen(false);
                               }}
                             >
-                              OK
+                              {/* ファイルを選択... */}
+                              {table.options.meta?.t("select_zip_file")}
                             </Button>
-                          </form>
-                        </div>
-                        <DrawerFooter></DrawerFooter>
-                      </DrawerContent>
-                    </Drawer>
-                  </DropdownMenuItem>
+                          </div>
+                          <br />
+                          <Button
+                            size="sm"
+                            onClick={(e: any) => {
+                              //作業中のデータ削除
+                              gitCommand("git_reset_changes", {
+                                targetDir: row.original.localPath,
+                              });
+
+                              // ブランチを作成, 既存ファイルを削除
+                              const input_branch_name = newBranchName;
+
+                              if (input_branch_name == null) {
+                                popUp("failed", "ブランチ名が入力されていません！");
+                                return;
+                              }
+                              gitCommand("git_checkout", {
+                                targetDir: row.original.localPath,
+                                targetBranch: input_branch_name,
+                                createIfUnexist: true,
+                              });
+                              debug("checkout done.");
+
+                              // zipファイルを展開
+                              if (!!uploadFilePath) {
+                                unzipModArchive(uploadFilePath, true);
+                                debug("unzip done.");
+
+                                // commit changes
+                                gitCommand("git_commit_changes", {
+                                  targetDir: row.original.localPath,
+                                });
+                              }
+
+                              gitCommand("git_reset_changes", {
+                                targetDir: row.original.localPath,
+                              });
+
+                              // reload table
+                              table.options.meta?.fetchMods();
+                              // close dialog
+                              setDialogOpen(false);
+                            }}
+                          >
+                            OK
+                          </Button>
+                        </form>
+                      </div>
+                      <DialogFooter></DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
@@ -431,7 +432,10 @@ export const columns: ColumnDef<Mod>[] = [
             <>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="notInstalled" size="sm" className="ml-2 text-[10px]">
+                  <Button
+                    variant="notInstalled"
+                    className="w-16 h-10 p-0 ml-2 text-[10px] break-all line-clamp-2 whitespace-normal"
+                  >
                     N/A
                   </Button>
                 </DropdownMenuTrigger>
@@ -492,8 +496,11 @@ export const columns: ColumnDef<Mod>[] = [
             <FolderSymlink
               strokeWidth={3}
               size={22}
-              color={isInstalled ? "green" : "gray"}
-              className="cursor-pointer"
+              className={
+                isInstalled
+                  ? "text-emerald-300 cursor-pointer transition-colors duration-400 ease-in-out"
+                  : "text-gray-600 cursor-pointer transition-colors duration-400 ease-in-out"
+              }
             />
           </Toggle>
         </>

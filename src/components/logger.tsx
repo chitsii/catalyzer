@@ -3,7 +3,6 @@
 import React, { useEffect, useRef } from "react";
 import { useAtom } from "jotai";
 import { logTextAtom } from "@/components/atoms";
-// import { attachLogger } from "tauri-plugin-log-api";
 import { attachLogger } from "@tauri-apps/plugin-log";
 import { tailLog } from "@/lib/api";
 

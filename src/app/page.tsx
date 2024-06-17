@@ -10,7 +10,7 @@ import path from "path";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { CheckIcon, PencilIcon, Trash2Icon, Edit3, LucideExternalLink, Play, Languages } from "lucide-react";
+import { CheckIcon, PencilIcon, Trash2Icon, Edit3, LucideExternalLink, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -40,7 +40,15 @@ import { refreshModsAtom, modsAtom, settingAtom, Profile, refreshSettingAtom } f
 // Utils
 import { ask } from "@tauri-apps/plugin-dialog";
 import { popUp, windowReload } from "@/lib/utils";
-import { addProfile, setProfileActive, removeProfile, editProfile, unzipModArchive, launchGame } from "@/lib/api";
+import {
+  addProfile,
+  setProfileActive,
+  removeProfile,
+  editProfile,
+  unzipModArchive,
+  launchGame,
+  openLocalDir,
+} from "@/lib/api";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -422,14 +430,26 @@ const ProfileSwitcher = () => {
               <p>
                 {/* Gameパス */}
                 {t("game_path")}:
-                <span className="line-clamp-2 bg-accent text-accent-foreground">{currentProfile.game_path}</span>
+                <span
+                  className="cursor-pointer line-clamp-2 bg-accent text-accent-foreground hover:underline"
+                  onClick={() => {
+                    openLocalDir(path.parse(currentProfile.game_path).dir);
+                  }}
+                >
+                  {currentProfile.game_path}
+                </span>
               </p>
             ) : null}
             {!!currentProfile.profile_path.root ? (
               <p>
                 {/* ユーザファイル */}
                 {t("userfile")}:
-                <span className="line-clamp-2 bg-accent text-accent-foreground">
+                <span
+                  className="cursor-pointer line-clamp-2 bg-accent text-accent-foreground hover:underline"
+                  onClick={() => {
+                    openLocalDir(currentProfile.profile_path.root);
+                  }}
+                >
                   {currentProfile.profile_path.root}
                 </span>
               </p>
