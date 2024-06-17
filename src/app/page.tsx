@@ -31,6 +31,7 @@ import { ModsTable } from "@/components/datatable/mod-table/table-mods";
 import CSR from "@/components/csr/csr";
 import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { AreaForLog } from "@/components/logger";
+import { getSettings } from "@/lib/api";
 
 // State
 import { useAtom } from "jotai";
@@ -51,7 +52,7 @@ import { AnimatePresence, motion } from "framer-motion";
 // i18n
 import "@/i18n/config";
 import { LanguageSelector } from "@/components/language-selector";
-import { useTranslation } from "@/i18n/config";
+import { useTranslation, i18n } from "@/i18n/config";
 
 const profileFormSchema = z.object({
   name: z.string().min(1).max(20).trim(),
@@ -511,10 +512,25 @@ const KaniMenu = () => {
 
 let IS_LOGGER_ATTACHED = false;
 
+const LanguageSetter = () => {
+  if (typeof window === "undefined") return <></>;
+  useEffect(() => {
+    const _st = async () => {
+      const setting = await getSettings();
+      return setting;
+    };
+    _st().then((setting) => {
+      i18n.changeLanguage(setting.language);
+    });
+  }, []);
+  return <></>;
+};
+
 export default function Home() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   useEffect(() => {
+    // ロガーがアタッチされていない場合はアタッチする
     const setUpDropEvent = async () => {
       const { getCurrent } = await import("@tauri-apps/api/webviewWindow");
       const unlisten = await getCurrent().onDragDropEvent(async (ev) => {
@@ -540,14 +556,12 @@ export default function Home() {
         unlisten();
       };
     };
-
     const setUpDropEventAndAttachLogger = async () => {
       if (!IS_LOGGER_ATTACHED) {
         await setUpDropEvent();
         IS_LOGGER_ATTACHED = true;
       }
     };
-
     setUpDropEventAndAttachLogger();
   }, []);
 
@@ -560,6 +574,7 @@ export default function Home() {
         e.preventDefault();
       }}
     >
+      <LanguageSetter />
       <AnimatePresence mode="wait">
         <motion.div
           initial={{ opacity: 0, scaleY: 0 }}

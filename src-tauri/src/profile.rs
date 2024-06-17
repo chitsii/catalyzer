@@ -222,6 +222,11 @@ impl Settings {
         }
     }
 
+    pub fn set_language(&mut self, lang: &str) {
+        self.language = lang.to_string();
+        self.write_file();
+    }
+
     pub fn add_profile(&mut self, new_profile: Profile) {
         new_profile.create_dir_if_unexist();
         self.profiles.push(new_profile.clone());
@@ -540,6 +545,17 @@ pub mod commands {
             settings.profiles[index].name = name;
         }
         settings.profiles[index].game_path = game_path.map(PathBuf::from);
+        settings.write_file();
+        Ok(())
+    }
+
+    #[tauri::command]
+    pub fn set_launcher_language(
+        state: tauri::State<'_, AppState>,
+        lang: String,
+    ) -> Result<(), String> {
+        let mut settings = state.settings.lock().unwrap();
+        settings.set_language(&lang);
         settings.write_file();
         Ok(())
     }

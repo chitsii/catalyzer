@@ -68,7 +68,6 @@ const getSettings = async () =>
       profiles: [],
     },
   );
-
 const addProfile = async (name: string, gamePath: string) => {
   const args = {
     id: createId(),
@@ -77,9 +76,7 @@ const addProfile = async (name: string, gamePath: string) => {
   };
   await invoke_safe("add_profile", args);
 };
-
 const removeProfile = async (profileId: string) => await invoke_safe("remove_profile", { profileId: profileId });
-
 const editProfile = async (profileId: string, name: string, gamePath: string) => {
   const args = {
     profileId: profileId,
@@ -88,12 +85,24 @@ const editProfile = async (profileId: string, name: string, gamePath: string) =>
   };
   await invoke_safe("edit_profile", args);
 };
-
 const setProfileActive = async (profileId: string) => await invoke_safe("set_profile_active", { profileId: profileId });
+
+import { useTranslation } from "@/i18n/config"; //"next-i18next";
+const setLanguage = async (i18n: ReturnType<typeof useTranslation>["i18n"], language: string) => {
+  if (language === i18n.resolvedLanguage) return;
+
+  const set_language = await invoke_safe("set_launcher_language", { lang: language });
+  if (set_language !== i18n.resolvedLanguage) {
+    i18n.changeLanguage(language);
+  } else {
+    popUp("failed", "failed to set language.");
+  }
+};
 
 const tailLog = async () => await invoke_safe<String[]>("tail_log", {}, []);
 
 export {
+  setLanguage,
   gitFetch,
   gitFetchAllMods,
   cloneModRepo,

@@ -95,6 +95,7 @@ fn main() {
             profile::commands::edit_profile,
             profile::commands::set_profile_active,
             profile::commands::get_active_profile,
+            profile::commands::set_launcher_language,
         ])
         .run(tauri::generate_context!())
         .unwrap_or_else(|e| {

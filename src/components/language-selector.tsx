@@ -4,6 +4,7 @@ import { Globe2 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { cn } from "@/lib/utils";
 import { useTranslation } from "@/i18n/config"; //"next-i18next";
+import { setLanguage } from "@/lib/api";
 
 const LANGUAGES = {
   en: { nativeName: "English" },
@@ -41,7 +42,10 @@ const LanguageSelector = ({ i18n }: LanguageSelectorProps) => {
                   "flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-background hover:bg-foreground",
                   lang === i18n.resolvedLanguage && "bg-primary",
                 )}
-                onClick={() => i18n.changeLanguage(lang)}
+                onClick={async () => {
+                  // i18n.changeLanguage(lang)
+                  await setLanguage(i18n, lang);
+                }}
                 disabled={i18n.resolvedLanguage === lang}
               >
                 <span className="capitalize">{LANGUAGES[lang as keyof typeof LANGUAGES].nativeName}</span>
