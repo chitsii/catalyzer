@@ -50,8 +50,8 @@ fn main() {
                     Target::new(TargetKind::Stdout),
                     Target::new(TargetKind::Webview),
                     Target::new(TargetKind::Folder {
-                        path: crate::profile::get_executable_dir().join("logs"),
-                        file_name: Some("catalyzer.log".to_string()),
+                        path: crate::profile::get_app_data_dir().join("logs"),
+                        file_name: Some("catalyzer".to_string()),
                     }),
                 ])
                 .timezone_strategy(TimezoneStrategy::UseLocal)
@@ -67,7 +67,6 @@ fn main() {
             // 開発時だけdevtoolsを表示する。
             #[cfg(debug_assertions)]
             app.get_webview_window("main").unwrap().open_devtools();
-            // app.get_window("main").unwrap().open_devtools();
             Ok(())
         })
         .manage(app_state)
@@ -178,7 +177,7 @@ fn open_mod_data(state: tauri::State<'_, AppState>) {
 fn tail_log() -> Vec<String> {
     const MAX_LINES: usize = 20;
 
-    let log_path = profile::get_executable_dir().join("logs");
+    let log_path = profile::get_app_data_dir().join("logs");
     let log_file = log_path
         .read_dir()
         .unwrap()

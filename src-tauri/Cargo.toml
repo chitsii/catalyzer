@@ -17,8 +17,7 @@ tauri-build = { version = "2.0.0-beta", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "2.0.0-beta", features = [
-] }
+tauri = { version = "2.0.0-beta", features = [] }
 git2 = { version = "0.18.3", features = ["vendored-libgit2"] }
 chrono = "0.4"
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
@@ -34,6 +33,7 @@ tauri-plugin-dialog = "2.0.0-beta.9"
 tauri-plugin-http = "2.0.0-beta.9"
 tauri-plugin-fs = "2.0.0-beta.9"
 tauri-plugin-shell = "2.0.0-beta.7"
+dirs = "5.0.1"
 
 [target.x86_64-pc-windows-msvc.dependencies]
 junction = "1.1.0"

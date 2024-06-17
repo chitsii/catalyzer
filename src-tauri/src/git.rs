@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use git2::{Branch, BranchType, Repository, Signature};
+use git2::{Branch, Repository, Signature};
 use std::collections::HashSet;
 
 pub fn open(target_dir: String) -> Result<Repository, String> {
