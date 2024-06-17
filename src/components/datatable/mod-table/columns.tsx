@@ -243,10 +243,8 @@ export const columns: ColumnDef<Mod>[] = [
                         const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
                         // 現在と同じブランチには切り替えない
                         if (selectedBranchName == "") {
-                          // popUp("info", "未選択
                           return;
                         } else if (selectedBranchName == local_version.branchName) {
-                          // popUp("info", "既に選択されているバージョンです");
                           return;
                         }
                         gitCommand("git_checkout", {
@@ -329,7 +327,7 @@ export const columns: ColumnDef<Mod>[] = [
                             spellCheck="false"
                             name="newBranchName"
                             id="newBranchName"
-                            placeholder="0.H, experimental, 20240606 etc..."
+                            placeholder="0.H, yyyymm etc..."
                             className="w-[450px]"
                             onChange={(e) => {
                               setNewBranchName(e.target.value);
