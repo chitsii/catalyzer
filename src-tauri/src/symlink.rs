@@ -158,6 +158,7 @@ pub mod commands {
     ) -> Result<(), String> {
         unlink_target_subdir(Path::new(&mod_data_path), &state.get_game_mod_dir())
             .map_err(|e| format!("Failed to remove symlink: {}", e))?;
+        state.refresh_and_save_mod_status().unwrap();
         Ok(())
     }
 
@@ -175,6 +176,7 @@ pub mod commands {
                 }
             }
         }
+        state.refresh_and_save_mod_status().unwrap();
         Ok(())
     }
 
@@ -193,6 +195,7 @@ pub mod commands {
                 }
             }
         }
+        state.refresh_and_save_mod_status().unwrap();
         Ok(())
     }
 }
