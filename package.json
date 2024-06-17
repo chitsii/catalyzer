@@ -19,6 +19,7 @@
     "@radix-ui/react-hover-card": "^1.0.7",
     "@radix-ui/react-icons": "^1.3.0",
     "@radix-ui/react-label": "^2.0.2",
+    "@radix-ui/react-progress": "^1.0.3",
     "@radix-ui/react-scroll-area": "^1.0.5",
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-slot": "^1.0.2",
@@ -33,6 +34,8 @@
     "@tauri-apps/plugin-http": "^2.0.0-beta.5",
     "@tauri-apps/plugin-log": "^2.0.0-beta.6",
     "@tauri-apps/plugin-shell": "^2.0.0-beta.6",
+    "@tauri-apps/plugin-upload": "^2.0.0-beta.6",
+    "@xstate/react": "^4.1.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
@@ -56,6 +59,7 @@
     "tauri-plugin-log-api": "github:tauri-apps/tauri-plugin-log#v1",
     "vaul": "^0.9.0",
     "wonka": "^6.3.4",
+    "xstate": "^5.13.2",
     "zod": "^3.23.6"
   },
   "devDependencies": {

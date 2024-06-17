@@ -1,14 +1,8 @@
-// use embed_manifest::embed_manifest_file;
-
 fn main() {
-    // tauri::build();
-
     if cfg!(debug_assertions) {
         println!("DEV BUILD");
         tauri_build::build();
     } else {
-        // embed_manifest_file("manifest").expect("Failed to embed manifest file");
-
         let mut windows = tauri_build::WindowsAttributes::new();
         windows = windows.app_manifest(
         r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" xmlns:asmv3="urn:schemas-microsoft-com:asm.v3" manifestVersion="1.0">

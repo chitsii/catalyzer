@@ -7,7 +7,7 @@ license = ""
 repository = "https://github.com/chitsii/catalyzer"
 default-run = "catalyzer"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.75"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -34,6 +34,8 @@ tauri-plugin-http = "2.0.0-beta.9"
 tauri-plugin-fs = "2.0.0-beta.9"
 tauri-plugin-shell = "2.0.0-beta.7"
 dirs = "5.0.1"
+tauri-plugin-upload = "2.0.0-beta.7"
+
 
 [target.x86_64-pc-windows-msvc.dependencies]
 junction = "1.1.0"

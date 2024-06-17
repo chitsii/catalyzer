@@ -15,6 +15,7 @@ mod prelude {
 
 use log::LevelFilter;
 use tauri::Manager;
+use tauri::{LogicalPosition, LogicalSize, WebviewUrl};
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 
 use prelude::*;
@@ -44,6 +45,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_upload::init())
         .plugin(
             tauri_plugin_log::Builder::new()
                 .targets([
@@ -64,13 +66,15 @@ fn main() {
             info!("=======================");
             info!("  Welcome, Survivor！  ");
             info!("=======================\n\n");
+
             // 開発時だけdevtoolsを表示する。
-            #[cfg(debug_assertions)]
-            app.get_webview_window("main").unwrap().open_devtools();
+            // #[cfg(debug_assertions)]
+            // app.get_webview_window("main").unwrap().open_devtools();
             Ok(())
         })
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
+            create_profile_window,
             scan_mods,
             open_dir,
             open_mod_data,
@@ -101,6 +105,20 @@ fn main() {
             error!("Error while running tauri application: {}", e);
             std::process::exit(1);
         });
+}
+
+#[tauri::command]
+async fn create_profile_window(app: tauri::AppHandle) -> Result<(), String> {
+    match tauri::WebviewWindowBuilder::new(
+        &app,
+        "profile_window",
+        tauri::WebviewUrl::App("webviews/profile".into()),
+    )
+    .build()
+    {
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]
