@@ -66,9 +66,10 @@ const profileFormSchema = z.object({
 
 type ProfileFormProps = {
   targetProfile?: Profile;
+  isUpdate?: boolean;
   handleDialogItemOpenChange: (open: boolean) => void;
 };
-const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormProps) => {
+const ProfileForm = ({ targetProfile, isUpdate, handleDialogItemOpenChange }: ProfileFormProps) => {
   const { t } = useTranslation();
 
   const [_, refresh] = useAtom(refreshSettingAtom);
@@ -107,7 +108,15 @@ const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormP
     handleDialogItemOpenChange(false); // close dialog
   };
 
-  const InputField = ({ name, title }: { name: "name" | "game_path"; title: string }) => {
+  const InputField = ({
+    name,
+    title,
+    disabled,
+  }: {
+    name: "name" | "game_path";
+    title: string;
+    disabled?: boolean | undefined;
+  }) => {
     return (
       <FormField
         name={name}
@@ -116,7 +125,14 @@ const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormP
           <FormItem>
             <FormLabel className="text-xs">{title}</FormLabel>
             <FormControl>
-              <Input autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck="false" {...field} />
+              <Input
+                {...field}
+                disabled={disabled}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -128,8 +144,8 @@ const ProfileForm = ({ targetProfile, handleDialogItemOpenChange }: ProfileFormP
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-2">
-        {InputField({ name: "name", title: t("profile_name") })}
-        {InputField({ name: "game_path", title: t("game_path") })}
+        {InputField({ name: "name", title: t("profile_name"), disabled: isUpdate })}
+        {InputField({ name: "game_path", title: t("game_path"), disabled: false })}
         <Button
           type="submit"
           onClick={async () => {
@@ -322,6 +338,7 @@ const ProfileSwitcher = () => {
                               <ProfileForm
                                 handleDialogItemOpenChange={handleDialogItemOpenChange}
                                 targetProfile={profile}
+                                isUpdate={true}
                               />
                             </DialogItem>
                           );
