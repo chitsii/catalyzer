@@ -1,85 +1,6 @@
 use crate::prelude::*;
 use dmg::Handle;
-use dmgwiz::{DmgWiz, Verbosity};
-use std::{fs::File, io::BufWriter};
-
-fn extract_all(source_dmg: PathBuf, target_dir: PathBuf) -> Result<()> {
-    info!(
-        "Extracting DMG: {} to {}",
-        source_dmg.display(),
-        target_dir.display()
-    );
-    ensure!(
-        source_dmg.exists()
-            && source_dmg.is_file()
-            && source_dmg.extension().unwrap().eq_ignore_ascii_case("dmg"),
-        "Source file is not a DMG file or does not exist"
-    );
-    if !target_dir.exists() {
-        std::fs::create_dir_all(&target_dir)?;
-    }
-
-    let input = File::open(source_dmg)?;
-    let mut wiz = match DmgWiz::from_reader(input, Verbosity::Info) {
-        Err(e) => {
-            warn!("Failed to open DMG: {}", e);
-            return Err(anyhow!("Failed to open DMG: {}", e));
-        }
-        Ok(wiz) => wiz,
-    };
-
-    let outfile = File::create(target_dir.join("output")).unwrap();
-    let output = BufWriter::new(outfile);
-    match wiz.extract_all(output) {
-        Ok(bytes) => {
-            info!("Extracted {} bytes", bytes);
-            Ok(())
-        }
-        Err(e) => {
-            warn!("Failed to extract DMG: {}", e);
-            Err(anyhow!("Failed to extract DMG: {}", e))
-        }
-    }
-}
-
-fn extract_data(source_dmg: PathBuf, target_dir: PathBuf) -> Result<()> {
-    info!(
-        "Extracting DMG: {} to {}",
-        source_dmg.display(),
-        target_dir.display()
-    );
-    ensure!(
-        source_dmg.exists()
-            && source_dmg.is_file()
-            && source_dmg.extension().unwrap().eq_ignore_ascii_case("dmg"),
-        "Source file is not a DMG file or does not exist"
-    );
-    if !target_dir.exists() {
-        std::fs::create_dir_all(&target_dir)?;
-    }
-
-    let input = File::open(source_dmg)?;
-    let mut wiz = match DmgWiz::from_reader(input, Verbosity::Info) {
-        Err(e) => {
-            warn!("Failed to open DMG: {}", e);
-            return Err(anyhow!("Failed to open DMG: {}", e));
-        }
-        Ok(wiz) => wiz,
-    };
-
-    let outfile = File::create(target_dir.join("output")).unwrap();
-    let output = BufWriter::new(outfile);
-    match wiz.extract_partition(output, 4) {
-        Ok(bytes) => {
-            info!("Extracted {} bytes", bytes);
-            Ok(())
-        }
-        Err(e) => {
-            warn!("Failed to extract DMG: {}", e);
-            Err(anyhow!("Failed to extract DMG: {}", e))
-        }
-    }
-}
+use tauri::{AppHandle, Manager};
 
 fn mount(source_dmg: PathBuf) -> Result<Handle> {
     info!("Mounting DMG: {}", source_dmg.display());
@@ -90,33 +11,64 @@ fn mount(source_dmg: PathBuf) -> Result<Handle> {
         "Source file is not a DMG file or does not exist"
     );
     use dmg::Attach;
-    let mount_info = Attach::new(source_dmg).attach().expect("could not attach");
+    let mount_info = match Attach::new(source_dmg).attach() {
+        Ok(mount_info) => mount_info,
+        Err(e) => {
+            return Err(anyhow!("DMG is broken: {}", e));
+        }
+    };
     println!("Device node {:?}", mount_info.device);
     println!("Mounted at {:?}", mount_info.mount_point);
     Ok(mount_info)
 }
 
-fn mount_and_extract_dmg(source_dmg: PathBuf, target_dir: PathBuf) -> Result<()> {
-    let mount_info = mount(source_dmg)?;
-    let cdda_app = mount_info.mount_point.join("Cataclysm.app");
-    ensure!(
-        &cdda_app.exists(),
-        format!("Cataclysm.app not found in DMG: {:?}", &cdda_app)
-    );
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct Progress {
+    percent: f64,
+}
+
+fn copy(app_handle: AppHandle, cdda_path: PathBuf, target_dir: PathBuf) -> Result<()> {
     use fs_extra::dir::CopyOptions;
     let options = CopyOptions::new()
-        .buffer_size(1024 * 1024 * 10) // 10 MB
+        // .buffer_size(1024 * 1024 * 10) // 10 MB
         .overwrite(true);
     if !target_dir.exists() {
         std::fs::create_dir_all(&target_dir)?;
     }
-    let handle = |process_info: fs_extra::TransitProcess| {
-        info!("copied bytes {}", process_info.copied_bytes);
+
+    let mut last_emit = std::time::Instant::now();
+
+    let event_handle = |process_info: fs_extra::TransitProcess| {
+        if last_emit.elapsed() > std::time::Duration::from_millis(1000) {
+            info!(
+                "Copying {} of {} bytes",
+                process_info.copied_bytes, process_info.total_bytes
+            );
+            app_handle
+                .emit(
+                    "EXTRACT_PROGRESS",
+                    Progress {
+                        percent: (process_info.copied_bytes / process_info.total_bytes) as f64
+                            * 100.,
+                    },
+                )
+                .unwrap();
+            last_emit = std::time::Instant::now();
+        }
         fs_extra::dir::TransitProcessResult::ContinueOrAbort
     };
+    fs_extra::copy_items_with_progress(&[cdda_path.clone()], target_dir, &options, event_handle)?;
+    Ok(())
+}
 
-    fs_extra::copy_items_with_progress(&[cdda_app.clone()], target_dir, &options, handle)?;
-    mount_info.detach().expect("could not detach");
+fn mount_and_copy(handle: AppHandle, cdda_path: PathBuf, target_dir: PathBuf) -> Result<()> {
+    let mount_info = mount(cdda_path.clone())?;
+    copy(
+        handle,
+        mount_info.mount_point.join("Cataclysm.app"),
+        target_dir,
+    )?;
+    mount_info.detach()?;
     Ok(())
 }
 
@@ -124,15 +76,14 @@ pub mod commands {
     use super::*;
 
     #[tauri::command]
-    pub fn extract_dmg(source_dmg: String, target_dir: String) -> Result<(), String> {
-        // let dummy_source =
-        //     PathBuf::from("/Users/fanjiang/Downloads/CDDA OSX Tiles Universal 2024-06-18.dmg");
-        // let dummy_target =
-        //     PathBuf::from("/Users/fanjiang/Downloads/cdda-experimental-2024-06-18-0730/");
-        // extract_data(dummy_source, dummy_target).map_err(|e| e.to_string())
-        //
-        let source = PathBuf::from(source_dmg);
-        let target = PathBuf::from(target_dir);
-        mount_and_extract_dmg(source, target).map_err(|e| e.to_string())
+    pub fn extract_dmg(
+        handle: AppHandle,
+        source_dmg: String,
+        target_dir: String,
+    ) -> Result<(), String> {
+        let source_dmg = PathBuf::from(source_dmg);
+        let target_dir = PathBuf::from(target_dir);
+        mount_and_copy(handle, source_dmg, target_dir).map_err(|e| e.to_string())?;
+        Ok(())
     }
 }

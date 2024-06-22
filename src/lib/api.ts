@@ -101,8 +101,8 @@ const setLanguage = async (i18n: ReturnType<typeof useTranslation>["i18n"], lang
 
 const tailLog = async () => await invoke_safe<String[]>("tail_log", {}, []);
 
-const cddaStableReleases = async () => await invoke_safe("cdda_get_stable_releases", {});
-const cddaLatestReleases = async () => await invoke_safe("cdda_get_latest_releases", {});
+const cddaStableReleases = async (num: number) => await invoke_safe("cdda_get_stable_releases", { num: num });
+const cddaLatestReleases = async (num: number) => await invoke_safe("cdda_get_latest_releases", { num: num });
 const isCddaCloned = async () => await invoke_safe("cdda_is_cloned", {});
 const cddaPullRebase = async () => await invoke_safe("cdda_pull_rebase", {});
 

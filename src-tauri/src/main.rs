@@ -174,7 +174,7 @@ async fn create_profile_window(app: tauri::AppHandle) -> Result<(), String> {
         "profile_window",
         tauri::WebviewUrl::App("webviews/profile".into()),
     )
-    .inner_size(600., 400.)
+    .inner_size(800., 400.)
     .build()
     {
         Ok(_) => Ok(()),
@@ -321,6 +321,12 @@ fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
 
     let resource_dir = game_path.join("Contents").join("Resources");
     resource_dir.try_exists().unwrap();
+
+    // 実行権限付与
+    Command::new("chmod")
+        .args(["+x", resource_dir.join("cataclysm-tiles").to_str().unwrap()])
+        .spawn()
+        .map_err(|e| format!("Failed to launch the game: {}", e))?;
 
     // refer to: Cataclysm.app/Contents/MacOS/Cataclysm.sh
     Command::new("sh")

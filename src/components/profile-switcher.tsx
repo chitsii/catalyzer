@@ -21,15 +21,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-// import { BgAnimateButton } from "@/components/bg-animate-button";
-
 // State
 import { useAtom } from "jotai";
 import { settingAtom, refreshSettingAtom } from "@/components/atoms";
 
 // Utils
 import { windowReload } from "@/lib/utils";
-import { setProfileActive, removeProfile, openLocalDir } from "@/lib/api";
+import { invoke_safe, setProfileActive, removeProfile, openLocalDir } from "@/lib/api";
 
 // i18n
 import "@/i18n/config";
@@ -98,9 +96,17 @@ const ProfileSwitcher = () => {
   };
 
   const currentProfile = profileList.find((p) => p.is_active);
+
+  // <button
+  //   onClick={() => {
+  //     invoke_safe("create_profile_window", {});
+  //   }}
+  // >
+  //   make new window
+  // </button>
   return (
     <div className="flex w-full">
-      <div className="w-1/3 mb-2">
+      <div className="w-1/2 mb-2">
         <p className="text-xl font-semibold">Catalyzer</p>
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           {/* 現在のプリセット: */}
@@ -111,10 +117,10 @@ const ProfileSwitcher = () => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="hover:bg-primary-background" ref={dropdownTriggerRef}>
                 <Badge
-                  className="w-24
-                  bg-gradient-to-r from-orange-500 to-purple-500 text-white rounded-full
+                  className="w-40 text-white
+                  bg-gradient-to-r from-orange-500 to-purple-500 rounded-full
                   hover:from-blue-600 hover:to-purple-600 hover:text-yellow-300
-                  break-all whitespace-normal line-clamp-3"
+                  whitespace-normal line-clamp-3 break-words leading-tight"
                 >
                   {currentProfile ? currentProfile.name : "No Profile"}
                 </Badge>
@@ -167,7 +173,51 @@ const ProfileSwitcher = () => {
                     triggerChildren={
                       <>
                         <LucideExternalLink className="mr-4 h-4 w-4" />
-                        <span>新規追加</span>
+                        <span>ゲームを選んで追加</span>
+                      </>
+                    }
+                    onSelect={() => {
+                      invoke_safe("create_profile_window", {});
+                    }}
+                    onOpenChange={handleDialogItemOpenChange}
+                  >
+                    <>
+                      {/* <DialogTitle className="DialogTitle">Pause</DialogTitle> */}
+                      <div className="absolute bg-white bg-opacity-20 z-10 h-full w-full flex items-center justify-center">
+                        <div className="flex items-center">
+                          <span className="text-xl mr-4">😴 Escで解除</span>
+                          <svg
+                            className="animate-spin h-8 w-8 text-gray-800"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              stroke-width="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                        </div>
+                      </div>
+                    </>
+                  </DialogItem>
+
+                  <DropdownMenuSeparator />
+
+                  <DialogItem
+                    triggerChildren={
+                      <>
+                        <LucideExternalLink className="mr-4 h-4 w-4" />
+                        <span>手動追加</span>
                       </>
                     }
                     onSelect={handleDialogItemSelect}
@@ -177,7 +227,9 @@ const ProfileSwitcher = () => {
                     <DialogDescription className="DialogDescription">プロファイルを新規追加します。</DialogDescription>
                     <ProfileForm handleDialogItemOpenChange={handleDialogItemOpenChange} />
                   </DialogItem>
+
                   <DropdownMenuSeparator />
+
                   {/* プロファイル更新 */}
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger>
@@ -296,10 +348,9 @@ const ProfileSwitcher = () => {
           <div>
             {!!currentProfile.game_path ? (
               <p>
-                {/* Gameパス */}
-                {t("game_path")}:
+                {t("game_path")}
                 <span
-                  className="cursor-pointer line-clamp-2 bg-accent text-accent-foreground hover:underline"
+                  className="text-[9px] cursor-pointer line-clamp-2 bg-accent text-accent-foreground hover:underline"
                   onClick={() => {
                     openLocalDir(path.parse(currentProfile.game_path).dir);
                   }}
@@ -310,10 +361,9 @@ const ProfileSwitcher = () => {
             ) : null}
             {!!currentProfile.profile_path.root ? (
               <p>
-                {/* ユーザファイル */}
-                {t("userfile")}:
+                {t("userfile")}
                 <span
-                  className="cursor-pointer line-clamp-2 bg-accent text-accent-foreground hover:underline"
+                  className="text-[9px] cursor-pointer line-clamp-2 bg-accent text-accent-foreground hover:underline"
                   onClick={() => {
                     openLocalDir(currentProfile.profile_path.root);
                   }}

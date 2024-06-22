@@ -1,7 +1,6 @@
 use crate::prelude::*;
 
 use git2::{Branch, Direction, FetchOptions, Repository, Signature};
-use regex::Regex;
 use std::collections::HashSet;
 
 pub fn open(target_dir: String) -> Result<Repository, String> {
@@ -175,7 +174,8 @@ fn git_clone(url: &str, target_dir: &Path, depth1: Option<bool>) -> Result<Repos
         depth1.unwrap_or(false)
     );
     if depth1.unwrap_or(false) {
-        let fetch_opts = FetchOptions::new();
+        let mut fetch_opts = FetchOptions::new();
+        fetch_opts.depth(1);
         let mut builder = git2::build::RepoBuilder::new();
         builder.fetch_options(fetch_opts);
         let repo = match builder.clone(url, target_dir) {
@@ -340,13 +340,14 @@ pub mod commands {
 }
 
 pub mod cdda {
-    use super::{fetch, find_remote, get_signature, git_clone, ls_remote_tags};
+    use super::{fetch, get_signature, git_clone, ls_remote_tags};
     use crate::prelude::*;
     use crate::profile::get_app_data_dir;
     use git2::Repository;
     use regex::Regex;
 
     const BASE: &str = r#"CleverRaven/Cataclysm-DDA"#;
+    const DATE_FORMAT: &str = r"(\d{4}-\d{2}-\d{2}-\d{4})";
 
     fn get_release_api_endpoint(tab_name: String) -> String {
         let url = format!(
@@ -356,19 +357,19 @@ pub mod cdda {
         url
     }
 
-    fn get_release_browser_url(tag_name: String) -> String {
-        let url = format!("https://github.com/{}/releases/tag/{}", BASE, tag_name);
-        url
-    }
-
     fn get_clone_dir_path() -> PathBuf {
         let app_data_dir = get_app_data_dir();
         app_data_dir.join(".cdda").join("Cataclysm-DDA")
     }
 
+    fn infer_release_browser_url(tag_name: String) -> String {
+        let url = format!("https://github.com/{}/releases/tag/{}", BASE, tag_name);
+        url
+    }
+
     #[cfg(target_os = "macos")]
     fn infer_experimental_download_url(tag_name: String) -> String {
-        let re = Regex::new(r"(\d{4}-\d{2}-\d{2}-\d{4})").unwrap();
+        let re = Regex::new(DATE_FORMAT).unwrap();
         let date = re.find(&tag_name).unwrap().as_str();
         let url = format!(
             "https://github.com/{}/releases/download/{}/cdda-osx-tiles-universal-{}.dmg",
@@ -378,7 +379,7 @@ pub mod cdda {
     }
     #[cfg(target_os = "windows")]
     fn infer_experimental_download_url(tag_name: String) -> Sring {
-        let re = Regex::new(r"(\d{4}-\d{2}-\d{2}-\d{4})").unwrap();
+        let re = Regex::new(DATE_FORMAT).unwrap();
         let date = re.find(&tag_name).unwrap().as_str();
         let url = format!(
             "https://github.com/{}/releases/download/{}/cdda-windows-tiles-sounds-x64-msvc-{}.zip",
@@ -398,15 +399,14 @@ pub mod cdda {
             .build()
             .unwrap()
     }
-
     fn platform_release_filter() -> String {
         #[cfg(target_os = "windows")]
         {
-            r#"cdda-windows-tiles-sounds-x64"#.to_string()
+            r#"windows-tiles-sounds-x64|Windows_x64"#.to_string()
         }
         #[cfg(target_os = "macos")]
         {
-            r#"cdda-osx-tiles-"#.to_string()
+            r#"osx-tiles|OSX-Tiles"#.to_string()
         }
         #[cfg(target_os = "linux")]
         {
@@ -430,11 +430,20 @@ pub mod cdda {
         };
         let assets = json["assets"].as_array().unwrap();
         let platform_filter = platform_release_filter();
-        let asset = assets
+        let re = Regex::new(&platform_filter).unwrap();
+        let filtered = assets
             .iter()
-            .find(|asset| asset["name"].as_str().unwrap().contains(&platform_filter))
-            .unwrap();
+            .filter(|asset| re.is_match(asset["name"].as_str().unwrap()))
+            .collect::<Vec<_>>();
 
+        if filtered.is_empty() {
+            warn!(
+                "No asset found for platform filter: {:?}, tag_name: {:?}",
+                platform_filter, tag_name
+            );
+            return None;
+        }
+        let asset = filtered.first().unwrap();
         let download_url: Option<&str> = asset["browser_download_url"].as_str();
         match download_url {
             Some(url) => Some(url.to_string()),
@@ -508,13 +517,28 @@ pub mod cdda {
     fn get_stable_release_tag(repo: &Repository, num: usize) -> Result<Vec<String>, git2::Error> {
         let tags = ls_remote_tags(repo)?;
         debug!("{:?}", tags);
-        let re = Regex::new(r"^0\.[A-Z].*$").unwrap();
+        let re = Regex::new(r"^0\.[A-Z]-?[0-9]?$").unwrap();
         let mut tags = tags
             .iter()
             .filter(|tag| re.is_match(tag))
             .map(|tag| tag.to_string())
             .collect::<Vec<String>>();
-        tags.sort();
+        tags.sort_unstable();
+        tags.reverse();
+        tags.truncate(num);
+        Ok(tags)
+    }
+
+    fn get_latest_release_tag(repo: &Repository, num: usize) -> Result<Vec<String>, git2::Error> {
+        let tags = ls_remote_tags(repo)?;
+        debug!("{:?}", tags);
+        let re = Regex::new(DATE_FORMAT).unwrap();
+        let mut tags = tags
+            .iter()
+            .filter(|tag| re.is_match(tag))
+            .map(|tag| tag.to_string())
+            .collect::<Vec<String>>();
+        tags.sort_unstable();
         tags.reverse();
         tags.truncate(num);
         Ok(tags)
@@ -554,20 +578,20 @@ pub mod cdda {
         }
 
         #[tauri::command]
-        pub fn cdda_get_stable_releases() -> Result<Vec<Res>, String> {
+        pub fn cdda_get_stable_releases(num: usize) -> Result<Vec<Res>, String> {
             info!("retrieve stable releases.");
 
             let repo = get_cdda_repo().unwrap();
 
             debug!("got repo");
 
-            match get_stable_release_tag(&repo, 2) {
+            match get_stable_release_tag(&repo, num) {
                 Ok(tags) => {
                     debug!("{:?}", tags);
                     let responses = tags
                         .iter()
                         .map(|tag| {
-                            let browser_url = get_release_browser_url(tag.to_string());
+                            let browser_url = infer_release_browser_url(tag.to_string());
                             let download_url = get_stable_download_url(tag.to_string());
                             Res {
                                 tag_name: tag.to_string(),
@@ -587,26 +611,49 @@ pub mod cdda {
             info!("retrieve latest releases.");
 
             let repo = get_cdda_repo().unwrap();
-            let tags = ls_remote_tags(&repo).unwrap();
-            let to_take = num.min(tags.len());
-            let tags = tags
-                .iter()
-                .take(to_take)
-                .map(|tag| tag.to_string())
-                .collect::<Vec<String>>();
-            let responses = tags
-                .iter()
-                .map(|tag| {
-                    let browser_url = get_release_browser_url(tag.to_string());
-                    let download_url = infer_experimental_download_url(tag.to_string());
-                    Res {
-                        tag_name: tag.to_string(),
-                        browser_url,
-                        download_url,
-                    }
-                })
-                .collect::<Vec<Res>>();
-            Ok(responses)
+
+            match get_latest_release_tag(&repo, num) {
+                Ok(tags) => {
+                    debug!("{:?}", tags);
+                    let responses = tags
+                        .iter()
+                        .map(|tag| {
+                            let browser_url = infer_release_browser_url(tag.to_string());
+                            let download_url = infer_experimental_download_url(tag.to_string());
+                            Res {
+                                tag_name: tag.to_string(),
+                                browser_url,
+                                download_url,
+                            }
+                        })
+                        .collect::<Vec<Res>>();
+                    Ok(responses)
+                }
+                Err(e) => Err(format!("Failed to get latest release tags: {}", e)),
+            }
+
+            // let tags = ls_remote_tags(&repo).unwrap();
+
+            // let to_take = num.min(tags.len());
+            // let tags = tags
+            //     .iter()
+            //     .take(to_take)
+            //     .map(|tag| tag.to_string())
+            //     .collect::<Vec<String>>();
+            // let responses = tags
+            //     .iter()
+            //     .map(|tag| {
+            //         println!("{}", tag);
+            //         let browser_url = get_release_browser_url(tag.to_string());
+            //         let download_url = infer_experimental_download_url(tag.to_string());
+            //         Res {
+            //             tag_name: tag.to_string(),
+            //             browser_url,
+            //             download_url,
+            //         }
+            //     })
+            //     .collect::<Vec<Res>>();
+            // Ok(responses)
         }
 
         #[tauri::command]

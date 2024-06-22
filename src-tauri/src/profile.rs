@@ -210,7 +210,9 @@ impl Settings {
         let profile_dir = &profile.profile_path.root;
         debug!("Removing profile dir: {:?}", profile_dir);
         if profile_dir.exists() {
-            remove_dir_all(profile_dir, None).unwrap();
+            remove_dir_all(profile_dir, None).unwrap_or_else(|e| {
+                warn!("{}", e);
+            });
         }
     }
 

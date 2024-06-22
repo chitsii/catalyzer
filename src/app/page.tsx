@@ -85,13 +85,6 @@ export default function Home() {
       }}
     >
       <LanguageSetter />
-      <button
-        onClick={() => {
-          invoke_safe("create_profile_window", {});
-        }}
-      >
-        make new window
-      </button>
       <AnimatePresence mode="wait">
         <motion.div
           initial={{ opacity: 0, scaleY: 0 }}

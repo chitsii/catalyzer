@@ -8,120 +8,97 @@ import { Progress } from "@/components/ui/progress";
 type ProgressButtonBaseProps = {
   successColorClass?: string;
   onClick?: () => void;
-  onComplete?: () => void;
+  // onComplete?: () => void;
+  onCompleteDownload: () => void;
+  onCompleteExtract: () => void;
   onError?: (error: Error) => void;
 };
 
 type ManualProgressButtonProps = ProgressButtonBaseProps & {
   progressType?: "manual";
-  progress: number;
+  download_progress: number;
+  extract_progress: number;
   duration?: never;
   totalDuration?: never;
   numberOfProgressSteps?: never;
   label: string;
 };
 
-type AutomaticProgressButtonProps = ProgressButtonBaseProps & {
-  progressType?: "automatic";
-  progress?: never;
-  totalDuration?: number;
-  numberOfProgressSteps?: number;
-  label: string;
-};
-
-type ProgressButtonProps = ManualProgressButtonProps | AutomaticProgressButtonProps;
+type ProgressButtonProps = ManualProgressButtonProps; // | AutomaticProgressButtonProps;
 
 const ProgressButton = (props: ProgressButtonProps) => {
   const {
     progressType = "automatic",
-    totalDuration = 5000,
-    numberOfProgressSteps = 5,
     successColorClass,
     onClick,
-    onComplete,
+    onCompleteDownload,
+    onCompleteExtract,
     onError,
-    progress,
+    download_progress: download_progress,
+    extract_progress: extract_progress,
     label,
   } = props;
 
   const [state, send] = useMachine(progressButtonMachine);
 
   useEffect(() => {
-    if (progress) {
-      send({ type: "setProgress", progress });
-      if (progress >= 100) {
+    if (download_progress) {
+      send({ type: "setProgress", progress: download_progress });
+      if (download_progress >= 100) {
         setTimeout(() => {
           try {
             send({ type: "setProgress", progress: 0 });
             send({ type: "complete" });
-            handleComplete();
+            handleCompleteDownload();
           } catch (e: any) {
             handleError(e);
           }
         }, 1000);
       }
     }
-  }, [progress, send]);
-
-  const scheduleProgressUpdates = (totalDuration: number, steps: number) => {
-    // Generate random durations
-    const randomDurations = Array.from({ length: steps }, () => Math.random());
-    const totalRandom = randomDurations.reduce((sum, value) => sum + value, 0);
-    const normalizedDurations = randomDurations.map((value) => (value / totalRandom) * totalDuration);
-
-    // Generate random progress increments
-    const randomProgressIncrements = Array.from({ length: steps }, () => Math.random());
-    const totalRandomProgress = randomProgressIncrements.reduce((sum, value) => sum + value, 0);
-    const normalizedProgresses = randomProgressIncrements.map((value) =>
-      Math.round((value / totalRandomProgress) * 100),
-    );
-
-    let accumulatedTime = 0;
-    let accumulatedProgress = 0;
-
-    for (let i = 0; i < steps; i++) {
-      accumulatedTime += normalizedDurations[i];
-      accumulatedProgress += normalizedProgresses[i];
-
-      let progress = accumulatedProgress > 95 ? 100 : accumulatedProgress;
-
-      setTimeout(() => {
-        send({ type: "setProgress", progress });
-
-        if (progress === 100) {
-          setTimeout(() => {
-            try {
-              send({ type: "setProgress", progress: 0 });
-              send({ type: "complete" });
-              handleComplete();
-            } catch (e: any) {
-              handleError(e);
-            }
-          }, 1000);
-        }
-      }, accumulatedTime);
-    }
-  };
-
-  const isManualComplete = () => progressType === "manual" && state.context.progress >= 100;
-  const shouldStartAutomaticProgress = () => progressType === "automatic" && state.matches("inProgress");
+  }, [download_progress, send]);
 
   useEffect(() => {
-    if (isManualComplete()) {
-      handleComplete();
-    } else if (shouldStartAutomaticProgress()) {
-      scheduleProgressUpdates(totalDuration, numberOfProgressSteps);
+    if (extract_progress) {
+      send({ type: "setProgress", progress: extract_progress });
+      if (extract_progress >= 100) {
+        setTimeout(() => {
+          try {
+            send({ type: "setProgress", progress: 0 });
+            send({ type: "complete" });
+            handleCompleteExtract();
+          } catch (e: any) {
+            handleError(e);
+          }
+        }, 1000);
+      }
     }
-  }, [progressType, state.value, totalDuration, numberOfProgressSteps]);
+  }, [extract_progress, send]);
+
+  const isManualDownloadComplete = () => progressType === "manual" && state.context.download_progress >= 100;
+  const isManualExtractComplete = () => progressType === "manual" && state.context.extract_progress >= 100;
+
+  useEffect(() => {
+    if (isManualDownloadComplete()) {
+      handleCompleteDownload();
+    }
+    if (isManualExtractComplete()) {
+      handleCompleteExtract();
+    }
+  }, [state.value]);
 
   const handleClick = () => {
     send({ type: "click" });
     onClick?.();
   };
 
-  const handleComplete = () => {
+  const handleCompleteDownload = () => {
     send({ type: "complete" });
-    onComplete?.();
+    onCompleteDownload?.();
+  };
+  const handleCompleteExtract = () => {
+    send({ type: "complete" });
+    onCompleteExtract?.();
   };
 
   const handleError = (error: Error) => {
@@ -130,13 +107,20 @@ const ProgressButton = (props: ProgressButtonProps) => {
 
   const prefixIcon = <File className="h-3.5 w-3.5" />;
   const buttonLabel = <span className="sm:whitespace-nowrap">{label}</span>;
-  const progressBar = <Progress value={state.context.progress} className="w-[60px] h-[10px]" />;
+  const progressBarDL = <Progress value={state.context.download_progress} className="w-[60px] h-[10px]" />;
+  const progressBarExt = <Progress value={state.context.extract_progress} className="w-[60px] h-[10px]" />;
   const successIcon = <Check className="h-5 w-5" />;
-  const bgColor = `[&>*>*]:bg-${successColorClass}`;
 
-  const bgColorClass = () => {
-    if (!successColorClass || state.context.progress < 100) return "[&>*>*]:bg-primary-900";
-    if (state.context.progress >= 100) {
+  const bgColor = `[&>*>*]:bg-${successColorClass}`;
+  const bgColorClassDL = () => {
+    if (!successColorClass || state.context.download_progress < 100) return "[&>*>*]:bg-primary-900";
+    if (state.context.download_progress >= 100) {
+      return bgColor;
+    }
+  };
+  const bgColorClassExt = () => {
+    if (!successColorClass || state.context.extract_progress < 100) return "[&>*>*]:bg-primary-900";
+    if (state.context.extract_progress >= 100) {
       return bgColor;
     }
   };
@@ -155,9 +139,14 @@ const ProgressButton = (props: ProgressButtonProps) => {
               {buttonLabel}
             </span>
           )}
-          {state.matches("inProgress") && (
+          {state.matches("inDownloadProgress") && (
             <span className={`transition-color animate-in fade-in zoom-in absolute`}>
-              <span className={bgColorClass()}>{progressBar}</span>
+              <span className={bgColorClassDL()}>{progressBarDL}</span>
+            </span>
+          )}
+          {state.matches("inExtractProgress") && (
+            <span className={`transition-color animate-in fade-in zoom-in absolute`}>
+              <span className={bgColorClassExt()}>{progressBarExt}</span>
             </span>
           )}
           {state.matches("success") && <span className="animate-in fade-in zoom-in spin-in">{successIcon}</span>}
