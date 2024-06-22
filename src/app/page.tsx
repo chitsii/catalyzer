@@ -131,7 +131,7 @@ export default function Home() {
                 </div>
               </TabsContent>
               <TabsContent value="setting">
-                <div className="flex min-h-[calc(97vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
+                <div className="flex flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
                   <div className="mx-auto grid w-full max-w-6xl gap-2">
                     <h1 className="text-xl font-semibold">
                       {/* 設定 */}
@@ -139,30 +139,28 @@ export default function Home() {
                     </h1>
                   </div>
                   <div className="mx-auto grid w-full max-w-6xl items-start gap-6">
-                    <ScrollArea>
-                      <Card id="theme_setting" className="border-none">
-                        <CardHeader>
-                          <CardTitle>
-                            {/* カラーテーマ */}
-                            {t("color_theme")}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <ColorThemeSelector />
-                        </CardContent>
-                      </Card>
-                      <Card id="language_setting" className="border-none">
-                        <CardHeader>
-                          <CardTitle>
-                            {/* 言語 */}
-                            {t("language")}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <LanguageSelector i18n={i18n} />
-                        </CardContent>
-                      </Card>
-                    </ScrollArea>
+                    <Card id="theme_setting" className="border-none">
+                      <CardHeader>
+                        <CardTitle>
+                          {/* カラーテーマ */}
+                          {t("color_theme")}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ColorThemeSelector />
+                      </CardContent>
+                    </Card>
+                    <Card id="language_setting" className="border-none">
+                      <CardHeader>
+                        <CardTitle>
+                          {/* 言語 */}
+                          {t("language")}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <LanguageSelector i18n={i18n} />
+                      </CardContent>
+                    </Card>
                   </div>
                 </div>
               </TabsContent>

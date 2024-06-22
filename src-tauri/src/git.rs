@@ -5,19 +5,13 @@ use std::collections::HashSet;
 
 pub fn open(target_dir: String) -> Result<Repository, String> {
     debug!("Opening repository at {}", target_dir);
-    match Repository::open(&target_dir) {
-        Ok(repo) => Ok(repo),
-        Err(e) => Err(format!("Failed to open repository: {}", e)),
-    }
+    Repository::open(&target_dir).map_err(|e| format!("Failed to open repository: {}", e))
 }
 
 fn init(target_dir: String) -> Result<Repository, String> {
     debug!("Initializing repository at {}", target_dir);
     match Repository::init(&target_dir) {
-        Ok(_) => {
-            let repo = open(target_dir).unwrap();
-            Ok(repo)
-        }
+        Ok(_) => open(target_dir),
         Err(e) => Err(format!("Failed to initialize repository: {}", e)),
     }
 }
@@ -29,36 +23,25 @@ fn get_signature() -> Signature<'static> {
 fn commit(repo: &Repository, message: &str) -> Result<(), String> {
     debug!("Committing changes to repository");
     let sig = get_signature();
-    match repo.head() {
-        Ok(data) => {
-            let tree_id = {
-                let mut index = repo.index().unwrap();
-                index
-                    .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
-                    .unwrap();
-                index.write_tree().unwrap()
-            };
-            let tree = repo.find_tree(tree_id).unwrap();
-            let head = data.peel_to_commit().unwrap();
-            repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[&head])
-                .unwrap();
-            Ok(())
+    let tree_id = {
+        let mut index = repo.index().unwrap();
+        index
+            .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+            .unwrap();
+        index.write_tree().unwrap()
+    };
+    let tree = repo.find_tree(tree_id).unwrap();
+    let parents = match repo.head() {
+        Ok(head) => {
+            let head = head.peel_to_commit().unwrap();
+            vec![head]
         }
-        Err(_) => {
-            debug!("No HEAD found, creating initial commit.");
-            let tree_id = {
-                let mut index = repo.index().unwrap();
-                index
-                    .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
-                    .unwrap();
-                index.write_tree().unwrap()
-            };
-            let tree = repo.find_tree(tree_id).unwrap();
-            repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &[])
-                .unwrap();
-            Ok(())
-        }
-    }
+        Err(_) => vec![],
+    };
+    let p = &parents.iter().collect::<Vec<_>>();
+    repo.commit(Some("HEAD"), &sig, &sig, message, &tree, p.as_slice())
+        .unwrap();
+    Ok(())
 }
 
 fn find_remote(repo: &Repository) -> Result<git2::Remote, String> {
@@ -631,29 +614,6 @@ pub mod cdda {
                 }
                 Err(e) => Err(format!("Failed to get latest release tags: {}", e)),
             }
-
-            // let tags = ls_remote_tags(&repo).unwrap();
-
-            // let to_take = num.min(tags.len());
-            // let tags = tags
-            //     .iter()
-            //     .take(to_take)
-            //     .map(|tag| tag.to_string())
-            //     .collect::<Vec<String>>();
-            // let responses = tags
-            //     .iter()
-            //     .map(|tag| {
-            //         println!("{}", tag);
-            //         let browser_url = get_release_browser_url(tag.to_string());
-            //         let download_url = infer_experimental_download_url(tag.to_string());
-            //         Res {
-            //             tag_name: tag.to_string(),
-            //             browser_url,
-            //             download_url,
-            //         }
-            //     })
-            //     .collect::<Vec<Res>>();
-            // Ok(responses)
         }
 
         #[tauri::command]

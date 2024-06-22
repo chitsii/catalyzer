@@ -117,7 +117,7 @@ pub mod commands {
 
     #[tauri::command]
     pub fn unzip_archive(
-        state: tauri::State<'_, AppState>,
+        // state: tauri::State<'_, AppState>,
         src: String,
         dest_dir: String,
     ) -> Result<(), String> {

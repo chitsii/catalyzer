@@ -54,6 +54,6 @@ pub fn fix_zip_fname_encoding(file_path: String, output_zip_path: String) -> Res
 pub fn unzip(file_path: &Path, target_dir: &Path) -> Result<PathBuf> {
     use zip_extract::extract;
     let archive = std::fs::read(file_path)?;
-    extract(std::io::Cursor::new(archive), target_dir.as_ref(), true)?;
+    extract(std::io::Cursor::new(archive), target_dir, true)?;
     Ok(target_dir.to_path_buf())
 }
