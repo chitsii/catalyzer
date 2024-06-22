@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use dmg::Handle;
+use tauri::async_runtime::spawn_blocking;
 use tauri::{AppHandle, Manager};
 
 fn mount(source_dmg: PathBuf) -> Result<Handle> {
@@ -24,7 +25,9 @@ fn mount(source_dmg: PathBuf) -> Result<Handle> {
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct Progress {
-    percent: f64,
+    progress: u64,
+    total: u64,
+    // percent: f64,
 }
 
 fn copy(app_handle: AppHandle, cdda_path: PathBuf, target_dir: PathBuf) -> Result<()> {
@@ -37,22 +40,24 @@ fn copy(app_handle: AppHandle, cdda_path: PathBuf, target_dir: PathBuf) -> Resul
     }
 
     let mut last_emit = std::time::Instant::now();
-
     let event_handle = |process_info: fs_extra::TransitProcess| {
         if last_emit.elapsed() > std::time::Duration::from_millis(1000) {
             info!(
                 "Copying {} of {} bytes",
                 process_info.copied_bytes, process_info.total_bytes
             );
-            app_handle
+            let app_handle_spawn = app_handle.clone();
+            // spawn_blocking(move || {
+            app_handle_spawn
                 .emit(
                     "EXTRACT_PROGRESS",
                     Progress {
-                        percent: (process_info.copied_bytes / process_info.total_bytes) as f64
-                            * 100.,
+                        progress: process_info.copied_bytes,
+                        total: process_info.total_bytes,
                     },
                 )
                 .unwrap();
+            // });
             last_emit = std::time::Instant::now();
         }
         fs_extra::dir::TransitProcessResult::ContinueOrAbort

@@ -6,7 +6,11 @@ const progressButtonMachine = setup({
       download_progress: number;
       extract_progress: number;
     },
-    events: {} as { type: "click" } | { type: "complete" } | { type: "setProgress"; progress: number },
+    events: {} as
+      | { type: "click" }
+      | { type: "completeDownload" }
+      | { type: "completeExtract" }
+      | { type: "setProgress"; progress: number },
   },
 }).createMachine({
   context: {
@@ -29,7 +33,7 @@ const progressButtonMachine = setup({
             };
           }),
         },
-        complete: "inExtractProgress",
+        completeDownload: "inExtractProgress",
       },
     },
     inExtractProgress: {
@@ -41,7 +45,7 @@ const progressButtonMachine = setup({
             };
           }),
         },
-        complete: "success",
+        completeExtract: "success",
       },
     },
     success: {

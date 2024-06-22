@@ -15,6 +15,7 @@ mod prelude {
 use log::LevelFilter;
 use prelude::*;
 use std::{fs::read_to_string, process::Command};
+use tauri::async_runtime::spawn;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 mod logic;
 mod model;
@@ -139,7 +140,6 @@ fn main() {
             info!("  Welcome, Survivor！  ");
             info!("=======================\n\n");
 
-            use tauri::async_runtime::spawn;
             spawn(setup(app.handle().clone()));
 
             // 開発時だけdevtoolsを表示する。
@@ -175,6 +175,8 @@ async fn create_profile_window(app: tauri::AppHandle) -> Result<(), String> {
         tauri::WebviewUrl::App("webviews/profile".into()),
     )
     .inner_size(800., 400.)
+    .title("Catalyzer - Profile Creation")
+    .resizable(false)
     .build()
     {
         Ok(_) => Ok(()),

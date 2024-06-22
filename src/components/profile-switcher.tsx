@@ -179,7 +179,15 @@ const ProfileSwitcher = () => {
                     onSelect={() => {
                       invoke_safe("create_profile_window", {});
                     }}
-                    onOpenChange={handleDialogItemOpenChange}
+                    onOpenChange={() => {
+                      // handleDialogItemOpenChange
+                      if (hasOpenDialog) {
+                        setHasOpenDialog(false);
+                        windowReload();
+                      } else {
+                        setHasOpenDialog(true);
+                      }
+                    }}
                   >
                     <>
                       {/* <DialogTitle className="DialogTitle">Pause</DialogTitle> */}

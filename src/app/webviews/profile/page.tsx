@@ -6,10 +6,11 @@ import { info, warn } from "@tauri-apps/plugin-log";
 import Link from "next/link";
 import ProgressButton from "@/components/progress-button/progress-button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
+import CSR from "@/components/csr/csr";
 import { download } from "@tauri-apps/plugin-upload";
 
 import {
@@ -28,76 +29,22 @@ import { listen } from "@tauri-apps/api/event";
 import { popUp } from "@/lib/utils";
 import { UpdateIcon } from "@radix-ui/react-icons";
 
-// const LatestReleaseGetter = () => {
-//   const [releases, setReleases] = useState<Release[]>([]);
-
-//   return (
-//     <>
-//       <Button
-//         onClick={async () => {
-//           const res = await invoke_safe<Release[]>("cdda_get_latest_releases", { num: 5 });
-//           setReleases([...res]);
-//         }}
-//       >
-//         get latest releases
-//       </Button>
-//       <div>{JSON.stringify(releases)}</div>
-//     </>
-//   );
-// };
-
-// const StableReleaseGetter = () => {
-//   const [releases, setReleases] = useState<Release[]>([]);
-
-//   return (
-//     <>
-//       <Button
-//         onClick={async () => {
-//           const res = await invoke_safe<Release[]>("cdda_get_stable_releases", {});
-//           setReleases([...res]);
-//         }}
-//       >
-//         get stable releases
-//       </Button>
-//       <div>{JSON.stringify(releases)}</div>
-//     </>
-//   );
-// };
-
-// const RateLimitWidget = () => {
-//   const [remain, setRemain] = useState<number | null>(null);
-
-//   const fetchRateLimit = async () => {
-//     const res = await invoke_safe<number>("github_rate_limit", {});
-//     setRemain(res);
-//   };
-
-//   return (
-//     <>
-//       <Button onClick={() => fetchRateLimit()}>refresh</Button>
-//       <div>
-//         <div>Rate Limit: {remain}</div>
-//       </div>
-//     </>
-//   );
-// };
-
 type Release = {
   tag_name: string;
   browser_url: string;
   download_url: string;
 };
 
-type DownloaderProps = {
+type InstallerProps = {
   release: Release;
 };
-const GameDownloader = ({ release }: DownloaderProps) => {
+const GameInstaller = ({ release }: InstallerProps) => {
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [extractProgress, setExtractProgress] = useState<number>(0);
 
   const download_url = release.download_url;
 
-  info(`download: ${downloadProgress}%`);
+  // info(`download: ${downloadProgress}%`);
 
   const downlaod_then_extract = async () => {
     const new_profile = await addProfile(release.tag_name);
@@ -117,21 +64,24 @@ const GameDownloader = ({ release }: DownloaderProps) => {
       await download(download_url, download_save_path, ({ progress, total }) => {
         setDownloadProgress(() => {
           receivedLength += progress;
-          return Math.ceil((receivedLength / total) * 50);
+          return Math.ceil((receivedLength / total) * 100);
         });
       });
 
       if (receivedLength <= 1024 * 1024 * 10) {
-        popUp("failed", "このバージョンのビルドがまだ存在しないかもしれません。URLから確認してみてください。");
+        popUp("failed", "このバージョンはビルド中かもしれません。URLから確認してみてください。");
         removeProfile(new_profile.id);
         return;
       }
 
-      type Payload = { percent: number };
+      type Payload = {
+        progress: number;
+        total: number;
+      };
       const unlisten = await listen<Payload>("EXTRACT_PROGRESS", (e) => {
-        let progress = e.payload.percent;
-        info(`extract progress: ${progress}`);
-        setExtractProgress(progress);
+        let percent = Math.ceil(e.payload.progress / e.payload.total) * 100;
+        info(`extract progress: ${percent}`);
+        setExtractProgress(percent);
       });
       if (download_url.endsWith(".zip")) {
         await unzipArchive(download_save_path, extract_dir);
@@ -164,7 +114,6 @@ const GameDownloader = ({ release }: DownloaderProps) => {
       {!!release.download_url ? (
         <ProgressButton
           label="プロファイルを作る"
-          progressType="manual"
           download_progress={downloadProgress}
           extract_progress={extractProgress}
           successColorClass="teal-500"
@@ -183,16 +132,6 @@ const GameDownloader = ({ release }: DownloaderProps) => {
     </div>
   );
 };
-
-export default function Home() {
-  return (
-    <main>
-      <div className="flex justify-center items-center min-h-screen">
-        <Dashboard />
-      </div>
-    </main>
-  );
-}
 
 class ApiCaller {
   private minInterval: number = 60 * 5;
@@ -228,21 +167,32 @@ class ApiCaller {
   }
 }
 const cached_api = new ApiCaller();
-
 function Dashboard() {
   const [stableReleases, setStableReleases] = useState<Release[]>([]);
   const [latestReleases, setLatestReleases] = useState<Release[]>([]);
+  const [rateLimit, setRateLimit] = useState<number | null>(null);
 
   const handleGetStableReleases = async () => {
     cached_api.getStableRelease().then((res) => {
       setStableReleases(res);
     });
+    fetchRateLimit();
   };
 
   const handleGetLatestReleases = async () => {
     cached_api.getLatestRelease().then((res) => {
       setLatestReleases(res);
     });
+  };
+
+  useEffect(() => {
+    fetchRateLimit();
+    handleGetLatestReleases();
+  }, []);
+
+  const fetchRateLimit = async () => {
+    const res = await invoke_safe<number>("github_rate_limit", {});
+    setRateLimit(res);
   };
 
   const ReleaseRow = ({ release }: { release: Release }) => {
@@ -260,7 +210,7 @@ function Dashboard() {
             </Link>
           </TableCell>
           <TableCell>
-            <GameDownloader release={release} />
+            <GameInstaller release={release} />
           </TableCell>
         </TableRow>
       </>
@@ -271,7 +221,7 @@ function Dashboard() {
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
       <div className="flex flex-col sm:gap-4 sm:py-4">
         <div className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-          <Tabs defaultValue="all">
+          <Tabs defaultValue="latest">
             <div className="flex items-center space-x-2">
               <TabsList>
                 <TabsTrigger
@@ -295,52 +245,72 @@ function Dashboard() {
                   Stable
                 </TabsTrigger>
               </TabsList>
+              <>
+                <div className="text-xs">APIコール制限残: {rateLimit !== null ? rateLimit : "Loading..."}</div>
+                {/* <Button onClick={fetchRateLimit} size="icon" className="h-6 ml-4 bg-cyan-600 text-accent rounded">
+                  <UpdateIcon />
+                </Button> */}
+              </>
             </div>
             <TabsContent value="latest">
-              <Card>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tag</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <ScrollArea className="h-[250px]">
-                        {latestReleases.map((release) => {
-                          return <ReleaseRow key={release.tag_name} release={release} />;
-                        })}
-                      </ScrollArea>
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+              <CSR>
+                <Card>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tag</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <ScrollArea className="h-[250px]">
+                          {latestReleases.map((release) => {
+                            return <ReleaseRow key={release.tag_name} release={release} />;
+                          })}
+                        </ScrollArea>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </CSR>
             </TabsContent>
             <TabsContent value="stable">
-              <Card>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Tag</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <ScrollArea className="h-[200px]">
-                        {stableReleases.map((release) => {
-                          return <ReleaseRow key={release.tag_name} release={release} />;
-                        })}
-                      </ScrollArea>
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+              <CSR>
+                <Card>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Tag</TableHead>
+                          <TableHead></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <ScrollArea className="h-[200px]">
+                          {stableReleases.map((release) => {
+                            return <ReleaseRow key={release.tag_name} release={release} />;
+                          })}
+                        </ScrollArea>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </CSR>
             </TabsContent>
           </Tabs>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <main>
+      <div className="flex justify-center items-center min-h-screen">
+        <Dashboard />
+      </div>
+    </main>
   );
 }
