@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
-use git2::{Branch, Repository, Signature};
+use git2::{Branch, Direction, FetchOptions, Repository, Signature};
+use regex::Regex;
 use std::collections::HashSet;
 
 pub fn open(target_dir: String) -> Result<Repository, String> {
@@ -22,9 +23,13 @@ fn init(target_dir: String) -> Result<Repository, String> {
     }
 }
 
+fn get_signature() -> Signature<'static> {
+    Signature::now("Catalyzer", "Nothing").unwrap()
+}
+
 fn commit(repo: &Repository, message: &str) -> Result<(), String> {
     debug!("Committing changes to repository");
-    let sig = Signature::now("Catalyzer", "Nothing").unwrap();
+    let sig = get_signature();
     match repo.head() {
         Ok(data) => {
             let tree_id = {
@@ -55,6 +60,25 @@ fn commit(repo: &Repository, message: &str) -> Result<(), String> {
             Ok(())
         }
     }
+}
+
+fn find_remote(repo: &Repository) -> Result<git2::Remote, String> {
+    debug!("Finding remote 'origin' in repository");
+    repo.find_remote("origin")
+        .map_err(|e| format!("Failed to find remote 'origin': {}", e))
+}
+
+fn fetch(repo: &Repository, depth: Option<i32>) -> Result<(), String> {
+    debug!("Fetching from remote 'origin'");
+    let mut remote = find_remote(repo)?;
+
+    let mut fo = FetchOptions::new();
+    if let Some(depth) = depth {
+        fo.depth(depth);
+    }
+    remote
+        .fetch(&["refs/heads/*:refs/heads/*"], Some(&mut fo), None)
+        .map_err(|e| format!("Failed to fetch from remote 'origin': {}", e))
 }
 
 fn reset_hard(repo: &Repository) -> Result<(), String> {
@@ -105,7 +129,6 @@ fn git_create_branch<'a>(
 
 fn checkout(repo: &Repository, branch_name: &str, create_if_unexist: bool) -> Result<bool, String> {
     debug!("Checking out branch {}", branch_name);
-
     match repo.find_branch(branch_name, git2::BranchType::Local) {
         Ok(branch) => {
             let branch = branch.into_reference();
@@ -144,25 +167,50 @@ pub fn try_checkout_to(
     Ok(())
 }
 
-fn git_clone(url: &str, target_dir: &Path) -> Result<Repository, String> {
-    debug!("Cloning repository from {} to {:?}", url, &target_dir);
-    let repo = match Repository::clone(url, target_dir) {
-        Ok(repo) => repo,
-        Err(e) => return Err(format!("Failed to clone repository: {}", e)),
-    };
-    Ok(repo)
+fn git_clone(url: &str, target_dir: &Path, depth1: Option<bool>) -> Result<Repository, String> {
+    debug!(
+        "Clone repo from {} to {:?}. depth = {:?}",
+        url,
+        &target_dir,
+        depth1.unwrap_or(false)
+    );
+    if depth1.unwrap_or(false) {
+        let fetch_opts = FetchOptions::new();
+        let mut builder = git2::build::RepoBuilder::new();
+        builder.fetch_options(fetch_opts);
+        let repo = match builder.clone(url, target_dir) {
+            Ok(repo) => repo,
+            Err(e) => return Err(format!("Failed to clone repository: {}", e)),
+        };
+        Ok(repo)
+    } else {
+        let repo = match Repository::clone(url, target_dir) {
+            Ok(repo) => repo,
+            Err(e) => return Err(format!("Failed to clone repository: {}", e)),
+        };
+        Ok(repo)
+    }
 }
 
-fn git_fetch(repo: &Repository) -> Result<(), String> {
-    debug!("Fetching all from repository");
-    if let Ok(mut remote) = repo.find_remote("origin") {
-        match remote.fetch(&["refs/heads/*:refs/heads/*"], None, None) {
-            Ok(_) => (),
-            Err(e) => error!("Failed to fetch from remote: {}", e),
+/// ls-remote --tags --refs | awk '{print $2}' | awk -F'/' '{print $3}'
+fn ls_remote_tags(repo: &Repository) -> Result<Vec<String>, git2::Error> {
+    let mut remote = find_remote(repo)
+        .map_err(|e| git2::Error::from_str(&format!("Failed to find remote: {}", e)))?;
+    let connection = remote.connect_auth(Direction::Fetch, None, None)?;
+
+    let refs = connection.list()?;
+    let mut tags = HashSet::new();
+    for head in refs.iter() {
+        if head.name().starts_with("refs/tags/") {
+            tags.insert(
+                head.name()
+                    .to_string()
+                    .replace("refs/tags/", "")
+                    .replace("^{}", ""),
+            );
         }
     }
-
-    Ok(())
+    Ok(tags.into_iter().collect())
 }
 
 pub mod commands {
@@ -175,14 +223,13 @@ pub mod commands {
         let mod_data_dir = setting.get_mod_data_dir();
 
         debug!("Fetching all mods");
-
         for entry in std::fs::read_dir(mod_data_dir).unwrap() {
             debug!("Fetching mod: {:?}", entry);
             let entry = entry.unwrap();
             let path = entry.path();
             if path.is_dir() {
                 if let Ok(repo) = open(path.to_str().unwrap().to_string()) {
-                    match git_fetch(&repo) {
+                    match fetch(&repo, None) {
                         Ok(_) => {}
                         Err(e) => {
                             debug!("Failed to fetch origin: {}", e);
@@ -206,7 +253,7 @@ pub mod commands {
         let repo_name = repo_name.replace(".git", "");
         let target_dir = mod_data_dir.join(repo_name);
 
-        let repo = git_clone(&url, &target_dir).map_err(|e| e.to_string())?;
+        let repo = git_clone(&url, &target_dir, None).map_err(|e| e.to_string())?;
         let cloned_dir = repo.path().parent().unwrap(); // .gitの親フォルダ
         debug!("Repository cloned to {:?}", cloned_dir);
 
@@ -289,5 +336,283 @@ pub mod commands {
         try_checkout_to(target_dir, target_branch, create_if_unexist)?;
         state.refresh_and_save_mod_status().unwrap();
         Ok(())
+    }
+}
+
+pub mod cdda {
+    use super::{fetch, find_remote, get_signature, git_clone, ls_remote_tags};
+    use crate::prelude::*;
+    use crate::profile::get_app_data_dir;
+    use git2::Repository;
+    use regex::Regex;
+
+    const BASE: &str = r#"CleverRaven/Cataclysm-DDA"#;
+
+    fn get_release_api_endpoint(tab_name: String) -> String {
+        let url = format!(
+            "https://api.github.com/repos/{}/releases/tags/{}",
+            BASE, tab_name
+        );
+        url
+    }
+
+    fn get_release_browser_url(tag_name: String) -> String {
+        let url = format!("https://github.com/{}/releases/tag/{}", BASE, tag_name);
+        url
+    }
+
+    fn get_clone_dir_path() -> PathBuf {
+        let app_data_dir = get_app_data_dir();
+        app_data_dir.join(".cdda").join("Cataclysm-DDA")
+    }
+
+    #[cfg(target_os = "macos")]
+    fn infer_experimental_download_url(tag_name: String) -> String {
+        let re = Regex::new(r"(\d{4}-\d{2}-\d{2}-\d{4})").unwrap();
+        let date = re.find(&tag_name).unwrap().as_str();
+        let url = format!(
+            "https://github.com/{}/releases/download/{}/cdda-osx-tiles-universal-{}.dmg",
+            BASE, tag_name, date
+        );
+        url
+    }
+    #[cfg(target_os = "windows")]
+    fn infer_experimental_download_url(tag_name: String) -> Sring {
+        let re = Regex::new(r"(\d{4}-\d{2}-\d{2}-\d{4})").unwrap();
+        let date = re.find(&tag_name).unwrap().as_str();
+        let url = format!(
+            "https://github.com/{}/releases/download/{}/cdda-windows-tiles-sounds-x64-msvc-{}.zip",
+            BASE, tag_name, date
+        );
+        url
+    }
+
+    fn github_api_client() -> reqwest::blocking::Client {
+        use reqwest::header::HeaderMap;
+        let mut headers = HeaderMap::new();
+        headers.insert("X-GitHub-Api-Version", "2022-11-28".parse().unwrap());
+        headers.insert("Accept", "application/vnd.github+json".parse().unwrap());
+        headers.insert("User-Agent", "catalyzer".parse().unwrap());
+        reqwest::blocking::Client::builder()
+            .default_headers(headers)
+            .build()
+            .unwrap()
+    }
+
+    fn platform_release_filter() -> String {
+        #[cfg(target_os = "windows")]
+        {
+            r#"cdda-windows-tiles-sounds-x64"#.to_string()
+        }
+        #[cfg(target_os = "macos")]
+        {
+            r#"cdda-osx-tiles-"#.to_string()
+        }
+        #[cfg(target_os = "linux")]
+        {
+            panic!("not supported yet for linux.")
+        }
+    }
+
+    fn get_stable_download_url(tag_name: String) -> Option<String> {
+        let endpoint = get_release_api_endpoint(tag_name.clone());
+        debug!("Getting release info from {}", endpoint);
+        let client = github_api_client();
+        let response = client.get(&endpoint).send().unwrap();
+
+        debug!("Response: {:?}", response);
+        let json: serde_json::Value = match &response.status() {
+            &reqwest::StatusCode::OK => response.json().unwrap(),
+            _ => {
+                warn!("Failed to get release info from {}", endpoint);
+                return None;
+            }
+        };
+        let assets = json["assets"].as_array().unwrap();
+        let platform_filter = platform_release_filter();
+        let asset = assets
+            .iter()
+            .find(|asset| asset["name"].as_str().unwrap().contains(&platform_filter))
+            .unwrap();
+
+        let download_url: Option<&str> = asset["browser_download_url"].as_str();
+        match download_url {
+            Some(url) => Some(url.to_string()),
+            None => {
+                warn!(
+                    "Failed to get download url from release info.
+                    * asset: {:?},
+                    * filter used: {:?}",
+                    asset, platform_filter
+                );
+                None
+            }
+        }
+    }
+
+    fn shallow_clone_cdda(target_dir: PathBuf) -> Result<Repository, String> {
+        let url = format!("https://github.com/{}.git", BASE);
+        let repo = match git_clone(&url, &target_dir, Some(true)) {
+            Ok(repo) => repo,
+            Err(e) => {
+                return Err(format!("Failed to clone repository: {}", e));
+            }
+        };
+        debug!("CDDA Repository cloned with depth=1.");
+        Ok(repo)
+    }
+
+    /// try to open the repository at the target directory, or clone it if not exist.
+    fn get_cdda_repo() -> Result<Repository, String> {
+        let target_dir = get_clone_dir_path();
+        let repo = match Repository::open(&target_dir) {
+            Ok(repo) => repo,
+            Err(_) => {
+                debug!("CDDA Repository not found. Will clone it.");
+                return shallow_clone_cdda(target_dir);
+            }
+        };
+        Ok(repo)
+    }
+
+    fn pull_rebase_cdda_repo(repo: &Repository) -> Result<(), String> {
+        // fetch the latest changes
+        fetch(repo, Some(1))?;
+
+        // rebase the current branch to the latest changes
+        let mut rebase = repo
+            .rebase(None, None, None, None)
+            .map_err(|e| format!("Failed to start rebase: {}", e))?;
+        let app_signature = get_signature();
+        while let Some(op) = rebase.next() {
+            match op {
+                Ok(_) => {
+                    rebase
+                        .commit(None, &app_signature, None)
+                        .map_err(|e| format!("Failed to commit rebase operation: {}", e))?;
+                }
+                Err(e) => {
+                    rebase.abort().map_err(|ae| {
+                        format!("Failed to abort rebase: {}. Original error: {}", ae, e)
+                    })?;
+                    return Err(format!("Failed during rebase operation: {}", e));
+                }
+            }
+        }
+        rebase
+            .finish(None)
+            .map_err(|e| format!("Failed to finish rebase: {}", e))?;
+        Ok(())
+    }
+
+    fn get_stable_release_tag(repo: &Repository, num: usize) -> Result<Vec<String>, git2::Error> {
+        let tags = ls_remote_tags(repo)?;
+        debug!("{:?}", tags);
+        let re = Regex::new(r"^0\.[A-Z].*$").unwrap();
+        let mut tags = tags
+            .iter()
+            .filter(|tag| re.is_match(tag))
+            .map(|tag| tag.to_string())
+            .collect::<Vec<String>>();
+        tags.sort();
+        tags.reverse();
+        tags.truncate(num);
+        Ok(tags)
+    }
+
+    pub mod commands {
+        use super::*;
+        use serde::{Deserialize, Serialize};
+
+        #[tauri::command]
+        pub fn github_rate_limit() -> Result<u64, String> {
+            let url = "https://api.github.com/rate_limit";
+            let client = github_api_client();
+            let response = client.get(url).send().unwrap();
+
+            if !response.status().is_success() {
+                return Err("Failed to get rate limit.".to_string());
+            }
+            let json: serde_json::Value = response.json().unwrap();
+            debug!("{:?}", json);
+            let remain = json["rate"]["remaining"].as_u64().unwrap();
+            Ok(remain)
+        }
+
+        #[tauri::command]
+        pub fn cdda_is_cloned() -> bool {
+            let target_dir = get_clone_dir_path();
+            target_dir.exists()
+        }
+
+        #[derive(Debug, Deserialize, Serialize, Clone)]
+        pub struct Res {
+            pub tag_name: String,
+            pub browser_url: String,
+            pub download_url: String,
+            // IDEA: add a field for download count
+        }
+
+        #[tauri::command]
+        pub fn cdda_get_stable_releases() -> Result<Vec<Res>, String> {
+            info!("retrieve stable releases.");
+
+            let repo = get_cdda_repo().unwrap();
+
+            debug!("got repo");
+
+            match get_stable_release_tag(&repo, 2) {
+                Ok(tags) => {
+                    debug!("{:?}", tags);
+                    let responses = tags
+                        .iter()
+                        .map(|tag| {
+                            let browser_url = get_release_browser_url(tag.to_string());
+                            let download_url = get_stable_download_url(tag.to_string());
+                            Res {
+                                tag_name: tag.to_string(),
+                                browser_url,
+                                download_url: download_url.unwrap_or_default(),
+                            }
+                        })
+                        .collect::<Vec<Res>>();
+                    Ok(responses)
+                }
+                Err(e) => Err(format!("Failed to get stable release tags: {}", e)),
+            }
+        }
+
+        #[tauri::command]
+        pub fn cdda_get_latest_releases(num: usize) -> Result<Vec<Res>, String> {
+            info!("retrieve latest releases.");
+
+            let repo = get_cdda_repo().unwrap();
+            let tags = ls_remote_tags(&repo).unwrap();
+            let to_take = num.min(tags.len());
+            let tags = tags
+                .iter()
+                .take(to_take)
+                .map(|tag| tag.to_string())
+                .collect::<Vec<String>>();
+            let responses = tags
+                .iter()
+                .map(|tag| {
+                    let browser_url = get_release_browser_url(tag.to_string());
+                    let download_url = infer_experimental_download_url(tag.to_string());
+                    Res {
+                        tag_name: tag.to_string(),
+                        browser_url,
+                        download_url,
+                    }
+                })
+                .collect::<Vec<Res>>();
+            Ok(responses)
+        }
+
+        #[tauri::command]
+        pub fn cdda_pull_rebase() -> Result<(), String> {
+            let repo = get_cdda_repo().unwrap();
+            pull_rebase_cdda_repo(&repo)
+        }
     }
 }

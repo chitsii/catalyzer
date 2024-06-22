@@ -16,6 +16,7 @@
     "shell:allow-open",
     "shell:allow-spawn",
     "log:allow-log",
-    "upload:allow-download"
+    "upload:allow-download",
+    "shell:allow-execute"
   ]
 }

@@ -18,6 +18,7 @@ type ManualProgressButtonProps = ProgressButtonBaseProps & {
   duration?: never;
   totalDuration?: never;
   numberOfProgressSteps?: never;
+  label: string;
 };
 
 type AutomaticProgressButtonProps = ProgressButtonBaseProps & {
@@ -25,6 +26,7 @@ type AutomaticProgressButtonProps = ProgressButtonBaseProps & {
   progress?: never;
   totalDuration?: number;
   numberOfProgressSteps?: number;
+  label: string;
 };
 
 type ProgressButtonProps = ManualProgressButtonProps | AutomaticProgressButtonProps;
@@ -39,6 +41,7 @@ const ProgressButton = (props: ProgressButtonProps) => {
     onComplete,
     onError,
     progress,
+    label,
   } = props;
 
   const [state, send] = useMachine(progressButtonMachine);
@@ -126,7 +129,7 @@ const ProgressButton = (props: ProgressButtonProps) => {
   };
 
   const prefixIcon = <File className="h-3.5 w-3.5" />;
-  const buttonLabel = <span className="sm:whitespace-nowrap">DL</span>;
+  const buttonLabel = <span className="sm:whitespace-nowrap">{label}</span>;
   const progressBar = <Progress value={state.context.progress} className="w-[60px] h-[10px]" />;
   const successIcon = <Check className="h-5 w-5" />;
   const bgColor = `[&>*>*]:bg-${successColorClass}`;
@@ -143,7 +146,7 @@ const ProgressButton = (props: ProgressButtonProps) => {
       <div className="flex flex-col justify-center items-center h-full">
         <Button
           variant="outline"
-          className={`w-[125px] h-7 gap-1 group ${!state.matches("idle") ? "pointer-events-none" : ""}`}
+          className={`w-[250px] h-7 gap-1 group ${!state.matches("idle") ? "pointer-events-none" : ""}`}
           onClick={handleClick}
         >
           {state.matches("idle") && (

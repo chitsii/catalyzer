@@ -2,10 +2,10 @@ import { Mod } from "@/components/datatable/mod-table/columns";
 import { popUp } from "@/lib/utils";
 import { createId } from "@paralleldrive/cuid2";
 
-import { debug, trace, info, error, attachConsole } from "@tauri-apps/plugin-log";
+import { debug, trace, info, error, attachConsole, warn } from "@tauri-apps/plugin-log";
 
 import { invoke } from "@tauri-apps/api/core";
-import { Settings } from "@/components/atoms";
+import { Settings, Profile } from "@/components/atoms";
 
 export const handleIsTauri = () => {
   // @ts-ignore
@@ -24,9 +24,9 @@ export async function invoke_safe<T>(command: string, arg_obj: any, default_resp
     info(`invoke: ${command} done.`);
     return res;
   } catch (err) {
-    error(JSON.stringify(err));
-    popUp("failed", `failed to execute command: ${command}`);
-    throw new Error(`found error: ${err}`);
+    warn(`invoke: ${command} failed: ${err}`);
+    popUp("failed", `command failed: ${err}`);
+    throw err;
   }
 }
 const launchGame = async () => await invoke_safe("launch_game", {});
@@ -67,16 +67,17 @@ const getSettings = async () =>
       profiles: [],
     },
   );
-const addProfile = async (name: string, gamePath: string) => {
+const addProfile = async (name: string, gamePath?: string) => {
   const args = {
     id: createId(),
     name: name,
     gamePath: gamePath,
   };
-  await invoke_safe("add_profile", args);
+  const res = await invoke_safe<Profile>("add_profile", args);
+  return res;
 };
 const removeProfile = async (profileId: string) => await invoke_safe("remove_profile", { profileId: profileId });
-const editProfile = async (profileId: string, name: string, gamePath: string) => {
+const editProfile = async (profileId: string, name: string, gamePath?: string | null) => {
   const args = {
     profileId: profileId,
     name: name,
@@ -100,26 +101,51 @@ const setLanguage = async (i18n: ReturnType<typeof useTranslation>["i18n"], lang
 
 const tailLog = async () => await invoke_safe<String[]>("tail_log", {}, []);
 
+const cddaStableReleases = async () => await invoke_safe("cdda_get_stable_releases", {});
+const cddaLatestReleases = async () => await invoke_safe("cdda_get_latest_releases", {});
+const isCddaCloned = async () => await invoke_safe("cdda_is_cloned", {});
+const cddaPullRebase = async () => await invoke_safe("cdda_pull_rebase", {});
+
+const getPlatform = async (): Promise<string> => await invoke_safe("get_platform", {});
+
+const unzipArchive = async (src: string, dest: string) =>
+  await invoke_safe("unzip_archive", { src: src, destDir: dest });
+
 export {
+  // settings
+  getSettings,
+  getPlatform,
   setLanguage,
+  addProfile,
+  setProfileActive,
+  removeProfile,
+  editProfile,
+
+  // git for cdda
+  cddaStableReleases,
+  cddaLatestReleases,
+  isCddaCloned,
+  cddaPullRebase,
+
+  // git for mods
   gitFetch,
   gitFetchAllMods,
   cloneModRepo,
   gitCommand,
-  getSettings,
+  listBranches,
+
+  // zip
+  unzipModArchive,
+  unzipArchive,
+
+  // utility
   launchGame,
   openLocalDir,
   openModData,
-  listBranches,
   installMod,
   installAllMods,
   uninstallMods,
   uninstallAllMods,
   listMods,
-  unzipModArchive,
-  addProfile,
-  setProfileActive,
-  removeProfile,
-  editProfile,
   tailLog,
 };

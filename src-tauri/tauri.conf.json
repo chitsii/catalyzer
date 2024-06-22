@@ -11,13 +11,7 @@
     "copyright": "",
     "targets": "all",
     "externalBin": [],
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
@@ -50,7 +44,16 @@
         "height": 800,
         "width": 600,
         "resizable": false,
-        "title": "Catalyzer"
+        "title": "Catalyzer",
+        "label": "main",
+        "visible": false
+      },
+      {
+        "width": 400,
+        "height": 200,
+        "decorations": false,
+        "url": "webviews/splashscreen",
+        "label": "splashscreen"
       }
     ],
     "security": {

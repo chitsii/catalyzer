@@ -15,7 +15,7 @@ import { AreaForLog } from "@/components/logger";
 
 // State
 import { useAtom } from "jotai";
-import { refreshModsAtom, modsAtom, settingAtom } from "@/components/atoms";
+import { refreshModsAtom, modsAtom } from "@/components/atoms";
 
 // Utils
 import { ask } from "@tauri-apps/plugin-dialog";

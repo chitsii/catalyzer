@@ -5,7 +5,6 @@ use crate::logic::utils::get_modinfo_path;
 use crate::logic::utils::remove_dir_all;
 use crate::model::Mod;
 use crate::symlink::create_symbolic_link;
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -29,8 +28,8 @@ pub fn get_app_data_dir() -> PathBuf {
 
 /// ~/Library/Application Support/catalyzer/profiles/{profile_name}
 #[cfg(target_os = "macos")]
-fn get_profile_dir(profile_name: &str) -> PathBuf {
-    get_app_data_dir().join("profiles").join(profile_name)
+fn get_profile_dir(name_with_id: &str) -> PathBuf {
+    get_app_data_dir().join("profiles").join(name_with_id)
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -68,7 +67,8 @@ pub struct Profile {
 }
 impl Profile {
     pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
-        let profile_dir = get_profile_dir(&name);
+        let dir_name = format!("{}_{}", &name, &id);
+        let profile_dir = get_profile_dir(&dir_name);
         Self {
             id,
             name,
@@ -231,7 +231,7 @@ impl Settings {
         self.write_file();
     }
 
-    pub fn add_profile(&mut self, new_profile: Profile) {
+    pub fn add_profile(&mut self, new_profile: &Profile) {
         new_profile.create_dir_if_unexist();
         self.profiles.push(new_profile.clone());
         self.set_active_profile(new_profile.id.clone()).unwrap();
@@ -464,7 +464,7 @@ pub mod commands {
         id: String,
         name: String,
         game_path: Option<String>,
-    ) -> Result<(), String> {
+    ) -> Result<Profile, String> {
         let mut settings = state.settings.lock().unwrap();
 
         let game_path = if game_path.is_some() {
@@ -487,9 +487,9 @@ pub mod commands {
         };
 
         let new_profile = Profile::new(id, name, game_path);
-        settings.add_profile(new_profile);
+        settings.add_profile(&new_profile);
         settings.write_file();
-        Ok(())
+        Ok(new_profile)
     }
 
     #[tauri::command]
@@ -550,6 +550,13 @@ pub mod commands {
         settings.profiles[index].game_path = game_path.map(PathBuf::from);
         settings.write_file();
         Ok(())
+    }
+
+    #[tauri::command]
+    pub fn get_current_profile(state: tauri::State<'_, AppState>) -> Result<Profile, String> {
+        let settings = state.settings.lock().unwrap();
+        let res = settings.get_active_profile();
+        Ok(res)
     }
 
     #[tauri::command]

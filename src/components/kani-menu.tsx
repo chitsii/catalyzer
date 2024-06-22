@@ -1,6 +1,7 @@
 "use client";
 
 // React
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -19,9 +20,11 @@ import {
 // State
 import { useAtom } from "jotai";
 import { settingAtom } from "@/components/atoms";
+import { Profile } from "@/components/atoms";
+import { debug, trace, info, error, attachConsole, warn } from "@tauri-apps/plugin-log";
 
 // Utils
-import { launchGame } from "@/lib/api";
+import { launchGame, invoke_safe } from "@/lib/api";
 
 // i18n
 import "@/i18n/config";
@@ -32,8 +35,8 @@ const KaniMenu = () => {
   const [{ data: setting, isLoading, error }] = useAtom(settingAtom);
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error.message}</div>;
-
   const current_profile = setting ? setting.profiles.find((p) => p.is_active) : null;
+
   const game_path = current_profile ? current_profile.game_path : null;
 
   return (
