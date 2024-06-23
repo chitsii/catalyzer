@@ -79,3 +79,19 @@ pub struct Mod {
     pub is_installed: bool,
     pub local_path: String,
 }
+impl PartialEq for Mod {
+    fn eq(&self, other: &Self) -> bool {
+        self.info.name == other.info.name
+    }
+}
+impl PartialOrd for Mod {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.info.name.partial_cmp(&other.info.name)
+    }
+}
+impl Eq for Mod {}
+impl Ord for Mod {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.info.name.cmp(&other.info.name)
+    }
+}

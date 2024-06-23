@@ -1,5 +1,5 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod prelude {
     #![allow(unused_imports)]
@@ -7,7 +7,7 @@ mod prelude {
     pub use crate::profile::AppState;
     pub use anyhow::{anyhow, ensure, Context as _, Result};
     pub use log::{debug, error, info, warn};
-    use rayon::prelude::*;
+    pub use rayon::prelude::*;
     pub use serde::{Deserialize, Serialize};
     pub use std::path::{Path, PathBuf};
     pub use tauri::async_runtime::Mutex;
@@ -188,7 +188,6 @@ async fn create_profile_window(app: tauri::AppHandle) -> Result<(), String> {
 #[tauri::command]
 fn scan_mods(state: tauri::State<'_, AppState>) -> Result<Vec<Mod>, String> {
     let settings = state.get_settings().unwrap();
-
     let mods = match settings.scan_mods() {
         Ok(mods) => mods,
         Err(e) => {

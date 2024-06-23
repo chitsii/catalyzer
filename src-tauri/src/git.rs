@@ -174,40 +174,27 @@ fn git_clone(url: &str, target_dir: &Path, depth1: Option<bool>) -> Result<Repos
     }
 }
 
-/// ls-remote --tags --refs | awk '{print $2}' | awk -F'/' '{print $3}'
-fn ls_remote_tags(repo: &Repository) -> Result<Vec<String>, git2::Error> {
-    let mut remote = find_remote(repo)
-        .map_err(|e| git2::Error::from_str(&format!("Failed to find remote: {}", e)))?;
-    let connection = remote.connect_auth(Direction::Fetch, None, None)?;
-    let refs = connection.list()?;
-    let mut tags = HashSet::new();
-    for head in refs.iter() {
-        if head.name().starts_with("refs/tags/") {
-            tags.insert(
-                head.name()
-                    .to_string()
-                    .replace("refs/tags/", "")
-                    .replace("^{}", ""),
-            );
-        }
-    }
-    Ok(tags.into_iter().collect())
-}
-
 fn get_tmp_dir_path() -> PathBuf {
     use crate::profile::get_app_data_dir;
     let app_data_dir = get_app_data_dir();
-    app_data_dir.join(".cdda").join("tmp")
+    let tmp_path = app_data_dir.join(".cdda").join("tmp");
+    if !tmp_path.exists() {
+        debug!("init tmp dir: {:?}", &tmp_path);
+        std::fs::create_dir_all(&tmp_path).unwrap();
+    }
+    tmp_path
 }
 
-fn ls_remote_tags_without_repo(url: String) -> Result<Vec<String>> {
+fn ls_remote_tags(url: String) -> Result<Vec<String>> {
     let tmp = get_tmp_dir_path();
     let repo = git2::Repository::init(tmp)?;
     let mut remote = repo.remote_anonymous(&url)?;
-    let connection = remote.connect_auth(Direction::Fetch, None, None)?;
+    let connection = remote
+        .connect_auth(Direction::Fetch, None, None)
+        .context("Failed to connect to remote repository. Please check your network connection.")?;
     let refs = connection.list()?;
     let mut tags = HashSet::new();
-    for head in refs.iter() {
+    refs.iter().for_each(|head| {
         if head.name().starts_with("refs/tags/") {
             tags.insert(
                 head.name()
@@ -216,7 +203,7 @@ fn ls_remote_tags_without_repo(url: String) -> Result<Vec<String>> {
                     .replace("^{}", ""),
             );
         }
-    }
+    });
     Ok(tags.into_iter().collect())
 }
 
@@ -347,7 +334,7 @@ pub mod commands {
 }
 
 pub mod cdda {
-    use super::{fetch, get_signature, git_clone, ls_remote_tags, ls_remote_tags_without_repo};
+    use super::{fetch, get_signature, git_clone, ls_remote_tags};
     use crate::prelude::*;
     use crate::profile::get_app_data_dir;
     use git2::Repository;
@@ -358,7 +345,7 @@ pub mod cdda {
 
     fn ls_cdda_tags() -> Result<Vec<String>, String> {
         let url = format!("https://github.com/{}.git", BASE);
-        let tags = ls_remote_tags_without_repo(url).map_err(|e| e.to_string())?;
+        let tags = ls_remote_tags(url).map_err(|e| e.to_string())?;
         Ok(tags)
     }
 
@@ -391,7 +378,7 @@ pub mod cdda {
         url
     }
     #[cfg(target_os = "windows")]
-    fn infer_experimental_download_url(tag_name: String) -> Sring {
+    fn infer_experimental_download_url(tag_name: String) -> String {
         let re = Regex::new(DATE_FORMAT).unwrap();
         let date = re.find(&tag_name).unwrap().as_str();
         let url = format!(

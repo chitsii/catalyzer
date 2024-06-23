@@ -1,26 +1,6 @@
 use crate::prelude::*;
 use std::{fs, io};
 
-/// Remove all symlinks in a directory.
-pub fn cleanup_symlinks(target_dir: &Path) -> Result<()> {
-    ensure!(
-        target_dir.exists(),
-        "Directory does not exist: {:?}",
-        target_dir
-    );
-    ensure!(target_dir.is_dir(), "Not a directory: {:?}", target_dir);
-    for entry in fs::read_dir(target_dir)? {
-        let entry = entry?;
-        let path = entry.path();
-
-        // check if the file is a symlink
-        if path.symlink_metadata()?.file_type().is_symlink() {
-            fs::remove_file(&path)?;
-        }
-    }
-    Ok(())
-}
-
 /// Remove all files in a directory, excluding files that match the exclude_pattern.
 /// If exclude_pattern is None, all files will be removed including the directory itself.
 pub fn remove_dir_all(path: impl AsRef<Path>, exclude_pattern: Option<&str>) -> io::Result<()> {

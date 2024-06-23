@@ -4,30 +4,29 @@ use crate::git::try_checkout_to;
 use crate::logic::utils::get_modinfo_path;
 use crate::logic::utils::remove_dir_all;
 use crate::model::Mod;
-use crate::symlink::create_symbolic_link;
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 extern crate dirs;
 
 const SETTINGS_FILENAME: &str = "setting.yaml";
 
-/// current_exeの親ディレクトリ
-#[cfg(target_os = "windows")]
+/// Windows: current_exeの親ディレクトリ
+/// MacOS: ~/Library/Application Support/catalyzer
 pub fn get_app_data_dir() -> PathBuf {
-    let exe_path = std::env::current_exe().unwrap();
-    exe_path.parent().unwrap().to_path_buf()
-}
-
-/// current_exeの親ディレクトリ
-pub fn get_app_data_dir() -> PathBuf {
-    dirs::config_dir().unwrap().join("cataylzer")
+    #[cfg(target_os = "windows")]
+    {
+        let exe_path = std::env::current_exe().unwrap();
+        exe_path.parent().unwrap().to_path_buf()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        dirs::config_dir().unwrap().join("cataylzer")
+    }
 }
 
 /// ~/Library/Application Support/catalyzer/profiles/{profile_name}
-#[cfg(target_os = "macos")]
 fn get_profile_dir(name_with_id: &str) -> PathBuf {
     get_app_data_dir().join("profiles").join(name_with_id)
 }
@@ -162,17 +161,12 @@ impl Settings {
     /// プロファイルのmod_statusを元に、
     /// 1. 指定ローカルブランチがあればチェックアウト
     /// 2. ModDataディレクトリからゲームが読み込むmodディレクトリにシンボリックリンクを貼る
-    fn apply_mod_status(&self, profile: &Profile) -> Result<()> {
-        let game_mod_dir = self.get_game_mod_dir();
-        let has_game_mod_dir = game_mod_dir.exists();
-        if has_game_mod_dir {
-            crate::logic::utils::cleanup_symlinks(&game_mod_dir)?;
-        } else {
-            warn!("game mod directory does not exist");
-        }
-
-        profile.mod_status.iter().for_each(|m| {
-            // ローカルブランチがあればチェックアウト
+    fn apply_mod_status(&self, target_profile: &Profile) -> Result<()> {
+        target_profile.mod_status.par_iter().for_each(|m| {
+            // ローカルブランチがあり、インストールされていればチェックアウト
+            if !m.is_installed {
+                return;
+            }
             if let Some(local_version) = &m.local_version {
                 try_checkout_to(
                     m.local_path.clone(),
@@ -180,27 +174,9 @@ impl Settings {
                     false,
                 )
                 .unwrap_or(debug!(
-                    "Failed to checkout branch: {}",
+                    "Failed to checkout branch. Maybe the branch was removed: {:?}",
                     local_version.branch_name.clone()
                 ));
-            }
-
-            // インストール先が存在しない場合は、シンボリックリンク作成はスキップ
-            if !has_game_mod_dir {
-                warn!("game mod directory does not exist");
-                return;
-            }
-            if m.is_installed {
-                let src = Path::new(&m.local_path);
-                if src.exists() {
-                    let dir_name = src.file_name().context("Failed to get file name").unwrap();
-                    let dest = self.get_active_profile().profile_path.mods.join(dir_name);
-                    create_symbolic_link(src, &dest).unwrap_or_else(|e| {
-                        warn!("{}", e);
-                    });
-                } else {
-                    debug!("mod local_path does not exist");
-                }
             }
         });
         Ok(())
@@ -281,7 +257,6 @@ impl Settings {
         let mod_data_dir = self.mod_data_path.clone();
 
         // シンボリックリンクの一覧を取得
-        let mut mods = Vec::new();
         use crate::symlink::list_symlinks;
         let existing_symlinks = match list_symlinks(game_mod_dir) {
             Ok(data) => data,
@@ -293,63 +268,39 @@ impl Settings {
 
         // Modディレクトリを走査
         let entries = std::fs::read_dir(mod_data_dir)?;
-
-        for entry in entries {
-            let entry = entry?;
-            let path = entry.path();
-            let modinfo_path = match get_modinfo_path(&path) {
-                Ok(d) => d,
-                Err(e) => {
-                    debug!("{:}", e);
-                    continue;
-                }
-            };
-
-            // Mod情報の取得
-            let info = match ModInfo::from_path(&modinfo_path) {
-                Ok(info) => info,
-                Err(e) => {
-                    debug!("Failed to read modinfo.json: {}", e);
-                    continue;
-                }
-            };
-
-            // 断面管理情報の取得
-            let res = crate::git::open(path.display().to_string());
-            let local_version = match res {
-                Ok(repo) => {
-                    let head = repo.head()?;
-                    let head_branch = &head.name().unwrap();
-                    let head_branch = head_branch.split('/').last().unwrap();
-                    let last_commit = &head.peel_to_commit().unwrap();
+        let mut mods = entries
+            .par_bridge()
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                let path = entry.path();
+                let modinfo_path = get_modinfo_path(&path).ok()?;
+                let info = ModInfo::from_path(&modinfo_path).ok()?;
+                let res = crate::git::open(path.display().to_string()).ok();
+                let local_version = res.and_then(|repo| {
+                    let head = repo.head().ok()?;
+                    let head_branch = head.name()?.split('/').last()?.to_string();
+                    let last_commit = head.peel_to_commit().ok()?;
                     let last_commit_date = last_commit.time().seconds();
                     let last_commit_date =
-                        chrono::DateTime::<chrono::Utc>::from_timestamp(last_commit_date, 0)
-                            .unwrap();
+                        chrono::DateTime::<chrono::Utc>::from_timestamp(last_commit_date, 0)?;
                     Some(LocalVersion {
-                        branch_name: head_branch.to_string(),
+                        branch_name: head_branch,
                         last_commit_date: last_commit_date.to_string(),
                     })
-                }
-                Err(e) => {
-                    debug!("Failed to open as repository: {}", e);
-                    None
-                }
-            };
-
-            // インストール状態取得
-            let mod_dir_name = path.file_name().unwrap();
-            let is_installed = existing_symlinks
-                .iter()
-                .any(|path| path.file_name().unwrap().eq(mod_dir_name));
-            let m = Mod {
-                info,
-                local_version,
-                is_installed,
-                local_path: path.display().to_string(),
-            };
-            mods.push(m);
-        }
+                });
+                let mod_dir_name = path.file_name()?;
+                let is_installed = existing_symlinks
+                    .iter()
+                    .any(|p| p.file_name() == Some(mod_dir_name));
+                Some(Mod {
+                    info,
+                    local_version,
+                    is_installed,
+                    local_path: path.display().to_string(),
+                })
+            })
+            .collect::<Vec<_>>();
+        mods.sort_unstable();
         Ok(mods)
     }
 
