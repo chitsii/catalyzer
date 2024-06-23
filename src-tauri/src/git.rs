@@ -194,6 +194,32 @@ fn ls_remote_tags(repo: &Repository) -> Result<Vec<String>, git2::Error> {
     Ok(tags.into_iter().collect())
 }
 
+fn get_tmp_dir_path() -> PathBuf {
+    use crate::profile::get_app_data_dir;
+    let app_data_dir = get_app_data_dir();
+    app_data_dir.join(".cdda").join("tmp")
+}
+
+fn ls_remote_tags_without_repo(url: String) -> Result<Vec<String>> {
+    let tmp = get_tmp_dir_path();
+    let repo = git2::Repository::init(tmp)?;
+    let mut remote = repo.remote_anonymous(&url)?;
+    let connection = remote.connect_auth(Direction::Fetch, None, None)?;
+    let refs = connection.list()?;
+    let mut tags = HashSet::new();
+    for head in refs.iter() {
+        if head.name().starts_with("refs/tags/") {
+            tags.insert(
+                head.name()
+                    .to_string()
+                    .replace("refs/tags/", "")
+                    .replace("^{}", ""),
+            );
+        }
+    }
+    Ok(tags.into_iter().collect())
+}
+
 pub mod commands {
     use super::*;
     use crate::profile::AppState;
@@ -321,7 +347,7 @@ pub mod commands {
 }
 
 pub mod cdda {
-    use super::{fetch, get_signature, git_clone, ls_remote_tags};
+    use super::{fetch, get_signature, git_clone, ls_remote_tags, ls_remote_tags_without_repo};
     use crate::prelude::*;
     use crate::profile::get_app_data_dir;
     use git2::Repository;
@@ -329,6 +355,12 @@ pub mod cdda {
 
     const BASE: &str = r#"CleverRaven/Cataclysm-DDA"#;
     const DATE_FORMAT: &str = r"(\d{4}-\d{2}-\d{2}-\d{4})";
+
+    fn ls_cdda_tags() -> Result<Vec<String>, String> {
+        let url = format!("https://github.com/{}.git", BASE);
+        let tags = ls_remote_tags_without_repo(url).map_err(|e| e.to_string())?;
+        Ok(tags)
+    }
 
     fn get_release_api_endpoint(tab_name: String) -> String {
         let url = format!(
@@ -495,8 +527,11 @@ pub mod cdda {
         Ok(())
     }
 
-    fn get_stable_release_tag(repo: &Repository, num: usize) -> Result<Vec<String>, git2::Error> {
-        let tags = ls_remote_tags(repo)?;
+    fn get_stable_release_tag(
+        // repo: &Repository,
+        num: usize,
+    ) -> Result<Vec<String>, git2::Error> {
+        let tags = ls_cdda_tags().unwrap_or_else(|_| vec![]); // ls_remote_tags(repo)?;
         let re = Regex::new(r"^0\.[A-Z]-?[0-9]?$").unwrap();
         let mut tags = tags
             .iter()
@@ -509,8 +544,11 @@ pub mod cdda {
         Ok(tags)
     }
 
-    fn get_latest_release_tag(repo: &Repository, num: usize) -> Result<Vec<String>, git2::Error> {
-        let tags = ls_remote_tags(repo)?;
+    fn get_latest_release_tag(
+        // repo: &Repository,
+        num: usize,
+    ) -> Result<Vec<String>, git2::Error> {
+        let tags = ls_cdda_tags().unwrap_or_else(|_| vec![]); // ls_remote_tags(repo)?;
         let re = Regex::new(DATE_FORMAT).unwrap();
         let mut tags = tags
             .iter()
@@ -560,11 +598,11 @@ pub mod cdda {
         pub fn cdda_get_stable_releases(num: usize) -> Result<Vec<Res>, String> {
             info!("retrieve stable releases.");
 
-            let repo = get_cdda_repo().unwrap();
+            // let repo = get_cdda_repo().unwrap();
 
             debug!("got repo");
 
-            match get_stable_release_tag(&repo, num) {
+            match get_stable_release_tag(num) {
                 Ok(tags) => {
                     debug!("{:?}", tags);
                     let responses = tags
@@ -589,9 +627,9 @@ pub mod cdda {
         pub fn cdda_get_latest_releases(num: usize) -> Result<Vec<Res>, String> {
             info!("retrieve latest releases.");
 
-            let repo = get_cdda_repo().unwrap();
+            // let repo = get_cdda_repo().unwrap();
 
-            match get_latest_release_tag(&repo, num) {
+            match get_latest_release_tag(num) {
                 Ok(tags) => {
                     debug!("{:?}", tags);
                     let responses = tags
