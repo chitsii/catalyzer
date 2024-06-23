@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useState } from "react";
 import { info, error, debug } from "@tauri-apps/plugin-log";
 import { ColumnDef, RowData } from "@tanstack/react-table";
 import { GitGraphIcon, FolderSymlink } from "lucide-react";
@@ -473,29 +474,27 @@ export const columns: ColumnDef<Mod>[] = [
     // enableResizing: false,
     cell: ({ row, table }) => {
       const isInstalled: boolean = row.getValue("isInstalled");
+      const [installed, setInstalled] = useState(isInstalled);
       return (
         <>
           <Toggle
             aria-label="toggle_install"
             variant="outline"
-            data-state={isInstalled ? "installed" : "notInstalled"}
             onPressedChange={(e) => {
               const mod_data_dir = row.original.localPath;
-              if (isInstalled) {
+              if (installed) {
                 uninstallMods(mod_data_dir);
               } else {
                 installMod(mod_data_dir);
               }
-              // reload table
-              const f = table.options.meta?.fetchMods;
-              if (f) f();
+              setInstalled(!installed);
             }}
           >
             <FolderSymlink
               strokeWidth={3}
               size={22}
               className={
-                isInstalled
+                installed
                   ? "text-emerald-300 cursor-pointer transition-colors duration-400 ease-in-out"
                   : "text-gray-600 cursor-pointer transition-colors duration-400 ease-in-out"
               }
