@@ -5,6 +5,7 @@ import { useAtom } from "jotai";
 import { logTextAtom } from "@/components/atoms";
 import { attachLogger } from "@tauri-apps/plugin-log";
 import { tailLog } from "@/lib/api";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 // Copy from tauri-plugin-log-api
 enum LogLevel {
@@ -69,9 +70,10 @@ const AreaForLog = () => {
   }, [getter]);
 
   return (
-    <div className="w-full h-[200] overflow-y-scroll text-accent-foreground bg-accent" ref={logContainerRef}>
+    <ScrollArea className="w-full h-[600px] overflow-y-scroll text-accent-foreground bg-accent" ref={logContainerRef}>
+      <ScrollBar orientation="horizontal" />
       <pre className="p-4 text-xs">{getter.slice(-MAX_LOG_LINES).join("\n")}</pre>
-    </div>
+    </ScrollArea>
   );
 };
 

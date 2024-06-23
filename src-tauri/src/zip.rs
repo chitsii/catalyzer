@@ -20,7 +20,7 @@ pub mod commands {
 
     use crate::logic;
     use logic::utils::{copy_dir_all, get_shallowest_mod_dir, remove_dir_all};
-    use logic::zip::fix_zip_fname_encoding;
+    use logic::zip::{fix_zip_fname_encoding, unzip};
     use tempfile::tempdir;
 
     struct SrcDestPaths {
@@ -97,16 +97,13 @@ pub mod commands {
         let paths = prepare_paths(state, src, exists_ok).map_err(|e| e.to_string())?;
         let fixed_zip_path = create_fixed_encoding_zip(&paths.src, paths.tmp_zip.path())
             .map_err(|e| e.to_string())?;
+        let tmp_dir_path = paths.tmp_extract.path().to_path_buf();
+        unzip(&fixed_zip_path, &tmp_dir_path).map_err(|e| e.to_string())?;
 
-        let archive: Vec<u8> = std::fs::read(fixed_zip_path).unwrap();
-        let archive = std::io::Cursor::new(archive);
-        let tmp_dir_path = &paths.tmp_extract.path();
-        zip_extract::extract(archive, tmp_dir_path, true).map_err(|e| e.to_string())?;
-
-        let mod_dir = get_shallowest_mod_dir(tmp_dir_path)
+        let mod_dir = get_shallowest_mod_dir(&tmp_dir_path)
             .ok_or_else(|| "No mod directory found in archive".to_string())?;
 
-        // if exists_ok is set to true and dest directory exists, remove contents of dest directory except .git/*
+        // exists_okがtrueで、destディレクトリが存在する場合、.git/*以外のdestディレクトリの内容を削除する
         if exists_ok.is_some_and(|x| x) && paths.dest.clone().exists() {
             debug!("Removing existing directory: {}", &paths.dest.display());
             remove_dir_all(&paths.dest, Some(".git")).unwrap();
@@ -116,5 +113,18 @@ pub mod commands {
         copy_dir_all(mod_dir, &paths.dest, Some(".git"))
             .map(|_| debug!("Mod extracted to: {}", &paths.dest.display()))
             .map_err(|e| e.to_string())
+    }
+
+    #[tauri::command]
+    pub fn unzip_archive(
+        // state: tauri::State<'_, AppState>,
+        src: String,
+        dest_dir: String,
+    ) -> Result<(), String> {
+        let src_path = std::path::PathBuf::from(src);
+        let dest_dir_path = std::path::PathBuf::from(dest_dir);
+        unzip(&src_path, &dest_dir_path)
+            .map_err(|e| e.to_string())
+            .map(|_| ())
     }
 }

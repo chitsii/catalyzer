@@ -7,7 +7,7 @@ license = ""
 repository = "https://github.com/chitsii/catalyzer"
 default-run = "catalyzer"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.75"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,8 +17,7 @@ tauri-build = { version = "2.0.0-beta", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "2.0.0-beta", features = [
-] }
+tauri = { version = "2.0.0-beta", features = [] }
 git2 = { version = "0.18.3", features = ["vendored-libgit2"] }
 chrono = "0.4"
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
@@ -34,6 +33,15 @@ tauri-plugin-dialog = "2.0.0-beta.9"
 tauri-plugin-http = "2.0.0-beta.9"
 tauri-plugin-fs = "2.0.0-beta.9"
 tauri-plugin-shell = "2.0.0-beta.7"
+fs_extra = "1.3.0"
+dirs = "5.0.1"
+tauri-plugin-upload = "2.0.0-beta.7"
+dmgwiz = { version = "0.2", default-features = false }
+dmg = "0.1.2"
+regex = "1"
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+tokio = { version = "1.38.0", features = ["fs"] }
+rayon = "1.10.0"
 
 [target.x86_64-pc-windows-msvc.dependencies]
 junction = "1.1.0"

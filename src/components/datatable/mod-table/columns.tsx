@@ -89,8 +89,8 @@ export const columns: ColumnDef<Mod>[] = [
       return table.options.meta?.t("mod_name");
     },
     // enableResizing: false,
-    size: 160,
-    minSize: 160,
+    size: 135,
+    minSize: 135,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
       if (info == null) return null;
@@ -99,7 +99,7 @@ export const columns: ColumnDef<Mod>[] = [
           {info.name && (
             <div>
               <p
-                className="text-xs text-primary cursor-pointer leading-tight hover:underline"
+                className="text-xs text-primary break-all cursor-pointer leading-tight hover:underline"
                 onClick={() => {
                   openLocalDir(row.original.localPath);
                 }}
@@ -146,8 +146,8 @@ export const columns: ColumnDef<Mod>[] = [
     header: ({ table }) => {
       return table.options.meta?.t("mod_description");
     },
-    size: 175,
-    minSize: 175,
+    size: 200,
+    minSize: 200,
     // enableResizing: false,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
@@ -243,10 +243,8 @@ export const columns: ColumnDef<Mod>[] = [
                         const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
                         // 現在と同じブランチには切り替えない
                         if (selectedBranchName == "") {
-                          // popUp("info", "未選択
                           return;
                         } else if (selectedBranchName == local_version.branchName) {
-                          // popUp("info", "既に選択されているバージョンです");
                           return;
                         }
                         gitCommand("git_checkout", {
@@ -329,7 +327,7 @@ export const columns: ColumnDef<Mod>[] = [
                             spellCheck="false"
                             name="newBranchName"
                             id="newBranchName"
-                            placeholder="0.H, experimental, 20240606 etc..."
+                            placeholder="0.H, yyyymm etc..."
                             className="w-[450px]"
                             onChange={(e) => {
                               setNewBranchName(e.target.value);

@@ -5,28 +5,31 @@ use crate::logic::utils::get_modinfo_path;
 use crate::logic::utils::remove_dir_all;
 use crate::model::Mod;
 use crate::symlink::create_symbolic_link;
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+extern crate dirs;
+
 const SETTINGS_FILENAME: &str = "setting.yaml";
 
 /// current_exeの親ディレクトリ
-pub fn get_executable_dir() -> PathBuf {
+#[cfg(target_os = "windows")]
+pub fn get_app_data_dir() -> PathBuf {
     let exe_path = std::env::current_exe().unwrap();
     exe_path.parent().unwrap().to_path_buf()
 }
 
-/// current_exe_dir/Profiles/{ProfileName}
-fn get_profile_dir(profile_name: &str) -> PathBuf {
-    let config_root = get_executable_dir();
-    let profile_path = config_root.join("profiles").join(profile_name);
-    if !profile_path.exists() {
-        fs::create_dir_all(&profile_path).unwrap();
-    }
-    profile_path
+/// current_exeの親ディレクトリ
+pub fn get_app_data_dir() -> PathBuf {
+    dirs::config_dir().unwrap().join("cataylzer")
+}
+
+/// ~/Library/Application Support/catalyzer/profiles/{profile_name}
+#[cfg(target_os = "macos")]
+fn get_profile_dir(name_with_id: &str) -> PathBuf {
+    get_app_data_dir().join("profiles").join(name_with_id)
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -64,7 +67,8 @@ pub struct Profile {
 }
 impl Profile {
     pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
-        let profile_dir = get_profile_dir(&name);
+        let dir_name = format!("{}_{}", &name, &id);
+        let profile_dir = get_profile_dir(&dir_name);
         Self {
             id,
             name,
@@ -124,7 +128,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             language: "ja".into(),
-            mod_data_path: get_executable_dir().join("moddata"),
+            mod_data_path: get_app_data_dir().join("moddata"),
             profiles: vec![Profile::default()],
         }
     }
@@ -133,7 +137,7 @@ impl Settings {
     /// ModDataディレクトリを返す
     /// Osによらず executable/ModData
     pub fn get_mod_data_dir(&self) -> PathBuf {
-        get_executable_dir().join("moddata")
+        get_app_data_dir().join("moddata")
     }
 }
 impl Settings {
@@ -206,12 +210,14 @@ impl Settings {
         let profile_dir = &profile.profile_path.root;
         debug!("Removing profile dir: {:?}", profile_dir);
         if profile_dir.exists() {
-            remove_dir_all(profile_dir, None).unwrap();
+            remove_dir_all(profile_dir, None).unwrap_or_else(|e| {
+                warn!("{}", e);
+            });
         }
     }
 
     pub fn new() -> Self {
-        let config_file = get_executable_dir().join(SETTINGS_FILENAME);
+        let config_file = get_app_data_dir().join(SETTINGS_FILENAME);
         if !config_file.exists() {
             let mut settings = Self::default();
             settings.post_init();
@@ -227,7 +233,7 @@ impl Settings {
         self.write_file();
     }
 
-    pub fn add_profile(&mut self, new_profile: Profile) {
+    pub fn add_profile(&mut self, new_profile: &Profile) {
         new_profile.create_dir_if_unexist();
         self.profiles.push(new_profile.clone());
         self.set_active_profile(new_profile.id.clone()).unwrap();
@@ -391,7 +397,7 @@ trait Config {
 
 impl Config for Settings {
     fn write_file(&self) {
-        let config_root = get_executable_dir();
+        let config_root = get_app_data_dir();
         if !config_root.exists() {
             fs::create_dir_all(&config_root).unwrap();
         }
@@ -402,7 +408,7 @@ impl Config for Settings {
         file.write_all(serialized.as_bytes()).unwrap();
     }
     fn read_file(&mut self) -> Settings {
-        let config_root = get_executable_dir();
+        let config_root = get_app_data_dir();
         let config_file = config_root.join(SETTINGS_FILENAME);
         let input = fs::read_to_string(config_file).unwrap();
         let deserialized: Result<Settings, serde_yaml::Error> = serde_yaml::from_str(&input);
@@ -460,7 +466,7 @@ pub mod commands {
         id: String,
         name: String,
         game_path: Option<String>,
-    ) -> Result<(), String> {
+    ) -> Result<Profile, String> {
         let mut settings = state.settings.lock().unwrap();
 
         let game_path = if game_path.is_some() {
@@ -483,9 +489,9 @@ pub mod commands {
         };
 
         let new_profile = Profile::new(id, name, game_path);
-        settings.add_profile(new_profile);
+        settings.add_profile(&new_profile);
         settings.write_file();
-        Ok(())
+        Ok(new_profile)
     }
 
     #[tauri::command]
@@ -513,7 +519,6 @@ pub mod commands {
             debug!("Error: Failed to set active profile: {:?}", state);
             e.to_string()
         })
-        // Ok(())
     }
 
     #[tauri::command]
@@ -547,6 +552,13 @@ pub mod commands {
         settings.profiles[index].game_path = game_path.map(PathBuf::from);
         settings.write_file();
         Ok(())
+    }
+
+    #[tauri::command]
+    pub fn get_current_profile(state: tauri::State<'_, AppState>) -> Result<Profile, String> {
+        let settings = state.settings.lock().unwrap();
+        let res = settings.get_active_profile();
+        Ok(res)
     }
 
     #[tauri::command]
