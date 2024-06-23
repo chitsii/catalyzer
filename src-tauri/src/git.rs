@@ -1,5 +1,4 @@
 use crate::prelude::*;
-
 use git2::{Branch, Direction, FetchOptions, Repository, Signature};
 use std::collections::HashSet;
 
@@ -180,7 +179,6 @@ fn ls_remote_tags(repo: &Repository) -> Result<Vec<String>, git2::Error> {
     let mut remote = find_remote(repo)
         .map_err(|e| git2::Error::from_str(&format!("Failed to find remote: {}", e)))?;
     let connection = remote.connect_auth(Direction::Fetch, None, None)?;
-
     let refs = connection.list()?;
     let mut tags = HashSet::new();
     for head in refs.iter() {
@@ -499,7 +497,6 @@ pub mod cdda {
 
     fn get_stable_release_tag(repo: &Repository, num: usize) -> Result<Vec<String>, git2::Error> {
         let tags = ls_remote_tags(repo)?;
-        debug!("{:?}", tags);
         let re = Regex::new(r"^0\.[A-Z]-?[0-9]?$").unwrap();
         let mut tags = tags
             .iter()
@@ -514,7 +511,6 @@ pub mod cdda {
 
     fn get_latest_release_tag(repo: &Repository, num: usize) -> Result<Vec<String>, git2::Error> {
         let tags = ls_remote_tags(repo)?;
-        debug!("{:?}", tags);
         let re = Regex::new(DATE_FORMAT).unwrap();
         let mut tags = tags
             .iter()

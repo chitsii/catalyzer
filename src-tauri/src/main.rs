@@ -7,6 +7,7 @@ mod prelude {
     pub use crate::profile::AppState;
     pub use anyhow::{anyhow, ensure, Context as _, Result};
     pub use log::{debug, error, info, warn};
+    use rayon::prelude::*;
     pub use serde::{Deserialize, Serialize};
     pub use std::path::{Path, PathBuf};
     pub use tauri::async_runtime::Mutex;

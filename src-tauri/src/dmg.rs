@@ -1,6 +1,5 @@
 use crate::prelude::*;
 use dmg::Handle;
-use tauri::async_runtime::spawn_blocking;
 use tauri::{AppHandle, Manager};
 
 fn mount(source_dmg: PathBuf) -> Result<Handle> {
@@ -46,9 +45,7 @@ fn copy(app_handle: AppHandle, cdda_path: PathBuf, target_dir: PathBuf) -> Resul
                 "Copying {} of {} bytes",
                 process_info.copied_bytes, process_info.total_bytes
             );
-            let app_handle_spawn = app_handle.clone();
-            // spawn_blocking(move || {
-            app_handle_spawn
+            app_handle
                 .emit(
                     "EXTRACT_PROGRESS",
                     Progress {
@@ -57,7 +54,6 @@ fn copy(app_handle: AppHandle, cdda_path: PathBuf, target_dir: PathBuf) -> Resul
                     },
                 )
                 .unwrap();
-            // });
             last_emit = std::time::Instant::now();
         }
         fs_extra::dir::TransitProcessResult::ContinueOrAbort
@@ -81,7 +77,7 @@ pub mod commands {
     use super::*;
 
     #[tauri::command]
-    pub fn extract_dmg(
+    pub async fn extract_dmg(
         handle: AppHandle,
         source_dmg: String,
         target_dir: String,

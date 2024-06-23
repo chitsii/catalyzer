@@ -35,35 +35,49 @@ const ProgressButton = ({
 }: ProgressButtonProps) => {
   const [state, send] = useMachine(progressButtonMachine);
 
-  useEffect(() => {
-    info(`download_progress: ${download_progress}`);
-    if (download_progress) {
-      if (download_progress >= 100 && !state.matches("inExtractProgress")) {
-        try {
-          send({ type: "completeDownload" });
-        } catch (e: any) {
-          onError?.(e);
+  useEffect(
+    () => {
+      info(`button download_progress: ${download_progress}`);
+      if (download_progress) {
+        if (download_progress >= 100 && !state.matches("inExtractProgress")) {
+          try {
+            send({ type: "completeDownload" });
+          } catch (e: any) {
+            onError?.(e);
+          }
+        } else if (download_progress < 0) {
+          send({ type: "setError" });
+        } else {
+          send({ type: "setProgress", progress: download_progress });
         }
-      } else {
-        send({ type: "setProgress", progress: download_progress });
       }
-    }
-  }, [download_progress]);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [download_progress],
+  );
 
-  useEffect(() => {
-    info(`extract_progress: ${extract_progress}`);
-    if (extract_progress) {
-      if (extract_progress >= 100 && !state.matches("success")) {
-        try {
-          send({ type: "completeExtract" });
-        } catch (e: any) {
-          onError?.(e);
+  useEffect(
+    () => {
+      info(`button extract_progress: ${extract_progress}`);
+      if (extract_progress) {
+        if (extract_progress >= 100 && !state.matches("success")) {
+          try {
+            send({ type: "completeExtract" });
+          } catch (e: any) {
+            info("error in extract!!!");
+            send({ type: "setError" });
+            onError?.(e);
+          }
+        } else if (extract_progress < 0) {
+          send({ type: "setError" });
+        } else {
+          send({ type: "setProgress", progress: extract_progress });
         }
-      } else {
-        send({ type: "setProgress", progress: extract_progress });
       }
-    }
-  }, [extract_progress]);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [extract_progress],
+  );
 
   const handleClick = () => {
     send({ type: "click" });
@@ -78,13 +92,13 @@ const ProgressButton = ({
 
   const bgColor = `[&>*>*]:bg-${successColorClass}`;
   const bgColorClassDL = state.context.download_progress >= 100 ? bgColor : "[&>*>*]:bg-primary-900";
-  const bgColorClassExt = state.context.extract_progress >= 100 ? bgColor : "[&>*>*]:bg-primary-900";
+  const bgColorClassExt = state.context.extract_progress >= 100 ? bgColor : "[&>*>*]:bg-cyan-300";
 
   return (
     <div className="flex flex-col justify-center items-center h-full">
       <Button
         variant="outline"
-        className={`w-[250px] h-7 gap-1 group ${!state.matches("idle") ? "pointer-events-none" : ""}`}
+        className={`w-[200px] h-7 gap-1 group text-xs ${!state.matches("idle") ? "pointer-events-none" : ""}`}
         onClick={handleClick}
       >
         {state.matches("idle") && (
@@ -95,23 +109,24 @@ const ProgressButton = ({
         )}
         {state.matches("inDownloadProgress") && (
           <>
-            <span className={`transition-color animate-in fade-in zoom-in absolute`}>
+            <span className={`transition-color animate-in fade-in zoom-in`}>
               <span className={bgColorClassDL}>{progressBarDL}</span>
+              <span className="text-[8px]">Downloading...</span>
             </span>
-            {/* <span className="absolute top-0 left-0 w-full h-full flex justify-center items-center">Downloading...</span> */}
           </>
         )}
         {state.matches("inExtractProgress") && (
           <>
-            <span className={`transition-color animate-in fade-in zoom-in absolute`}>
-              <Icons.spinner className="h-5 w-5 animate-spin" />
-              {/* <span className={bgColorClassExt}>{progressBarExt}</span> */}
-              {/* <span className="absolute top-0 left-0 w-full h-full flex justify-center items-center">Extracting...</span> */}
+            <span className={`transition-color animate-in fade-in zoom-in`}>
+              {/* <Icons.spinner className="h-5 w-5 animate-spin" /> */}
+              <span className={bgColorClassExt}>{progressBarExt}</span>
+              <span className="text-[8px]">Extracting...</span>
             </span>
           </>
         )}
         {state.matches("success") && <span className="animate-in fade-in zoom-in spin-in">{successIcon}</span>}
-        {state.matches("successFadeOut") && <span className="animate-out fade-out zoom-out">{successIcon}</span>}
+        {state.matches("error") && <span className="animate-in fade-in zoom-in spin-in">{"❌"}</span>}
+        {/* {state.matches("successFadeOut") && <span className="animate-out fade-out zoom-out">{successIcon}</span>} */}
       </Button>
     </div>
   );

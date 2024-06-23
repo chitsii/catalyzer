@@ -10,7 +10,8 @@ const progressButtonMachine = setup({
       | { type: "click" }
       | { type: "completeDownload" }
       | { type: "completeExtract" }
-      | { type: "setProgress"; progress: number },
+      | { type: "setProgress"; progress: number }
+      | { type: "setError" },
   },
 }).createMachine({
   context: {
@@ -34,6 +35,7 @@ const progressButtonMachine = setup({
           }),
         },
         completeDownload: "inExtractProgress",
+        setError: "error",
       },
     },
     inExtractProgress: {
@@ -46,6 +48,7 @@ const progressButtonMachine = setup({
           }),
         },
         completeExtract: "success",
+        setError: "error",
       },
     },
     success: {
@@ -58,6 +61,7 @@ const progressButtonMachine = setup({
       //   10: "idle", // Transition to 'idle' after x ms
       // },
     },
+    error: {},
   },
 });
 

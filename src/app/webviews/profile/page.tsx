@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CSR from "@/components/csr/csr";
 import { download } from "@tauri-apps/plugin-upload";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 import {
   unzipArchive,
@@ -69,6 +70,8 @@ const GameInstaller = ({ release }: InstallerProps) => {
       });
 
       if (receivedLength <= 1024 * 1024 * 10) {
+        setDownloadProgress(-1);
+        setExtractProgress(-1);
         popUp("failed", "このバージョンはビルド中かもしれません。URLから確認してみてください。");
         removeProfile(new_profile.id);
         return;
@@ -78,10 +81,10 @@ const GameInstaller = ({ release }: InstallerProps) => {
         progress: number;
         total: number;
       };
-      const unlisten = await listen<Payload>("EXTRACT_PROGRESS", (e) => {
-        let percent = Math.ceil(e.payload.progress / e.payload.total) * 100;
-        info(`extract progress: ${percent}`);
-        setExtractProgress(percent);
+      WebviewWindow.getCurrent().listen<Payload>("EXTRACT_PROGRESS", (e) => {
+        let percent = Math.ceil((e.payload.progress / e.payload.total) * 100);
+        info(`extract: ${e.payload.progress} / ${e.payload.total} / ${percent}`);
+        setExtractProgress(() => percent);
       });
       if (download_url.endsWith(".zip")) {
         await unzipArchive(download_save_path, extract_dir);
@@ -101,9 +104,12 @@ const GameInstaller = ({ release }: InstallerProps) => {
           macos: path.join(extract_dir, "Cataclysm.app"),
         }[platform] || null;
       await editProfile(new_profile.id, new_profile.name, game_path);
-      unlisten();
+      setExtractProgress(100);
+      // unlisten();
     } catch (error) {
       warn(JSON.stringify(error));
+      setDownloadProgress(-1);
+      setExtractProgress(-1);
       popUp("failed", "ダウンロードまたは解凍に失敗しました。");
       removeProfile(new_profile.id);
     }
@@ -199,12 +205,12 @@ function Dashboard() {
     return (
       <>
         <TableRow>
-          <TableCell className="font-medium">
+          <TableCell>
             <Link
               href={release.browser_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-accent-foreground hover:underline"
+              className="text-xs text-accent-foreground hover:underline"
             >
               {release.tag_name}
             </Link>
@@ -219,8 +225,8 @@ function Dashboard() {
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <div className="flex flex-col sm:gap-4 sm:py-4">
-        <div className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+      <div className="flex flex-col gap-4 py-4">
+        <div className="grid flex-1 items-start gap-4 px-6 py-0">
           <Tabs defaultValue="latest">
             <div className="flex items-center space-x-2">
               <TabsList>
@@ -245,12 +251,7 @@ function Dashboard() {
                   Stable
                 </TabsTrigger>
               </TabsList>
-              <>
-                <div className="text-xs">APIコール制限残: {rateLimit !== null ? rateLimit : "Loading..."}</div>
-                {/* <Button onClick={fetchRateLimit} size="icon" className="h-6 ml-4 bg-cyan-600 text-accent rounded">
-                  <UpdateIcon />
-                </Button> */}
-              </>
+              <div className="text-xs">APIコール制限残: {rateLimit !== null ? rateLimit : "Loading..."}</div>
             </div>
             <TabsContent value="latest">
               <CSR>
