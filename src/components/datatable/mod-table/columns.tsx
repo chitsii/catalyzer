@@ -89,8 +89,8 @@ export const columns: ColumnDef<Mod>[] = [
       return table.options.meta?.t("mod_name");
     },
     // enableResizing: false,
-    size: 160,
-    minSize: 160,
+    size: 135,
+    minSize: 135,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
       if (info == null) return null;
@@ -99,7 +99,7 @@ export const columns: ColumnDef<Mod>[] = [
           {info.name && (
             <div>
               <p
-                className="text-xs text-primary cursor-pointer leading-tight hover:underline"
+                className="text-xs text-primary break-all cursor-pointer leading-tight hover:underline"
                 onClick={() => {
                   openLocalDir(row.original.localPath);
                 }}
@@ -146,8 +146,8 @@ export const columns: ColumnDef<Mod>[] = [
     header: ({ table }) => {
       return table.options.meta?.t("mod_description");
     },
-    size: 175,
-    minSize: 175,
+    size: 200,
+    minSize: 200,
     // enableResizing: false,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
