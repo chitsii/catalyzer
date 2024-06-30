@@ -21,7 +21,6 @@ tauri = { version = "2.0.0-beta", features = [] }
 git2 = { version = "0.18.3", features = ["vendored-libgit2"] }
 chrono = "0.4"
 tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
-tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
 zip-extract = "0.1.3"
 tempfile = "3.10.1"
 anyhow = "1.0"
@@ -30,13 +29,11 @@ serde_yaml = "0.9.34"
 toml = "0.8.13"
 log = "0.4.21"
 tauri-plugin-dialog = "2.0.0-beta.9"
-tauri-plugin-http = "2.0.0-beta.9"
 tauri-plugin-fs = "2.0.0-beta.9"
 tauri-plugin-shell = "2.0.0-beta.7"
 fs_extra = "1.3.0"
 dirs = "5.0.1"
 tauri-plugin-upload = "2.0.0-beta.7"
-dmgwiz = { version = "0.2", default-features = false }
 dmg = "0.1.2"
 regex = "1"
 reqwest = { version = "0.12", features = ["json", "blocking"] }
