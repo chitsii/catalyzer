@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ColorThemeSelector } from "@/components/theme-seletor";
 import { ModsTable } from "@/components/datatable/mod-table/table-mods";
 import CSR from "@/components/csr/csr";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { AreaForLog } from "@/components/logger";
 
 // State

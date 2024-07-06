@@ -1,6 +1,5 @@
 use crate::git::common::{git_clone, ls_remote_tags, pull_rebase};
 use crate::prelude::*;
-use crate::profile::constant_paths::get_app_data_dir;
 use git2::Repository;
 use regex::Regex;
 
