@@ -1,6 +1,5 @@
-use std::ffi::OsStr;
-
 use crate::prelude::*;
+use std::ffi::OsStr;
 
 fn to_stem(file_path: impl AsRef<Path>) -> String {
     let file_name = file_path
@@ -30,19 +29,14 @@ pub mod commands {
         tmp_zip: tempfile::TempDir,
     }
 
-    fn prepare_paths(
-        state: tauri::State<'_, AppState>,
-        src: String,
-        exists_ok: Option<bool>,
-    ) -> Result<SrcDestPaths> {
+    fn prepare_paths(src: String, exists_ok: Option<bool>) -> Result<SrcDestPaths> {
         let src_path = std::path::PathBuf::from(src);
         let src_stem = to_stem(&src_path);
-        println!("--- src_stem: {}", src_stem);
+        debug!("--- src_stem: {}", src_stem);
 
-        let setting = state.get_settings().unwrap();
-        let dest_dir = setting.get_mod_data_dir();
+        let dest_dir = crate::profile::constant_paths::moddata_dir();
         let dest_path = dest_dir.join(src_stem);
-        println!("--- dest_path: {}", dest_path.display());
+        debug!("--- dest_path: {}", dest_path.display());
 
         // check if src_path exists, otherwise return error
         ensure!(
@@ -89,12 +83,8 @@ pub mod commands {
     /// src: Mod archive file path
     /// dest_dir: profile's mod directory
     #[tauri::command]
-    pub fn unzip_mod_archive(
-        state: tauri::State<'_, AppState>,
-        src: String,
-        exists_ok: Option<bool>,
-    ) -> Result<(), String> {
-        let paths = prepare_paths(state, src, exists_ok).map_err(|e| e.to_string())?;
+    pub fn unzip_mod_archive(src: String, exists_ok: Option<bool>) -> Result<(), String> {
+        let paths = prepare_paths(src, exists_ok).map_err(|e| e.to_string())?;
         let fixed_zip_path = create_fixed_encoding_zip(&paths.src, paths.tmp_zip.path())
             .map_err(|e| e.to_string())?;
         let tmp_dir_path = paths.tmp_extract.path().to_path_buf();
@@ -116,11 +106,7 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub fn unzip_archive(
-        // state: tauri::State<'_, AppState>,
-        src: String,
-        dest_dir: String,
-    ) -> Result<(), String> {
+    pub fn unzip_archive(src: String, dest_dir: String) -> Result<(), String> {
         let src_path = std::path::PathBuf::from(src);
         let dest_dir_path = std::path::PathBuf::from(dest_dir);
         unzip(&src_path, &dest_dir_path)

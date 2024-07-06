@@ -17,8 +17,8 @@ fn mount(source_dmg: PathBuf) -> Result<Handle> {
             return Err(anyhow!("DMG is broken: {}", e));
         }
     };
-    println!("Device node {:?}", mount_info.device);
-    println!("Mounted at {:?}", mount_info.mount_point);
+    debug!("Device node {:?}", mount_info.device);
+    debug!("Mounted at {:?}", mount_info.mount_point);
     Ok(mount_info)
 }
 

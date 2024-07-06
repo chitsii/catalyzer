@@ -204,7 +204,7 @@ pub fn git_clone(url: &str, target_dir: &Path, depth1: Option<bool>) -> Result<R
 }
 
 fn get_tmp_dir_path() -> PathBuf {
-    use crate::profile::get_app_data_dir;
+    use crate::profile::constant_paths::get_app_data_dir;
     let app_data_dir = get_app_data_dir();
     let tmp_path = app_data_dir.join(".cdda").join("tmp");
     if !tmp_path.exists() {
@@ -241,9 +241,8 @@ pub mod commands {
     use crate::profile::AppState;
 
     #[tauri::command]
-    pub fn git_fetch_all_mods(state: tauri::State<'_, AppState>) -> Result<(), String> {
-        let setting = state.get_settings().unwrap();
-        let mod_data_dir = setting.get_mod_data_dir();
+    pub fn git_fetch_all_mods() -> Result<(), String> {
+        let mod_data_dir = crate::profile::constant_paths::moddata_dir();
 
         debug!("Fetching all mods");
         for entry in std::fs::read_dir(mod_data_dir).unwrap() {
@@ -265,12 +264,8 @@ pub mod commands {
     }
 
     #[tauri::command]
-    pub fn git_clone_mod_repo(
-        state: tauri::State<'_, AppState>,
-        url: String,
-    ) -> Result<(), String> {
-        let setting = state.get_settings().unwrap();
-        let mod_data_dir = setting.get_mod_data_dir();
+    pub fn git_clone_mod_repo(url: String) -> Result<(), String> {
+        let mod_data_dir = crate::profile::constant_paths::moddata_dir();
 
         let repo_name = url.split('/').last().unwrap();
         let repo_name = repo_name.replace(".git", "");

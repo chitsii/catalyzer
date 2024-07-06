@@ -84,7 +84,7 @@ fn main() {
                     Target::new(TargetKind::Stdout),
                     Target::new(TargetKind::Webview),
                     Target::new(TargetKind::Folder {
-                        path: crate::profile::get_app_data_dir().join("logs"),
+                        path: crate::profile::constant_paths::log_dir(),
                         file_name: Some("catalyzer".to_string()),
                     }),
                 ])
@@ -249,9 +249,8 @@ fn open_dir(target_dir: String) {
 }
 
 #[tauri::command]
-fn open_mod_data(state: tauri::State<'_, AppState>) {
-    let setting = state.get_settings().unwrap();
-    let mod_dir_path = setting.get_mod_data_dir();
+fn open_mod_data() {
+    let mod_dir_path = crate::profile::constant_paths::moddata_dir();
     open_dir(mod_dir_path.to_str().unwrap().to_string());
 }
 
@@ -259,7 +258,7 @@ fn open_mod_data(state: tauri::State<'_, AppState>) {
 fn tail_log() -> Vec<String> {
     const MAX_LINES: usize = 20;
 
-    let log_path = profile::get_app_data_dir().join("logs");
+    let log_path = profile::constant_paths::log_dir();
     let log_file = log_path
         .read_dir()
         .unwrap()
@@ -289,52 +288,6 @@ fn tail_log() -> Vec<String> {
     lines[start..].to_vec()
 }
 
-#[cfg(target_os = "macos")]
-fn inspect_mods_process(
-    profile: &Profile,
-    target_mod_ids: &[String],
-) -> Result<std::process::Child, String> {
-    let userdata_path = profile.get_profile_root_dir();
-    let game_path = profile.get_game_path().unwrap();
-    let resource_dir = game_path.join("Contents").join("Resources");
-    resource_dir.try_exists().unwrap();
-    let child = Command::new("sh")
-        .arg("-c")
-        .arg(format!(
-            "cd '{}' && export LD_LIBRARY_PATH=. && ./cataclysm-tiles --userdir '{}/' --check-mods {}",
-            resource_dir.to_string_lossy(),
-            userdata_path.to_string_lossy(),
-            target_mod_ids.join(" ")
-        ))
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn().map_err(|e| format!("Failed to spawn the process: {}", e))?;
-
-    Ok(child)
-}
-
-#[cfg(target_os = "windows")]
-fn inspect_mods_process(
-    profile: &Profile,
-    target_mod_ids: &[String],
-) -> Result<std::process::Child, String> {
-    let game_path = profile.get_game_path().unwrap();
-    let userdata_path = profile.get_profile_root_dir();
-
-    let options = format!(
-        "cd /d {} && start cataclysm-tiles.exe --userdir '{}\\' --check-mods {}",
-        game_path.parent().unwrap().to_string_lossy(),
-        userdata_path.to_string_lossy(),
-        target_mod_ids.join(" ")
-    );
-    let child = Command::new("cmd")
-        .args(["/C", &options])
-        .spawn()
-        .map_err(|e| format!("Failed to launch the game: {}", e))?;
-
-    Ok(child)
-}
-
 #[tauri::command]
 fn inspect_mods(state: tauri::State<'_, AppState>) -> Result<(), String> {
     let settings = state.get_settings().unwrap();
@@ -342,18 +295,22 @@ fn inspect_mods(state: tauri::State<'_, AppState>) -> Result<(), String> {
     if profile.get_game_path().is_none() {
         return Err("No active game path is set".to_string());
     }
-
     let target_mod_ids = profile
         .get_mod_info(true)
         .iter()
         .filter_map(|m| m.get_id())
-        .collect::<Vec<String>>();
-
-    let child = inspect_mods_process(&profile, &target_mod_ids)?;
+        .collect::<Vec<_>>();
+    let chk_option = format!("--check-mods {}", target_mod_ids.join(" "));
+    let child = launch(
+        profile.get_game_path().unwrap(),
+        profile.get_profile_root_dir(),
+        Some(chk_option),
+    )?;
     let output = child
         .wait_with_output()
-        .map_err(|e| format!("Failed to wait for the process: {}", e))?;
-    let output = String::from_utf8(output.stderr)
+        .map_err(|e| format!("Failed to wait for the process: {}", e))?
+        .stderr;
+    let output = String::from_utf8(output)
         .map_err(|e| format!("Failed to convert the output to string: {}", e))?;
 
     let time = chrono::Local::now();
@@ -365,19 +322,11 @@ Date: {time}
 
 ===INSPECT MODS RESULT==
 {output}
-=================="#
+================="#
     );
-
-    // save to log folder
-    let log_file = profile::get_app_data_dir()
-        .join("logs")
-        .join(format!("inspect_mods_{:?}.txt", time));
-    let mut file = std::fs::File::create(log_file.clone())
-        .map_err(|e| format!("Failed to create the log file: {}", e))?;
-    file.write_all(output.as_bytes())
+    let log_file = profile::constant_paths::log_dir().join(format!("inspect_mods_{:?}.txt", time));
+    std::fs::write(log_file.clone(), output.as_bytes())
         .map_err(|e| format!("Failed to write to the log file: {}", e))?;
-
-    // open the log file
     open_dir(log_file.to_string_lossy().into());
     Ok(())
 }
@@ -393,32 +342,44 @@ fn launch_game(state: tauri::State<'_, AppState>) -> Result<(), String> {
     match game_path {
         Some(path) => {
             profile.create_dir_if_unexist();
-            launch(path, userdata_path).map_err(|e| format!("Failed to launch the game: {}", e))?;
+            launch(path, userdata_path, None)
+                .map_err(|e| format!("Failed to launch the game: {}", e))?;
         }
         None => {
             return Err("Game path is not set".to_string());
         }
-    }
+    };
     Ok(())
 }
 
 #[cfg(target_os = "windows")]
-fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
+fn launch(
+    game_path: PathBuf,
+    userdata_path: PathBuf,
+    extra_option_string: Option<String>,
+) -> Result<std::process::Child, String> {
     let options = format!(
-        "cd /d {} && start cataclysm-tiles.exe --userdir {}\\",
+        "cd /d {} && start cataclysm-tiles.exe --userdir '{}\\' {}",
         &game_path.parent().unwrap().to_string_lossy(),
-        userdata_path.to_string_lossy()
+        userdata_path.to_string_lossy(),
+        extra_option_string.unwrap_or_default()
     );
     debug!("command: {}", &options);
-    Command::new("cmd")
+    let child = Command::new("cmd")
         .args(["/C", &options])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to launch the game: {}", e))?;
-    Ok(())
+    Ok(child)
 }
 
 #[cfg(target_os = "macos")]
-fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
+fn launch(
+    game_path: PathBuf,
+    userdata_path: PathBuf,
+    extra_option_string: Option<String>,
+) -> Result<std::process::Child, String> {
     if game_path.extension().unwrap() != "app" {
         return Err(format!("Game path does not exist: {:?}", game_path));
     }
@@ -434,14 +395,17 @@ fn launch(game_path: PathBuf, userdata_path: PathBuf) -> Result<(), String> {
         .map_err(|e| format!("Failed to launch the game: {}", e))?;
 
     // refer to: Cataclysm.app/Contents/MacOS/Cataclysm.sh
-    Command::new("sh")
+    let child = Command::new("sh")
         .arg("-c")
         .arg(format!(
-            "cd '{}' && export DYLD_LIBRARY_PATH=. && export DYLD_FRAMEWORK_PATH=. && ./cataclysm-tiles --userdir '{}/'",
+            "cd '{}' && export DYLD_LIBRARY_PATH=. && export DYLD_FRAMEWORK_PATH=. && ./cataclysm-tiles --userdir '{}/' {}",
             resource_dir.to_string_lossy(),
-            userdata_path.to_string_lossy()
+            userdata_path.to_string_lossy(),
+            extra_option_string.unwrap_or_default()
         ))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| format!("Failed to launch the game: {}", e))?;
-    Ok(())
+    Ok(child)
 }

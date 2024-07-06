@@ -1,6 +1,6 @@
 use crate::git::common::{git_clone, ls_remote_tags, pull_rebase};
 use crate::prelude::*;
-use crate::profile::get_app_data_dir;
+use crate::profile::constant_paths::get_app_data_dir;
 use git2::Repository;
 use regex::Regex;
 
@@ -19,11 +19,6 @@ fn get_release_api_endpoint(tab_name: String) -> String {
         BASE, tab_name
     );
     url
-}
-
-fn get_clone_dir_path() -> PathBuf {
-    let app_data_dir = get_app_data_dir();
-    app_data_dir.join(".cdda").join("Cataclysm-DDA")
 }
 
 fn infer_release_browser_url(tag_name: String) -> String {
@@ -143,7 +138,7 @@ fn shallow_clone_cdda(target_dir: PathBuf) -> Result<Repository, String> {
 ///
 /// Returns the opened or cloned repository, or an error message if the operation fails.
 fn get_cdda_repo() -> Result<Repository, String> {
-    let target_dir = get_clone_dir_path();
+    let target_dir = crate::profile::constant_paths::cdda_clone_dir();
     let repo = match Repository::open(&target_dir) {
         Ok(repo) => repo,
         Err(_) => {
@@ -209,8 +204,7 @@ pub mod commands {
 
     #[tauri::command]
     pub fn cdda_is_cloned() -> bool {
-        let target_dir = get_clone_dir_path();
-        target_dir.exists()
+        crate::profile::constant_paths::cdda_clone_dir().exists()
     }
 
     #[derive(Debug, Deserialize, Serialize, Clone)]
