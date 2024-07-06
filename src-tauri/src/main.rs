@@ -12,21 +12,23 @@ mod prelude {
     pub use std::path::{Path, PathBuf};
     pub use tauri::async_runtime::Mutex;
 }
-
 use log::LevelFilter;
 use prelude::*;
-use std::{collections::HashMap, fs::read_to_string, io::Write, process::Command};
+use std::fs::read_to_string;
 use tauri::async_runtime::spawn;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
-mod logic;
 mod model;
+mod paths;
 use model::Mod;
 mod git;
 mod profile;
-use profile::{AppState, Profile};
+use profile::AppState;
 mod dmg;
-mod symlink;
+mod files;
 mod zip;
+
+// mod python;
+mod cdda;
 
 struct SetupState {
     frontend_task: bool,
@@ -84,7 +86,7 @@ fn main() {
                     Target::new(TargetKind::Stdout),
                     Target::new(TargetKind::Webview),
                     Target::new(TargetKind::Folder {
-                        path: crate::profile::constant_paths::log_dir(),
+                        path: crate::paths::log_dir(),
                         file_name: Some("catalyzer".to_string()),
                     }),
                 ])
@@ -103,31 +105,31 @@ fn main() {
             set_complete,
             create_profile_window,
             scan_mods,
-            open_dir,
-            open_mod_data,
             tail_log,
-            launch_game,
             get_platform,
-            inspect_mods,
-            symlink::commands::install_mod,
-            symlink::commands::uninstall_mod,
-            symlink::commands::install_all_mods,
-            symlink::commands::uninstall_all_mods,
+            cdda::launch::commands::launch_game,
+            cdda::launch::commands::inspect_mods,
+            files::commands::open_dir,
+            files::commands::open_mod_data,
+            files::commands::install_mod,
+            files::commands::uninstall_mod,
+            files::commands::install_all_mods,
+            files::commands::uninstall_all_mods,
             zip::commands::unzip_mod_archive,
             zip::commands::unzip_archive,
             dmg::commands::extract_dmg,
-            git::common::commands::git_init,
-            git::common::commands::git_commit_changes,
-            git::common::commands::git_reset_changes,
-            git::common::commands::git_list_branches,
-            git::common::commands::git_checkout,
-            git::common::commands::git_clone_mod_repo,
-            git::common::commands::git_fetch_all_mods,
-            git::cdda::commands::cdda_is_cloned,
-            git::cdda::commands::cdda_pull_rebase,
-            git::cdda::commands::cdda_get_stable_releases,
-            git::cdda::commands::cdda_get_latest_releases,
-            git::cdda::commands::github_rate_limit,
+            git::commands::git_init,
+            git::commands::git_commit_changes,
+            git::commands::git_reset_changes,
+            git::commands::git_list_branches,
+            git::commands::git_checkout,
+            git::commands::git_clone_mod_repo,
+            git::commands::git_fetch_all_mods,
+            cdda::release::commands::cdda_is_cloned,
+            cdda::release::commands::cdda_pull_rebase,
+            cdda::release::commands::cdda_get_stable_releases,
+            cdda::release::commands::cdda_get_latest_releases,
+            cdda::release::commands::github_rate_limit,
             profile::commands::get_settings,
             profile::commands::get_current_profile,
             profile::commands::add_profile,
@@ -200,65 +202,10 @@ fn scan_mods(state: tauri::State<'_, AppState>) -> Result<Vec<Mod>, String> {
 }
 
 #[tauri::command]
-fn open_dir(target_dir: String) {
-    #[cfg(target_os = "windows")]
-    {
-        Command::new("explorer")
-            .args(["/select,", &target_dir]) // The comma after select is not a typo
-            .spawn()
-            .unwrap();
-    }
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("open")
-            // .args(["-R", &target_dir])
-            .args([&target_dir])
-            .spawn()
-            .unwrap();
-    }
-    // #[cfg(target_os = "linux")]
-    // {
-    //     if path.contains(",") {
-    //         // see https://gitlab.freedesktop.org/dbus/dbus/-/issues/76
-    //         let new_path = match metadata(&path).unwrap().is_dir() {
-    //             true => path,
-    //             false => {
-    //                 let mut path2 = PathBuf::from(path);
-    //                 path2.pop();
-    //                 path2.into_os_string().into_string().unwrap()
-    //             }
-    //         };
-    //         Command::new("xdg-open").arg(&new_path).spawn().unwrap();
-    //     } else {
-    //         if let Ok(Fork::Child) = daemon(false, false) {
-    //             Command::new("dbus-send")
-    //                 .args([
-    //                     "--session",
-    //                     "--dest=org.freedesktop.FileManager1",
-    //                     "--type=method_call",
-    //                     "/org/freedesktop/FileManager1",
-    //                     "org.freedesktop.FileManager1.ShowItems",
-    //                     format!("array:string:\"file://{path}\"").as_str(),
-    //                     "string:\"\"",
-    //                 ])
-    //                 .spawn()
-    //                 .unwrap();
-    //         }
-    //     }
-    // }
-}
-
-#[tauri::command]
-fn open_mod_data() {
-    let mod_dir_path = crate::profile::constant_paths::moddata_dir();
-    open_dir(mod_dir_path.to_str().unwrap().to_string());
-}
-
-#[tauri::command]
 fn tail_log() -> Vec<String> {
     const MAX_LINES: usize = 20;
 
-    let log_path = profile::constant_paths::log_dir();
+    let log_path = crate::paths::log_dir();
     let log_file = log_path
         .read_dir()
         .unwrap()
@@ -286,126 +233,4 @@ fn tail_log() -> Vec<String> {
         0
     };
     lines[start..].to_vec()
-}
-
-#[tauri::command]
-fn inspect_mods(state: tauri::State<'_, AppState>) -> Result<(), String> {
-    let settings = state.get_settings().unwrap();
-    let profile = settings.get_active_profile();
-    if profile.get_game_path().is_none() {
-        return Err("No active game path is set".to_string());
-    }
-    let target_mod_ids = profile
-        .get_mod_info(true)
-        .iter()
-        .filter_map(|m| m.get_id())
-        .collect::<Vec<_>>();
-    let chk_option = format!("--check-mods {}", target_mod_ids.join(" "));
-    let child = launch(
-        profile.get_game_path().unwrap(),
-        profile.get_profile_root_dir(),
-        Some(chk_option),
-    )?;
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("Failed to wait for the process: {}", e))?
-        .stderr;
-    let output = String::from_utf8(output)
-        .map_err(|e| format!("Failed to convert the output to string: {}", e))?;
-
-    let time = chrono::Local::now();
-    warn!(
-        r#"
-===INSPECT MODS START===
-Targets: {target_mod_ids:?}
-Date: {time}
-
-===INSPECT MODS RESULT==
-{output}
-================="#
-    );
-    let log_file = profile::constant_paths::log_dir().join(format!("inspect_mods_{:?}.txt", time));
-    std::fs::write(log_file.clone(), output.as_bytes())
-        .map_err(|e| format!("Failed to write to the log file: {}", e))?;
-    open_dir(log_file.to_string_lossy().into());
-    Ok(())
-}
-
-#[tauri::command]
-fn launch_game(state: tauri::State<'_, AppState>) -> Result<(), String> {
-    let setting = state.get_settings().unwrap();
-    let profile = setting.get_active_profile();
-
-    let game_path = profile.get_game_path();
-    let userdata_path = profile.get_profile_root_dir();
-
-    match game_path {
-        Some(path) => {
-            profile.create_dir_if_unexist();
-            launch(path, userdata_path, None)
-                .map_err(|e| format!("Failed to launch the game: {}", e))?;
-        }
-        None => {
-            return Err("Game path is not set".to_string());
-        }
-    };
-    Ok(())
-}
-
-#[cfg(target_os = "windows")]
-fn launch(
-    game_path: PathBuf,
-    userdata_path: PathBuf,
-    extra_option_string: Option<String>,
-) -> Result<std::process::Child, String> {
-    let options = format!(
-        "cd /d {} && start cataclysm-tiles.exe --userdir '{}\\' {}",
-        &game_path.parent().unwrap().to_string_lossy(),
-        userdata_path.to_string_lossy(),
-        extra_option_string.unwrap_or_default()
-    );
-    debug!("command: {}", &options);
-    let child = Command::new("cmd")
-        .args(["/C", &options])
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to launch the game: {}", e))?;
-    Ok(child)
-}
-
-#[cfg(target_os = "macos")]
-fn launch(
-    game_path: PathBuf,
-    userdata_path: PathBuf,
-    extra_option_string: Option<String>,
-) -> Result<std::process::Child, String> {
-    if game_path.extension().unwrap() != "app" {
-        return Err(format!("Game path does not exist: {:?}", game_path));
-    }
-    debug!("Launching game: {:?}", &game_path);
-
-    let resource_dir = game_path.join("Contents").join("Resources");
-    resource_dir.try_exists().unwrap();
-
-    // 実行権限付与
-    Command::new("chmod")
-        .args(["+x", resource_dir.join("cataclysm-tiles").to_str().unwrap()])
-        .spawn()
-        .map_err(|e| format!("Failed to launch the game: {}", e))?;
-
-    // refer to: Cataclysm.app/Contents/MacOS/Cataclysm.sh
-    let child = Command::new("sh")
-        .arg("-c")
-        .arg(format!(
-            "cd '{}' && export DYLD_LIBRARY_PATH=. && export DYLD_FRAMEWORK_PATH=. && ./cataclysm-tiles --userdir '{}/' {}",
-            resource_dir.to_string_lossy(),
-            userdata_path.to_string_lossy(),
-            extra_option_string.unwrap_or_default()
-        ))
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to launch the game: {}", e))?;
-    Ok(child)
 }

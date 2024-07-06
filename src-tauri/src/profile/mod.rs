@@ -1,50 +1,13 @@
-use crate::git::common::{open, try_checkout_to};
-use crate::logic::utils::{get_modinfo_path, remove_dir_all};
+use crate::files::{get_modinfo_path, remove_dir_all, symlink::list_symlinks};
+use crate::git::{open, try_checkout_to};
 use crate::model::{LocalVersion, Mod, ModInfo};
+use crate::paths;
 use crate::prelude::*;
-use crate::symlink::list_symlinks;
 use chrono::{DateTime, Utc};
 use std::fs;
 use std::io::Write;
 use std::sync::Mutex;
-
 extern crate dirs;
-
-pub mod constant_paths {
-    use crate::prelude::*;
-
-    /// Returns the path to the application's data directory.
-    /// On Windows, this is the directory containing the executable.
-    /// On macOS, this is the `cataylzer` subdirectory of the user's configuration directory.
-    pub fn get_app_data_dir() -> PathBuf {
-        #[cfg(target_os = "windows")]
-        {
-            let exe_path = std::env::current_exe().unwrap();
-            exe_path.parent().unwrap().to_path_buf()
-        }
-        #[cfg(target_os = "macos")]
-        {
-            dirs::config_dir().unwrap().join("cataylzer")
-        }
-    }
-
-    pub fn log_dir() -> PathBuf {
-        get_app_data_dir().join("log")
-    }
-
-    pub fn cdda_clone_dir() -> PathBuf {
-        let app_data_dir = get_app_data_dir();
-        app_data_dir.join(".cdda").join("Cataclysm-DDA")
-    }
-
-    pub fn profile_dir(name_with_id: &str) -> PathBuf {
-        get_app_data_dir().join("profiles").join(name_with_id)
-    }
-
-    pub fn moddata_dir() -> PathBuf {
-        get_app_data_dir().join("moddata")
-    }
-}
 
 const SETTINGS_FILENAME: &str = "setting.yaml";
 
@@ -86,7 +49,7 @@ pub struct Profile {
 impl Profile {
     pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
         let dir_name = format!("{}_{}", &name, &id);
-        let profile_dir = constant_paths::profile_dir(&dir_name);
+        let profile_dir = paths::profile_dir(&dir_name);
         Self {
             id,
             name,
@@ -158,7 +121,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             language: "ja".into(),
-            mod_data_path: constant_paths::moddata_dir(),
+            mod_data_path: paths::moddata_dir(),
             profiles: vec![Profile::default()],
         }
     }
@@ -210,7 +173,7 @@ impl Settings {
     }
 
     pub fn new() -> Self {
-        let config_file = constant_paths::get_app_data_dir().join(SETTINGS_FILENAME);
+        let config_file = paths::get_app_data_dir().join(SETTINGS_FILENAME);
         if !config_file.exists() {
             let mut settings = Self::default();
             settings.post_init();
@@ -346,7 +309,7 @@ trait Config {
 
 impl Config for Settings {
     fn write_file(&self) {
-        let config_root = constant_paths::get_app_data_dir();
+        let config_root = paths::get_app_data_dir();
         if !config_root.exists() {
             fs::create_dir_all(&config_root).unwrap();
         }
@@ -357,7 +320,7 @@ impl Config for Settings {
     }
 
     fn read_file(&mut self) -> Settings {
-        let config_file = constant_paths::get_app_data_dir().join(SETTINGS_FILENAME);
+        let config_file = paths::get_app_data_dir().join(SETTINGS_FILENAME);
         let input = fs::read_to_string(config_file).unwrap();
         serde_yaml::from_str(&input).unwrap_or_else(|_| {
             debug!("Error: Failed to read config file");
@@ -482,7 +445,7 @@ pub mod commands {
 
         let old_name = settings.profiles[index].name.clone();
         if old_name != name {
-            let profile_path = constant_paths::profile_dir(&name);
+            let profile_path = paths::profile_dir(&name);
             settings.profiles[index].profile_path = UserDataPaths::new(profile_path);
 
             settings.profiles[index].name = name;

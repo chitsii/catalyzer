@@ -1,4 +1,4 @@
-use crate::git::common::{git_clone, ls_remote_tags, pull_rebase};
+use crate::git::{git_clone, ls_remote_tags, pull_rebase};
 use crate::prelude::*;
 use git2::Repository;
 use regex::Regex;
@@ -137,7 +137,7 @@ fn shallow_clone_cdda(target_dir: PathBuf) -> Result<Repository, String> {
 ///
 /// Returns the opened or cloned repository, or an error message if the operation fails.
 fn get_cdda_repo() -> Result<Repository, String> {
-    let target_dir = crate::profile::constant_paths::cdda_clone_dir();
+    let target_dir = crate::paths::cdda_clone_dir();
     let repo = match Repository::open(&target_dir) {
         Ok(repo) => repo,
         Err(_) => {
@@ -203,7 +203,7 @@ pub mod commands {
 
     #[tauri::command]
     pub fn cdda_is_cloned() -> bool {
-        crate::profile::constant_paths::cdda_clone_dir().exists()
+        crate::paths::cdda_clone_dir().exists()
     }
 
     #[derive(Debug, Deserialize, Serialize, Clone)]

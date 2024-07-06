@@ -60,7 +60,6 @@ pub struct LocalVersion {
     pub last_commit_date: String,
 }
 
-// #[derive(serde::Deserialize, serde::Serialize, Debug)]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Mod {
@@ -76,7 +75,7 @@ impl PartialEq for Mod {
 }
 impl PartialOrd for Mod {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.info.name.partial_cmp(&other.info.name)
+        Some(self.cmp(other))
     }
 }
 impl Eq for Mod {}

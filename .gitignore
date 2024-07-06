@@ -41,5 +41,5 @@ src-tauri/icons/*
 
 .xwin-cache
 cicd/*
-src-tauri/src/logic/python/*
 src-tauri/sidecar/*
+src-tauri/src/python/*

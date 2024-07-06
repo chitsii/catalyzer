@@ -1,5 +1,55 @@
 use crate::prelude::*;
+
 use std::ffi::OsStr;
+use std::fs::File;
+use std::io::{BufReader, BufWriter};
+use zifu_core::filename_decoder;
+use zifu_core::InputZIPArchive;
+
+/// Fix the encoding of file names in a Zip archive and write the fixed archive to the output path.
+pub fn fix_zip_fname_encoding(file_path: String, output_zip_path: String) -> Result<String> {
+    let bufr = BufReader::new(File::open(file_path)?);
+
+    let mut input_zip_file = InputZIPArchive::new(bufr)?;
+    input_zip_file.check_unsupported_zip_type()?;
+
+    let legacy_decoder = <dyn filename_decoder::IDecoder>::native_oem_encoding();
+    let sjis_decoder = <dyn filename_decoder::IDecoder>::from_encoding_name("sjis").unwrap();
+    let utf8_decoder = <dyn filename_decoder::IDecoder>::utf8();
+    let ascii_decoder = <dyn filename_decoder::IDecoder>::ascii();
+
+    let decoders_list = vec![
+        &*ascii_decoder,
+        &*sjis_decoder,
+        &*legacy_decoder,
+        &*utf8_decoder,
+    ];
+
+    // Detect encoding by trying decoding all of file names and comments
+    let best_fit_decoder_index_ = input_zip_file.get_filename_decoder_index(&decoders_list);
+    match best_fit_decoder_index_ {
+        Some(index) => {
+            debug!(
+                "Detected encoding: {:?}",
+                decoders_list[index].encoding_name()
+            );
+            let guessed_encoder = decoders_list[index];
+            input_zip_file.convert_central_directory_file_names(guessed_encoder);
+            let mut output_zip_file = BufWriter::new(File::create(&output_zip_path)?);
+            input_zip_file
+                .output_archive_with_central_directory_file_names(&mut output_zip_file)?;
+            Ok(output_zip_path)
+        }
+        None => Err(anyhow::anyhow!("Failed to detect encoding.")),
+    }
+}
+
+pub fn unzip(file_path: &Path, target_dir: &Path) -> Result<PathBuf> {
+    use zip_extract::extract;
+    let archive = std::fs::read(file_path)?;
+    extract(std::io::Cursor::new(archive), target_dir, true)?;
+    Ok(target_dir.to_path_buf())
+}
 
 fn to_stem(file_path: impl AsRef<Path>) -> String {
     let file_name = file_path
@@ -16,10 +66,7 @@ fn to_stem(file_path: impl AsRef<Path>) -> String {
 
 pub mod commands {
     use super::*;
-
-    use crate::logic;
-    use logic::utils::{copy_dir_all, get_shallowest_mod_dir, remove_dir_all};
-    use logic::zip::{fix_zip_fname_encoding, unzip};
+    use crate::files::{copy_dir_all, get_shallowest_mod_dir, remove_dir_all};
     use tempfile::tempdir;
 
     struct SrcDestPaths {
@@ -34,7 +81,7 @@ pub mod commands {
         let src_stem = to_stem(&src_path);
         debug!("--- src_stem: {}", src_stem);
 
-        let dest_dir = crate::profile::constant_paths::moddata_dir();
+        let dest_dir = crate::paths::moddata_dir();
         let dest_path = dest_dir.join(src_stem);
         debug!("--- dest_path: {}", dest_path.display());
 
