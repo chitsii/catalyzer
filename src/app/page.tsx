@@ -20,7 +20,7 @@ import { refreshModsAtom, modsAtom } from "@/components/atoms";
 // Utils
 import { ask } from "@tauri-apps/plugin-dialog";
 import { popUp } from "@/lib/utils";
-import { invoke_safe, unzipModArchive } from "@/lib/api";
+import { unzipModArchive } from "@/lib/api";
 
 // animation
 import { AnimatePresence, motion } from "framer-motion";
@@ -40,49 +40,14 @@ export default function Home() {
   const { t } = useTranslation();
 
   useEffect(() => {
-    // ロガーがアタッチされていない場合はアタッチする
-    const setUpDropEvent = async () => {
-      const { getCurrent } = await import("@tauri-apps/api/webviewWindow");
-      const unlisten = await getCurrent().onDragDropEvent(async (ev) => {
-        if (ev.payload.type === "dropped") {
-          const does_install = await ask(
-            `ZipファイルをModディレクトリに解凍しますか？\n${ev.payload.paths}`,
-            "Catalyzer",
-          );
-          if (!does_install) return;
-          const [filepath] = ev.payload.paths;
-          if (path.extname(filepath) === ".zip") {
-            unzipModArchive(filepath);
-            return;
-          } else {
-            popUp("failed", "サポートしていないファイル形式です。");
-          }
-        } else {
-          return;
-        }
-      });
-
-      return () => {
-        unlisten();
-      };
-    };
-    const setUpDropEventAndAttachLogger = async () => {
-      if (!IS_LOGGER_ATTACHED) {
-        await setUpDropEvent();
-        IS_LOGGER_ATTACHED = true;
-      }
-    };
-    setUpDropEventAndAttachLogger();
+    initializeDragDropAndLogger();
   }, []);
-
   const [{ data: mods }] = useAtom(modsAtom);
   const [_, refresh] = useAtom(refreshModsAtom);
 
   return (
     <main
-      onContextMenu={(e) => {
-        e.preventDefault();
-      }}
+      onContextMenu={(e) => { e.preventDefault(); }}
     >
       <LanguageSetter />
       <AnimatePresence mode="wait">
@@ -174,3 +139,38 @@ export default function Home() {
     </main>
   );
 }
+
+const initializeDragDropAndLogger = () => {
+  if (!IS_LOGGER_ATTACHED) {
+    handleDragDropEvent();
+    IS_LOGGER_ATTACHED = true;
+  }
+};
+
+const handleDragDropEvent = async () => {
+  const { getCurrent } = await import("@tauri-apps/api/webviewWindow");
+  const unlisten = await getCurrent().onDragDropEvent(handleDragDropPayload);
+
+  return () => {
+    unlisten();
+  };
+};
+
+const handleDragDropPayload = async (ev: any) => {
+  if (ev.payload.type === "dropped") {
+    const doesInstall = await ask(
+      `ZipファイルをModディレクトリに解凍しますか？\n${ev.payload.paths}`,
+      "Catalyzer"
+    );
+    if (!doesInstall) return;
+    const [filepath] = ev.payload.paths;
+    if (path.extname(filepath) === ".zip") {
+      unzipModArchive(filepath);
+      return;
+    } else {
+      popUp("failed", "サポートしていないファイル形式です。");
+    }
+  } else {
+    return;
+  }
+};
