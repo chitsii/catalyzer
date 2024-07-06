@@ -1,4 +1,4 @@
-use crate::git::{open, try_checkout_to};
+use crate::git::git_utils::{open, try_checkout_to};
 use crate::logic::utils::{get_modinfo_path, remove_dir_all};
 use crate::model::{LocalVersion, Mod, ModInfo};
 use crate::prelude::*;

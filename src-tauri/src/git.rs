@@ -1,214 +1,224 @@
-use crate::prelude::*;
-use git2::{Branch, Direction, FetchOptions, Repository, Signature};
-use std::collections::HashSet;
+pub mod git_utils {
+    use crate::prelude::*;
+    use git2::{Branch, Direction, FetchOptions, Repository, Signature};
+    use std::collections::HashSet;
 
-pub fn open(target_dir: String) -> Result<Repository, String> {
-    // debug!("Opening repository at {}", target_dir);
-    Repository::open(target_dir).map_err(|e| format!("Failed to open repository: {}", e))
-}
-
-fn init(target_dir: String) -> Result<Repository, String> {
-    debug!("Initializing repository at {}", target_dir);
-    match Repository::init(&target_dir) {
-        Ok(_) => open(target_dir),
-        Err(e) => Err(format!("Failed to initialize repository: {}", e)),
+    pub fn open(target_dir: String) -> Result<Repository, String> {
+        // debug!("Opening repository at {}", target_dir);
+        Repository::open(target_dir).map_err(|e| format!("Failed to open repository: {}", e))
     }
-}
 
-fn get_signature() -> Signature<'static> {
-    Signature::now("Catalyzer", "Nothing").unwrap()
-}
+    pub fn init(target_dir: String) -> Result<Repository, String> {
+        debug!("Initializing repository at {}", target_dir);
+        match Repository::init(&target_dir) {
+            Ok(_) => open(target_dir),
+            Err(e) => Err(format!("Failed to initialize repository: {}", e)),
+        }
+    }
+    pub fn get_signature() -> Signature<'static> {
+        Signature::now("Catalyzer", "Nothing").unwrap()
+    }
 
-fn commit(repo: &Repository, message: &str) -> Result<(), String> {
-    debug!("Committing changes to repository");
-    let sig = get_signature();
-    let tree_id = {
-        let mut index = repo.index().unwrap();
-        index
-            .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+    pub fn commit(repo: &Repository, message: &str) -> Result<(), String> {
+        debug!("Committing changes to repository");
+        let sig = get_signature();
+        let tree_id = {
+            let mut index = repo.index().unwrap();
+            index
+                .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+                .unwrap();
+            index.write_tree().unwrap()
+        };
+        let tree = repo.find_tree(tree_id).unwrap();
+        let parents = match repo.head() {
+            Ok(head) => {
+                let head = head.peel_to_commit().unwrap();
+                vec![head]
+            }
+            Err(_) => vec![],
+        };
+        let p = &parents.iter().collect::<Vec<_>>();
+        repo.commit(Some("HEAD"), &sig, &sig, message, &tree, p.as_slice())
             .unwrap();
-        index.write_tree().unwrap()
-    };
-    let tree = repo.find_tree(tree_id).unwrap();
-    let parents = match repo.head() {
-        Ok(head) => {
-            let head = head.peel_to_commit().unwrap();
-            vec![head]
-        }
-        Err(_) => vec![],
-    };
-    let p = &parents.iter().collect::<Vec<_>>();
-    repo.commit(Some("HEAD"), &sig, &sig, message, &tree, p.as_slice())
-        .unwrap();
-    Ok(())
-}
-
-fn find_remote(repo: &Repository) -> Result<git2::Remote, String> {
-    debug!("Finding remote 'origin' in repository");
-    repo.find_remote("origin")
-        .map_err(|e| format!("Failed to find remote 'origin': {}", e))
-}
-
-fn fetch(repo: &Repository, depth: Option<i32>) -> Result<(), String> {
-    debug!("Fetching from remote 'origin'");
-    let mut remote = find_remote(repo)?;
-
-    let mut fo = FetchOptions::new();
-    if let Some(depth) = depth {
-        fo.depth(depth);
+        Ok(())
     }
-    remote
-        .fetch(&["refs/heads/*:refs/heads/*"], Some(&mut fo), None)
-        .map_err(|e| format!("Failed to fetch from remote 'origin': {}", e))
-}
 
-fn reset_hard(repo: &Repository) -> Result<(), String> {
-    debug!("Resetting repository to HEAD");
-    let head = repo.head().unwrap();
-    let head_commit = head.peel_to_commit().unwrap();
-    let head_object = head_commit.as_object();
-    repo.reset(head_object, git2::ResetType::Hard, None)
-        .unwrap();
-    Ok(())
-}
+    fn find_remote(repo: &Repository) -> Result<git2::Remote, String> {
+        debug!("Finding remote 'origin' in repository");
+        repo.find_remote("origin")
+            .map_err(|e| format!("Failed to find remote 'origin': {}", e))
+    }
 
-pub fn list_branches(repo: &Repository) -> Result<Vec<String>, String> {
-    debug!("Listing branches in repository");
+    pub fn fetch(repo: &Repository, depth: Option<i32>) -> Result<(), String> {
+        debug!("Fetching from remote 'origin'");
+        let mut remote = find_remote(repo)?;
 
-    let mut branches = HashSet::new();
-
-    repo.branches(None).unwrap().for_each(|branch| {
-        let (branch, _) = branch.unwrap();
-        let branch_name = branch.name().unwrap().unwrap();
-        let branch_name = branch_name.split('/').last().unwrap();
-
-        if branch_name == "HEAD" {
-            return;
+        let mut fo = FetchOptions::new();
+        if let Some(depth) = depth {
+            fo.depth(depth);
         }
-        branches.insert(branch_name.to_string());
-    });
+        remote
+            .fetch(&["refs/heads/*:refs/heads/*"], Some(&mut fo), None)
+            .map_err(|e| format!("Failed to fetch from remote 'origin': {}", e))
+    }
 
-    debug!("Found branches: {:?}", branches);
-    let response = branches.into_iter().collect();
-    Ok(response)
-}
+    pub fn reset_hard(repo: &Repository) -> Result<(), String> {
+        debug!("Resetting repository to HEAD");
+        let head = repo.head().unwrap();
+        let head_commit = head.peel_to_commit().unwrap();
+        let head_object = head_commit.as_object();
+        repo.reset(head_object, git2::ResetType::Hard, None)
+            .unwrap();
+        Ok(())
+    }
 
-fn git_create_branch<'a>(
-    repo: &'a Repository,
-    branch_name: &'a str,
-    base_branch: &'a str,
-) -> Result<Branch<'a>, String> {
-    debug!("Creating branch {} from {}", branch_name, base_branch);
-    let base_branch = repo
-        .find_branch(base_branch, git2::BranchType::Local)
-        .unwrap();
-    let base_branch = base_branch.into_reference();
-    let base_commit = base_branch.peel_to_commit().unwrap();
-    let new_branch = repo.branch(branch_name, &base_commit, false).unwrap();
-    Ok(new_branch)
-}
+    pub fn list_branches(repo: &Repository) -> Result<Vec<String>, String> {
+        debug!("Listing branches in repository");
 
-fn checkout(repo: &Repository, branch_name: &str, create_if_unexist: bool) -> Result<bool, String> {
-    debug!("Checking out branch {}", branch_name);
-    match repo.find_branch(branch_name, git2::BranchType::Local) {
-        Ok(branch) => {
-            let branch = branch.into_reference();
-            repo.set_head(branch.name().unwrap()).unwrap();
-            Ok(false)
-        }
-        Err(_e) => {
-            debug!("Branch not found: {}", branch_name);
-            if create_if_unexist {
-                let head = repo.head().unwrap();
-                let current_branch = head.name().unwrap().split('/').last().unwrap();
-                let new_branch = git_create_branch(repo, branch_name, current_branch).unwrap();
-                let new_branch_ref = new_branch.into_reference();
-                repo.set_head(new_branch_ref.name().unwrap()).unwrap();
-                debug!("move to the new branch: {}", branch_name);
-                Ok(true)
-            } else {
-                Err("Did not find branch that name to checkout".to_string())
+        let mut branches = HashSet::new();
+
+        repo.branches(None).unwrap().for_each(|branch| {
+            let (branch, _) = branch.unwrap();
+            let branch_name = branch.name().unwrap().unwrap();
+            let branch_name = branch_name.split('/').last().unwrap();
+
+            if branch_name == "HEAD" {
+                return;
+            }
+            branches.insert(branch_name.to_string());
+        });
+
+        debug!("Found branches: {:?}", branches);
+        let response = branches.into_iter().collect();
+        Ok(response)
+    }
+
+    fn git_create_branch<'a>(
+        repo: &'a Repository,
+        branch_name: &'a str,
+        base_branch: &'a str,
+    ) -> Result<Branch<'a>, String> {
+        debug!("Creating branch {} from {}", branch_name, base_branch);
+        let base_branch = repo
+            .find_branch(base_branch, git2::BranchType::Local)
+            .unwrap();
+        let base_branch = base_branch.into_reference();
+        let base_commit = base_branch.peel_to_commit().unwrap();
+        let new_branch = repo.branch(branch_name, &base_commit, false).unwrap();
+        Ok(new_branch)
+    }
+
+    fn checkout(
+        repo: &Repository,
+        branch_name: &str,
+        create_if_unexist: bool,
+    ) -> Result<bool, String> {
+        debug!("Checking out branch {}", branch_name);
+        match repo.find_branch(branch_name, git2::BranchType::Local) {
+            Ok(branch) => {
+                let branch = branch.into_reference();
+                repo.set_head(branch.name().unwrap()).unwrap();
+                Ok(false)
+            }
+            Err(_e) => {
+                debug!("Branch not found: {}", branch_name);
+                if create_if_unexist {
+                    let head = repo.head().unwrap();
+                    let current_branch = head.name().unwrap().split('/').last().unwrap();
+                    let new_branch = git_create_branch(repo, branch_name, current_branch).unwrap();
+                    let new_branch_ref = new_branch.into_reference();
+                    repo.set_head(new_branch_ref.name().unwrap()).unwrap();
+                    debug!("move to the new branch: {}", branch_name);
+                    Ok(true)
+                } else {
+                    Err("Did not find branch that name to checkout".to_string())
+                }
             }
         }
     }
-}
 
-pub fn try_checkout_to(
-    target_dir: String,
-    target_branch: String,
-    create_if_unexist: bool,
-) -> Result<(), String> {
-    let repo = open(target_dir.clone())
-        .map_err(|e| format!("Failed to open repository at {}: {}", target_dir, e))?;
-    let _has_created = match checkout(&repo, &target_branch, create_if_unexist) {
-        Ok(has_created) => has_created,
-        Err(e) => return Err(e),
-    };
-    reset_hard(&repo).unwrap();
-    Ok(())
-}
-
-fn git_clone(url: &str, target_dir: &Path, depth1: Option<bool>) -> Result<Repository, String> {
-    debug!(
-        "Clone repo from {} to {:?}. depth = {:?}",
-        url,
-        &target_dir,
-        depth1.unwrap_or(false)
-    );
-    if depth1.unwrap_or(false) {
-        let mut fetch_opts = FetchOptions::new();
-        fetch_opts.depth(1);
-        let mut builder = git2::build::RepoBuilder::new();
-        builder.fetch_options(fetch_opts);
-        let repo = match builder.clone(url, target_dir) {
-            Ok(repo) => repo,
-            Err(e) => return Err(format!("Failed to clone repository: {}", e)),
+    pub fn try_checkout_to(
+        target_dir: String,
+        target_branch: String,
+        create_if_unexist: bool,
+    ) -> Result<(), String> {
+        let repo = open(target_dir.clone())
+            .map_err(|e| format!("Failed to open repository at {}: {}", target_dir, e))?;
+        let _has_created = match checkout(&repo, &target_branch, create_if_unexist) {
+            Ok(has_created) => has_created,
+            Err(e) => return Err(e),
         };
-        Ok(repo)
-    } else {
-        let repo = match Repository::clone(url, target_dir) {
-            Ok(repo) => repo,
-            Err(e) => return Err(format!("Failed to clone repository: {}", e)),
-        };
-        Ok(repo)
+        reset_hard(&repo).unwrap();
+        Ok(())
     }
-}
 
-fn get_tmp_dir_path() -> PathBuf {
-    use crate::profile::get_app_data_dir;
-    let app_data_dir = get_app_data_dir();
-    let tmp_path = app_data_dir.join(".cdda").join("tmp");
-    if !tmp_path.exists() {
-        debug!("init tmp dir: {:?}", &tmp_path);
-        std::fs::create_dir_all(&tmp_path).unwrap();
-    }
-    tmp_path
-}
-
-fn ls_remote_tags(url: String) -> Result<Vec<String>> {
-    let tmp = get_tmp_dir_path();
-    let repo = git2::Repository::init(tmp)?;
-    let mut remote = repo.remote_anonymous(&url)?;
-    let connection = remote
-        .connect_auth(Direction::Fetch, None, None)
-        .context("Failed to connect to remote repository. Please check your network connection.")?;
-    let refs = connection.list()?;
-    let mut tags = HashSet::new();
-    refs.iter().for_each(|head| {
-        if head.name().starts_with("refs/tags/") {
-            tags.insert(
-                head.name()
-                    .to_string()
-                    .replace("refs/tags/", "")
-                    .replace("^{}", ""),
-            );
+    pub fn git_clone(
+        url: &str,
+        target_dir: &Path,
+        depth1: Option<bool>,
+    ) -> Result<Repository, String> {
+        debug!(
+            "Clone repo from {} to {:?}. depth = {:?}",
+            url,
+            &target_dir,
+            depth1.unwrap_or(false)
+        );
+        if depth1.unwrap_or(false) {
+            let mut fetch_opts = FetchOptions::new();
+            fetch_opts.depth(1);
+            let mut builder = git2::build::RepoBuilder::new();
+            builder.fetch_options(fetch_opts);
+            let repo = match builder.clone(url, target_dir) {
+                Ok(repo) => repo,
+                Err(e) => return Err(format!("Failed to clone repository: {}", e)),
+            };
+            Ok(repo)
+        } else {
+            let repo = match Repository::clone(url, target_dir) {
+                Ok(repo) => repo,
+                Err(e) => return Err(format!("Failed to clone repository: {}", e)),
+            };
+            Ok(repo)
         }
-    });
-    Ok(tags.into_iter().collect())
+    }
+
+    fn get_tmp_dir_path() -> PathBuf {
+        use crate::profile::get_app_data_dir;
+        let app_data_dir = get_app_data_dir();
+        let tmp_path = app_data_dir.join(".cdda").join("tmp");
+        if !tmp_path.exists() {
+            debug!("init tmp dir: {:?}", &tmp_path);
+            std::fs::create_dir_all(&tmp_path).unwrap();
+        }
+        tmp_path
+    }
+
+    pub fn ls_remote_tags(url: String) -> Result<Vec<String>> {
+        let tmp = get_tmp_dir_path();
+        let repo = git2::Repository::init(tmp)?;
+        let mut remote = repo.remote_anonymous(&url)?;
+        let connection = remote.connect_auth(Direction::Fetch, None, None).context(
+            "Failed to connect to remote repository. Please check your network connection.",
+        )?;
+        let refs = connection.list()?;
+        let mut tags = HashSet::new();
+        refs.iter().for_each(|head| {
+            if head.name().starts_with("refs/tags/") {
+                tags.insert(
+                    head.name()
+                        .to_string()
+                        .replace("refs/tags/", "")
+                        .replace("^{}", ""),
+                );
+            }
+        });
+        Ok(tags.into_iter().collect())
+    }
 }
 
 pub mod commands {
-    use super::*;
+    use crate::git::git_utils::*;
+    use crate::prelude::*;
     use crate::profile::AppState;
 
     #[tauri::command]
@@ -334,7 +344,8 @@ pub mod commands {
 }
 
 pub mod cdda {
-    use super::{fetch, get_signature, git_clone, ls_remote_tags};
+    // use super::{fetch, get_signature, git_clone, ls_remote_tags};
+    use crate::git::git_utils::*;
     use crate::prelude::*;
     use crate::profile::get_app_data_dir;
     use git2::Repository;
@@ -613,8 +624,6 @@ pub mod cdda {
         #[tauri::command]
         pub fn cdda_get_latest_releases(num: usize) -> Result<Vec<Res>, String> {
             info!("retrieve latest releases.");
-
-            // let repo = get_cdda_repo().unwrap();
 
             match get_latest_release_tag(num) {
                 Ok(tags) => {
