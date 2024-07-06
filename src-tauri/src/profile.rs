@@ -1,19 +1,23 @@
+use crate::git::{open, try_checkout_to};
+use crate::logic::utils::{get_modinfo_path, remove_dir_all};
+use crate::model::{LocalVersion, Mod, ModInfo};
 use crate::prelude::*;
-
-use crate::git::try_checkout_to;
-use crate::logic::utils::get_modinfo_path;
-use crate::logic::utils::remove_dir_all;
-use crate::model::Mod;
+use crate::symlink::list_symlinks;
+use chrono::{DateTime, Utc};
+use rayon::prelude::*;
 use std::fs;
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 extern crate dirs;
 
 const SETTINGS_FILENAME: &str = "setting.yaml";
 
-/// Windows: current_exeの親ディレクトリ
-/// MacOS: ~/Library/Application Support/catalyzer
+/// Returns the path to the application's data directory.
+///
+/// On Windows, this is the directory containing the executable.
+/// On macOS, this is the `cataylzer` subdirectory of the user's configuration directory.
 pub fn get_app_data_dir() -> PathBuf {
     #[cfg(target_os = "windows")]
     {
@@ -26,7 +30,6 @@ pub fn get_app_data_dir() -> PathBuf {
     }
 }
 
-/// ~/Library/Application Support/catalyzer/profiles/{profile_name}
 fn get_profile_dir(name_with_id: &str) -> PathBuf {
     get_app_data_dir().join("profiles").join(name_with_id)
 }
@@ -41,6 +44,7 @@ pub struct UserDataPaths {
     sound: PathBuf,
     gfx: PathBuf,
 }
+
 impl UserDataPaths {
     pub fn new(root: PathBuf) -> Self {
         Self {
@@ -59,11 +63,12 @@ impl UserDataPaths {
 pub struct Profile {
     id: String,
     name: String,
-    game_path: Option<PathBuf>, // cataclysm-tile.exe または Cataclysm.appのパス
-    profile_path: UserDataPaths, // thisApp.exe/proiles/{ProfileName}
-    mod_status: Vec<Mod>,       // プロファイル内のModの状態
-    is_active: bool,            // アクティブなプロファイルかどうか
+    game_path: Option<PathBuf>,
+    profile_path: UserDataPaths,
+    mod_status: Vec<Mod>,
+    is_active: bool,
 }
+
 impl Profile {
     pub fn new(id: String, name: String, game_path: Option<PathBuf>) -> Self {
         let dir_name = format!("{}_{}", &name, &id);
@@ -77,14 +82,13 @@ impl Profile {
             is_active: false,
         }
     }
+
     pub fn create_dir_if_unexist(&self) {
         let paths = [
-            // Must-have:
             &self.profile_path.root,
             &self.profile_path.mods,
             &self.profile_path.save,
             &self.profile_path.config,
-            // Optional:
             &self.profile_path.font,
             &self.profile_path.sound,
             &self.profile_path.gfx,
@@ -95,30 +99,31 @@ impl Profile {
             }
         }
     }
+
     pub fn get_mod_info(&self, active_only: bool) -> Vec<ModInfo> {
-        if active_only {
-            self.mod_status
-                .iter()
-                .filter(|m| m.is_installed)
-                .map(|m| m.info.clone())
-                .collect()
-        } else {
-            self.mod_status.iter().map(|m| m.info.clone()).collect()
-        }
+        self.mod_status
+            .iter()
+            .filter(|m| !active_only || m.is_installed)
+            .map(|m| m.info.clone())
+            .collect()
     }
+
     pub fn get_mod_local_paths(&self) -> Vec<PathBuf> {
         self.mod_status
             .iter()
             .map(|m| PathBuf::from(&m.local_path))
-            .collect::<Vec<PathBuf>>()
+            .collect()
     }
+
     pub fn get_game_path(&self) -> Option<PathBuf> {
         self.game_path.clone()
     }
+
     pub fn get_profile_root_dir(&self) -> PathBuf {
         self.profile_path.root.clone()
     }
 }
+
 impl Default for Profile {
     fn default() -> Self {
         let mut default = Profile::new("default".to_string(), "default".to_string(), None);
@@ -134,6 +139,7 @@ pub struct Settings {
     pub mod_data_path: PathBuf,
     pub profiles: Vec<Profile>,
 }
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -143,51 +149,41 @@ impl Default for Settings {
         }
     }
 }
+
 impl Settings {
-    /// ModDataディレクトリを返す
-    /// Osによらず executable/ModData
     pub fn get_mod_data_dir(&self) -> PathBuf {
         get_app_data_dir().join("moddata")
     }
-}
-impl Settings {
+
     fn post_init(&mut self) {
         self.create_dirs_if_unexist();
-
         let profile = &self.get_active_profile();
-
-        // CataclysmDDA: src/path_info.cppを参照
         self.mutate_state_mod_status(profile).unwrap();
         self.write_file();
     }
+
     fn create_dirs_if_unexist(&self) {
-        let to_create = [&self.mod_data_path];
-        for path in to_create {
-            if !path.exists() {
-                fs::create_dir_all(path).unwrap();
-            }
+        if !self.mod_data_path.exists() {
+            fs::create_dir_all(&self.mod_data_path).unwrap();
         }
     }
 
-    /// プロファイルのmod_statusを元に、
-    /// 1. 指定ローカルブランチがあればチェックアウト
-    /// 2. ModDataディレクトリからゲームが読み込むmodディレクトリにシンボリックリンクを貼る
     fn apply_mod_status(&self, target_profile: &Profile) -> Result<()> {
         target_profile.mod_status.par_iter().for_each(|m| {
-            // ローカルブランチがあり、インストールされていればチェックアウト
-            if !m.is_installed {
-                return;
-            }
-            if let Some(local_version) = &m.local_version {
-                try_checkout_to(
-                    m.local_path.clone(),
-                    local_version.branch_name.clone(),
-                    false,
-                )
-                .unwrap_or(debug!(
-                    "Failed to checkout branch. Maybe the branch was removed: {:?}",
-                    local_version.branch_name.clone()
-                ));
+            if m.is_installed {
+                if let Some(local_version) = &m.local_version {
+                    try_checkout_to(
+                        m.local_path.clone(),
+                        local_version.branch_name.clone(),
+                        false,
+                    )
+                    .unwrap_or_else(|_| {
+                        debug!(
+                            "Failed to checkout branch. Maybe the branch was removed: {:?}",
+                            local_version.branch_name
+                        )
+                    });
+                }
             }
         });
         Ok(())
@@ -242,7 +238,6 @@ impl Settings {
             .for_each(|p| p.is_active = p.id == profile_id);
         let target_profile = self.get_active_profile();
 
-        // プロファイルの設定を反映
         self.apply_mod_status(&target_profile)
             .context("Failed to apply mod status")?;
         self.mutate_state_mod_status(&target_profile)
@@ -253,31 +248,25 @@ impl Settings {
     }
 
     pub fn get_active_profile(&self) -> Profile {
-        let res = self.profiles.iter().find(|x| x.is_active);
-        match res {
-            None => {
+        self.profiles
+            .iter()
+            .find(|x| x.is_active)
+            .cloned()
+            .unwrap_or_else(|| {
                 warn!("Active profile not found. Using default profile.");
                 Profile::default()
-            }
-            Some(p) => p.clone(),
-        }
+            })
     }
 
     pub fn scan_mods(&self) -> Result<Vec<Mod>> {
         let game_mod_dir = self.get_game_mod_dir();
         let mod_data_dir = self.mod_data_path.clone();
 
-        // シンボリックリンクの一覧を取得
-        use crate::symlink::list_symlinks;
-        let existing_symlinks = match list_symlinks(game_mod_dir) {
-            Ok(data) => data,
-            Err(e) => {
-                warn!("Failed to list symlinks: {}", e);
-                vec![]
-            }
-        };
+        let existing_symlinks = list_symlinks(game_mod_dir).unwrap_or_else(|e| {
+            warn!("Failed to list symlinks: {}", e);
+            vec![]
+        });
 
-        // Modディレクトリを走査
         let entries = std::fs::read_dir(mod_data_dir)?;
         let mut mods = entries
             .par_bridge()
@@ -286,14 +275,12 @@ impl Settings {
                 let path = entry.path();
                 let modinfo_path = get_modinfo_path(&path).ok()?;
                 let info = ModInfo::from_path(&modinfo_path).ok()?;
-                let res = crate::git::open(path.display().to_string()).ok();
-                let local_version = res.and_then(|repo| {
+                let local_version = open(path.display().to_string()).ok().and_then(|repo| {
                     let head = repo.head().ok()?;
                     let head_branch = head.name()?.split('/').last()?.to_string();
                     let last_commit = head.peel_to_commit().ok()?;
-                    let last_commit_date = last_commit.time().seconds();
                     let last_commit_date =
-                        chrono::DateTime::<chrono::Utc>::from_timestamp(last_commit_date, 0)?;
+                        DateTime::<Utc>::from_timestamp(last_commit.time().seconds(), 0)?;
                     Some(LocalVersion {
                         branch_name: head_branch,
                         last_commit_date: last_commit_date.to_string(),
@@ -315,16 +302,8 @@ impl Settings {
         Ok(mods)
     }
 
-    /// プロファイルの設定をStateに反映
     pub fn mutate_state_mod_status(&mut self, profile: &Profile) -> Result<Vec<Mod>> {
-        let mods = match self.scan_mods() {
-            Ok(mods) => mods,
-            Err(e) => {
-                debug!("Failed to scan mods: {}", e);
-                ensure!(false, "Failed to scan mods");
-                unreachable!();
-            }
-        };
+        let mods = self.scan_mods().context("Failed to scan mods")?;
         let active_profile = profile.clone();
         debug!(
             "Refreshing mod status for profile: {:?}",
@@ -345,8 +324,6 @@ impl Settings {
         Ok(mods)
     }
 
-    /// ゲームのModディレクトリを取得
-    /// プラットフォーム共通でプロファイルのmodディレクトリを返す
     pub fn get_game_mod_dir(&self) -> PathBuf {
         self.get_active_profile().profile_path.mods.clone()
     }
@@ -365,22 +342,17 @@ impl Config for Settings {
         }
         let config_file = config_root.join(SETTINGS_FILENAME);
         let serialized = serde_yaml::to_string(self).unwrap();
-        // let serialized = toml::to_string(self).unwrap();
         let mut file = fs::File::create(config_file).unwrap();
         file.write_all(serialized.as_bytes()).unwrap();
     }
+
     fn read_file(&mut self) -> Settings {
-        let config_root = get_app_data_dir();
-        let config_file = config_root.join(SETTINGS_FILENAME);
+        let config_file = get_app_data_dir().join(SETTINGS_FILENAME);
         let input = fs::read_to_string(config_file).unwrap();
-        let deserialized: Result<Settings, serde_yaml::Error> = serde_yaml::from_str(&input);
-        match deserialized {
-            Ok(settings) => settings,
-            Err(_) => {
-                debug!("Error: Failed to read config file");
-                self.clone()
-            }
-        }
+        serde_yaml::from_str(&input).unwrap_or_else(|_| {
+            debug!("Error: Failed to read config file");
+            self.clone()
+        })
     }
 }
 
@@ -395,11 +367,11 @@ impl AppState {
             settings: Mutex::new(Settings::new()),
         }
     }
+
     pub fn refresh_and_save_mod_status(&self) -> Result<Vec<Mod>> {
         let mut settings = self.settings.lock().unwrap();
         let profile = settings.get_active_profile();
-        let mods = settings.mutate_state_mod_status(&profile)?;
-        Ok(mods)
+        settings.mutate_state_mod_status(&profile)
     }
 
     pub fn get_settings(&self) -> Option<Settings> {
@@ -431,24 +403,18 @@ pub mod commands {
     ) -> Result<Profile, String> {
         let mut settings = state.settings.lock().unwrap();
 
-        let game_path = if game_path.is_some() {
-            let _s = game_path.clone().unwrap();
-            let _s = _s.trim().trim_matches('"').to_string();
-            let game_path = PathBuf::from(&_s);
-            let fname = game_path
-                .file_name()
-                .and_then(std::ffi::OsStr::to_str)
-                .and_then(|fname| match fname {
-                    "cataclysm-tiles.exe" | "Cataclysm.app" => Some(fname),
-                    _ => None,
-                });
-            if fname.is_none() {
-                return Err("Invalid game path".to_string());
+        let game_path = game_path.and_then(|path| {
+            let path = path.trim().trim_matches('"');
+            let game_path = PathBuf::from(path);
+            match game_path.file_name().and_then(std::ffi::OsStr::to_str) {
+                Some("cataclysm-tiles.exe" | "Cataclysm.app") => Some(game_path),
+                _ => None,
             }
-            Some(game_path)
-        } else {
-            None
-        };
+        });
+
+        if game_path.is_none() && game_path.is_some() {
+            return Err("Invalid game path".to_string());
+        }
 
         let new_profile = Profile::new(id, name, game_path);
         settings.add_profile(&new_profile);
