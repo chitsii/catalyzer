@@ -95,6 +95,17 @@ impl Profile {
             }
         }
     }
+    pub fn get_mod_info(&self, active_only: bool) -> Vec<ModInfo> {
+        if active_only {
+            self.mod_status
+                .iter()
+                .filter(|m| m.is_installed)
+                .map(|m| m.info.clone())
+                .collect()
+        } else {
+            self.mod_status.iter().map(|m| m.info.clone()).collect()
+        }
+    }
     pub fn get_mod_local_paths(&self) -> Vec<PathBuf> {
         self.mod_status
             .iter()

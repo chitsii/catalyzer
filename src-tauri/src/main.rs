@@ -1,5 +1,5 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-// #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod prelude {
     #![allow(unused_imports)]
@@ -15,7 +15,7 @@ mod prelude {
 
 use log::LevelFilter;
 use prelude::*;
-use std::{fs::read_to_string, process::Command};
+use std::{collections::HashMap, fs::read_to_string, io::Write, process::Command};
 use tauri::async_runtime::spawn;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind, TimezoneStrategy};
 mod logic;
@@ -23,7 +23,7 @@ mod model;
 use model::Mod;
 mod git;
 mod profile;
-use profile::AppState;
+use profile::{AppState, Profile};
 mod dmg;
 mod symlink;
 mod zip;
@@ -108,6 +108,7 @@ fn main() {
             tail_log,
             launch_game,
             get_platform,
+            inspect_mods,
             symlink::commands::install_mod,
             symlink::commands::uninstall_mod,
             symlink::commands::install_all_mods,
@@ -270,13 +271,115 @@ fn tail_log() -> Vec<String> {
         .unwrap();
     let content = read_to_string(log_file.path()).unwrap();
 
-    let lines: Vec<String> = content.lines().map(|line| line.to_string()).collect();
+    let lines: Vec<String> = content
+        .lines()
+        .filter_map(|line| {
+            if line.contains("[DEBUG]") {
+                None
+            } else {
+                Some(line.to_string())
+            }
+        })
+        .collect();
     let start = if lines.len() > MAX_LINES {
         lines.len() - MAX_LINES
     } else {
         0
     };
     lines[start..].to_vec()
+}
+
+#[cfg(target_os = "macos")]
+fn inspect_mods_process(
+    profile: &Profile,
+    target_mod_ids: &[String],
+) -> Result<std::process::Child, String> {
+    let userdata_path = profile.get_profile_root_dir();
+    let game_path = profile.get_game_path().unwrap();
+    let resource_dir = game_path.join("Contents").join("Resources");
+    resource_dir.try_exists().unwrap();
+    let child = Command::new("sh")
+        .arg("-c")
+        .arg(format!(
+            "cd '{}' && export LD_LIBRARY_PATH=. && ./cataclysm-tiles --userdir '{}/' --check-mods {}",
+            resource_dir.to_string_lossy(),
+            userdata_path.to_string_lossy(),
+            target_mod_ids.join(" ")
+        ))
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn().map_err(|e| format!("Failed to spawn the process: {}", e))?;
+
+    Ok(child)
+}
+
+#[cfg(target_os = "windows")]
+fn inspect_mods_process(
+    profile: &Profile,
+    target_mod_ids: &[String],
+) -> Result<std::process::Child, String> {
+    let game_path = profile.get_game_path().unwrap();
+    let userdata_path = profile.get_profile_root_dir();
+
+    let options = format!(
+        "cd /d {} && start cataclysm-tiles.exe --userdir '{}\\' --check-mods {}",
+        game_path.parent().unwrap().to_string_lossy(),
+        userdata_path.to_string_lossy(),
+        target_mod_ids.join(" ")
+    );
+    let child = Command::new("cmd")
+        .args(["/C", &options])
+        .spawn()
+        .map_err(|e| format!("Failed to launch the game: {}", e))?;
+
+    Ok(child)
+}
+
+#[tauri::command]
+fn inspect_mods(state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let settings = state.get_settings().unwrap();
+    let profile = settings.get_active_profile();
+    if profile.get_game_path().is_none() {
+        return Err("No active game path is set".to_string());
+    }
+
+    let target_mod_ids = profile
+        .get_mod_info(true)
+        .iter()
+        .filter_map(|m| m.get_id())
+        .collect::<Vec<String>>();
+
+    let child = inspect_mods_process(&profile, &target_mod_ids)?;
+    let output = child
+        .wait_with_output()
+        .map_err(|e| format!("Failed to wait for the process: {}", e))?;
+    let output = String::from_utf8(output.stderr)
+        .map_err(|e| format!("Failed to convert the output to string: {}", e))?;
+
+    let time = chrono::Local::now();
+    warn!(
+        r#"
+===INSPECT MODS START===
+Targets: {target_mod_ids:?}
+Date: {time}
+
+===INSPECT MODS RESULT==
+{output}
+=================="#
+    );
+
+    // save to log folder
+    let log_file = profile::get_app_data_dir()
+        .join("logs")
+        .join(format!("inspect_mods_{:?}.txt", time));
+    let mut file = std::fs::File::create(log_file.clone())
+        .map_err(|e| format!("Failed to create the log file: {}", e))?;
+    file.write_all(output.as_bytes())
+        .map_err(|e| format!("Failed to write to the log file: {}", e))?;
+
+    // open the log file
+    open_dir(log_file.to_string_lossy().into());
+    Ok(())
 }
 
 #[tauri::command]

@@ -24,7 +24,7 @@ pub struct ModInfo {
 
 impl ModInfo {
     pub fn from_path(path: &std::path::Path) -> Result<Self, String> {
-        debug!("Reading modinfo from {}", path.display());
+        // debug!("Reading modinfo from {}", path.display());
         let content = std::fs::read_to_string(path).unwrap();
 
         let v: serde_json::Value = serde_json::from_str(&content).unwrap();
@@ -46,20 +46,10 @@ impl ModInfo {
         } else {
             Err("Failed to parse modinfo.json".to_string())
         }
+    }
 
-        // let info: Vec<ModInfo> = serde_json::from_str(&content).unwrap_or_else(|e| {
-        //     debug!(
-        //         "Failed to parse modinfo.json of mod {}. msg: {}",
-        //         &path.to_string_lossy(),
-        //         e
-        //     );
-        //     Vec::new()
-        // });
-        // if info.is_empty() {
-        //     return Err("Failed to parse modinfo.json".to_string());
-        // }
-        // let elem = info.first().unwrap().clone();
-        // Ok(elem)
+    pub fn get_id(&self) -> Option<String> {
+        self.ident.clone().or(self.id.clone()).or(None)
     }
 }
 

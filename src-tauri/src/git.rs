@@ -3,8 +3,8 @@ use git2::{Branch, Direction, FetchOptions, Repository, Signature};
 use std::collections::HashSet;
 
 pub fn open(target_dir: String) -> Result<Repository, String> {
-    debug!("Opening repository at {}", target_dir);
-    Repository::open(&target_dir).map_err(|e| format!("Failed to open repository: {}", e))
+    // debug!("Opening repository at {}", target_dir);
+    Repository::open(target_dir).map_err(|e| format!("Failed to open repository: {}", e))
 }
 
 fn init(target_dir: String) -> Result<Repository, String> {
