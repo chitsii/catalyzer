@@ -31,6 +31,7 @@ const AreaForLog = () => {
     const attach = async () => {
       // 過去ログを取得して初期化
       const res = await tailLog();
+      // let res = [] as string[];
       // FIXME: Junkey code
       const filtred = res.filter(
         (line) => line.includes("DEBUG") || line.includes("INFO") || line.includes("WARN") || line.includes("ERROR"),
@@ -70,7 +71,10 @@ const AreaForLog = () => {
   }, [getter]);
 
   return (
-    <ScrollArea className="w-full h-[600px] overflow-y-scroll text-accent-foreground bg-accent" ref={logContainerRef}>
+    <ScrollArea
+      className="w-full h-[600px] overflow-y-scroll overflow-x-auto text-accent-foreground bg-accent"
+      ref={logContainerRef}
+    >
       <ScrollBar orientation="horizontal" />
       <pre className="p-4 text-xs">{getter.slice(-MAX_LOG_LINES).join("\n")}</pre>
     </ScrollArea>

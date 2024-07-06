@@ -1,34 +1,12 @@
 import { Mod } from "@/components/datatable/mod-table/columns";
 import { popUp } from "@/lib/utils";
 import { createId } from "@paralleldrive/cuid2";
-
-import { debug, trace, info, error, attachConsole, warn } from "@tauri-apps/plugin-log";
-
-import { invoke } from "@tauri-apps/api/core";
 import { Settings, Profile } from "@/components/atoms";
 
-export const handleIsTauri = () => {
-  // @ts-ignore
-  return Boolean(typeof window !== "undefined" && window !== undefined); // && window.__TAURI_IPC__ !== undefined
-};
+import { invoke_safe } from "@/lib/invoke-safe";
+import { debug, trace, info, error, attachConsole, warn } from "@tauri-apps/plugin-log";
 
-/// invoke_safe is a wrapper to safely execute invoke.
-/// We can only 'invoke' after window load when Next.js is used.
-export async function invoke_safe<T>(command: string, arg_obj: any, default_response?: T | undefined): Promise<T> {
-  const isClient = handleIsTauri();
-  if (!isClient) return default_response as T;
 
-  try {
-    debug(`start invoke: ${command} with args: ${JSON.stringify(arg_obj)}`);
-    const res = await invoke<T>(command, arg_obj);
-    info(`invoke: ${command} done.`);
-    return res;
-  } catch (err) {
-    warn(`invoke: ${command} failed: ${err}`);
-    popUp("failed", `command failed: ${err}`);
-    throw err;
-  }
-}
 const launchGame = async () => await invoke_safe("launch_game", {});
 const openLocalDir = async (targetDir: string) => await invoke_safe("open_dir", { targetDir: targetDir });
 const openModData = async () => await invoke_safe("open_mod_data", {});
@@ -43,7 +21,8 @@ const gitCommand = async (
   },
 ) => await invoke_safe(command, args);
 const cloneModRepo = async (repoUrl: string) => await invoke_safe("git_clone_mod_repo", { url: repoUrl });
-const listBranches = async (targetDir: string) => await invoke_safe("git_list_branches", { targetDir: targetDir }, []);
+const listBranches = async (targetDir: string) =>
+  await invoke_safe<string[]>("git_list_branches", { targetDir: targetDir });
 const gitFetch = async (targetDir: string) => await invoke_safe("git_fetch_origin", { targetDir: targetDir });
 const gitFetchAllMods = async () => await invoke_safe("git_fetch_all_mods", {});
 
@@ -52,21 +31,12 @@ const installAllMods = async () => await invoke_safe("install_all_mods", {});
 const uninstallMods = async (moddata_dir: string) => await invoke_safe("uninstall_mod", { modDataPath: moddata_dir });
 const uninstallAllMods = async () => await invoke_safe("uninstall_all_mods", {});
 
-const listMods = async () => await invoke_safe<Mod[]>("scan_mods", {}, []);
+const listMods = async () => await invoke_safe<Mod[]>("scan_mods", {});
 
 const unzipModArchive = async (src: string, existsOk?: boolean) =>
   await invoke_safe("unzip_mod_archive", { src: src, existsOk: existsOk });
 
-const getSettings = async () =>
-  await invoke_safe<Settings>(
-    "get_settings",
-    {},
-    {
-      language: "en",
-      mod_data_path: "",
-      profiles: [],
-    },
-  );
+const getSettings = async () => await invoke_safe<Settings>("get_settings", {});
 const addProfile = async (name: string, gamePath?: string) => {
   const args = {
     id: createId(),
@@ -99,7 +69,7 @@ const setLanguage = async (i18n: ReturnType<typeof useTranslation>["i18n"], lang
   }
 };
 
-const tailLog = async () => await invoke_safe<String[]>("tail_log", {}, []);
+const tailLog = async () => await invoke_safe<String[]>("tail_log", {});
 
 const cddaStableReleases = async (num: number) => await invoke_safe("cdda_get_stable_releases", { num: num });
 const cddaLatestReleases = async (num: number) => await invoke_safe("cdda_get_latest_releases", { num: num });
@@ -111,7 +81,12 @@ const getPlatform = async (): Promise<string> => await invoke_safe("get_platform
 const unzipArchive = async (src: string, dest: string) =>
   await invoke_safe("unzip_archive", { src: src, destDir: dest });
 
+const printModJsonErrors = async () => await invoke_safe("inspect_mods", {});
+
 export {
+  // re-export
+  invoke_safe as invoke_safe,
+
   // settings
   getSettings,
   getPlatform,
@@ -127,7 +102,7 @@ export {
   isCddaCloned,
   cddaPullRebase,
 
-  // git for mods
+  // git general purpose
   gitFetch,
   gitFetchAllMods,
   cloneModRepo,
@@ -148,4 +123,5 @@ export {
   uninstallAllMods,
   listMods,
   tailLog,
+  printModJsonErrors,
 };

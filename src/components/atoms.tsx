@@ -3,9 +3,7 @@
 import { Atom, atom, PrimitiveAtom, useAtom, useAtomValue } from "jotai";
 import { createStore, Provider } from "jotai";
 import { Mod } from "@/components/datatable/mod-table/columns";
-import { atomWithStorage } from "jotai/utils";
-
-import { handleIsTauri, listMods } from "@/lib/api";
+import { listMods } from "@/lib/api";
 import { atomWithSuspenseQuery } from "jotai-tanstack-query";
 
 import { getSettings } from "@/lib/api";
@@ -43,7 +41,6 @@ const refreshSettingAtom = atom(
   },
 );
 const settingAtom = atomWithSuspenseQuery((get) => ({
-  enabled: handleIsTauri,
   queryKey: [get(refreshSettingState)],
   queryFn: async () => {
     const res = await getSettings();
@@ -69,7 +66,6 @@ const refreshModsAtom = atom(
   },
 );
 const modsAtom = atomWithSuspenseQuery((get) => ({
-  enabled: handleIsTauri,
   queryKey: ["mods", get(refreshState), get(activeProfileAtom)],
   queryFn: async () => {
     const res = await listMods();

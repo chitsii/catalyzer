@@ -13,7 +13,14 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { installAllMods, uninstallAllMods, cloneModRepo, gitFetch, gitFetchAllMods } from "@/lib/api";
+import {
+  installAllMods,
+  uninstallAllMods,
+  cloneModRepo,
+  gitFetch,
+  gitFetchAllMods,
+  printModJsonErrors,
+} from "@/lib/api";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -140,7 +147,7 @@ export function CommandPalette() {
             >
               🗑 Deactivate all mods
             </CommandItem>
-            <CommandItem
+            {/* <CommandItem
               key="cmd-all-mod-install"
               onSelect={async () => {
                 await gitFetchAllMods();
@@ -148,6 +155,16 @@ export function CommandPalette() {
               }}
             >
               ✨ Fetch remote version info
+            </CommandItem> */}
+          </CommandGroup>
+          <CommandGroup heading="Mod作成ヘルパー">
+            <CommandItem
+              key="cmd-mod-clone"
+              onSelect={async () => {
+                await printModJsonErrors();
+              }}
+            >
+              🏭 Print Json Error for active mods
             </CommandItem>
           </CommandGroup>
         </CommandList>

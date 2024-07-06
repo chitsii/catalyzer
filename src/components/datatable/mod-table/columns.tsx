@@ -40,6 +40,7 @@ import {
   listMods,
 } from "@/lib/api";
 import { open, ask } from "@tauri-apps/plugin-dialog";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
@@ -76,22 +77,13 @@ export type Mod = {
 
 export const columns: ColumnDef<Mod>[] = [
   {
-    accessorKey: "rowIndex",
-    header: "#",
-    size: 5,
-    enableResizing: false,
-    cell: ({ row }) => {
-      return <p className="text-xs">{row.index + 1}</p>;
-    },
-  },
-  {
     accessorKey: "name",
     header: ({ table }) => {
       return table.options.meta?.t("mod_name");
     },
     // enableResizing: false,
-    size: 135,
-    minSize: 135,
+    size: 140,
+    minSize: 140,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
       if (info == null) return null;
@@ -147,8 +139,8 @@ export const columns: ColumnDef<Mod>[] = [
     header: ({ table }) => {
       return table.options.meta?.t("mod_description");
     },
-    size: 200,
-    minSize: 200,
+    size: 220,
+    minSize: 220,
     // enableResizing: false,
     cell: ({ row }) => {
       const info: ModInfo = row.getValue("info");
@@ -433,7 +425,7 @@ export const columns: ColumnDef<Mod>[] = [
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="notInstalled"
-                    className="w-16 h-10 p-0 ml-2 text-[10px] break-all line-clamp-2 whitespace-normal"
+                    className="w-16 h-9 p-0 ml-2 text-[10px] break-all line-clamp-2 whitespace-normal leading-tight"
                   >
                     N/A
                   </Button>
@@ -466,12 +458,14 @@ export const columns: ColumnDef<Mod>[] = [
   },
   {
     accessorKey: "isInstalled",
-    header: ({ table }) => {
-      return table.options.meta?.t("mod_state");
+    header: ({ table, column }) => {
+      return (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          {table.options.meta?.t("mod_state")}
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      );
     },
-    // size: 50,
-    // minSize: 50,
-    // enableResizing: false,
     cell: ({ row, table }) => {
       const isInstalled: boolean = row.getValue("isInstalled");
       const [installed, setInstalled] = useState(isInstalled);
