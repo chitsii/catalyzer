@@ -110,18 +110,18 @@ Date: {time}
             .map_err(|e| format!("Failed to launch the game: {}", e))?;
 
         // refer to: Cataclysm.app/Contents/MacOS/Cataclysm.sh
-        let child = Command::new("sh")
-        .arg("-c")
-        .arg(format!(
+        let command = format!(
             "cd '{}' && export DYLD_LIBRARY_PATH=. && export DYLD_FRAMEWORK_PATH=. && ./cataclysm-tiles --userdir '{}/' {}",
             resource_dir.to_string_lossy(),
             userdata_path.to_string_lossy(),
             extra_option_string.unwrap_or_default()
-        ))
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to launch the game: {}", e))?;
+        );
+        debug!("command: {}", &command);
+        let child = Command::new("sh")
+            .arg("-c")
+            .arg(command)
+            .spawn()
+            .map_err(|e| format!("Failed to launch the game: {}", e))?;
         Ok(child)
     }
 }
