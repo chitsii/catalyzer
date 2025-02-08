@@ -153,7 +153,7 @@ fn get_stable_release_tag(
     num: usize,
 ) -> Result<Vec<String>, git2::Error> {
     let tags = ls_cdda_tags().unwrap_or_else(|_| vec![]); // ls_remote_tags(repo)?;
-    let re = Regex::new(r"^0\.[A-Z]-?[0-9]?$").unwrap();
+    let re = Regex::new(r"^0\.[A-Z](?:-(?:\d+|RELEASE))?$").unwrap();
     let mut tags = tags
         .iter()
         .filter(|tag| re.is_match(tag))
