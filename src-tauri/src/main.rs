@@ -29,6 +29,7 @@ mod zip;
 
 // mod python;
 mod cdda;
+mod snapshot;
 
 struct SetupState {
     frontend_task: bool,
@@ -138,6 +139,11 @@ fn main() {
             profile::commands::set_profile_active,
             profile::commands::get_active_profile,
             profile::commands::set_launcher_language,
+            // Snapshot commands
+            snapshot::commands::cmd_create_snapshot,
+            snapshot::commands::cmd_list_snapshots,
+            snapshot::commands::cmd_delete_snapshot,
+            snapshot::commands::cmd_restore_snapshot,
         ])
         .setup(|app| {
             info!("=======================");

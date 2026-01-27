@@ -79,5 +79,85 @@ const logTextAtom = atom<String[]>([]);
 
 const store = createStore();
 
-export { settingAtom, refreshSettingAtom, modsAtom, refreshModsAtom, activeProfileAtom, logTextAtom, store };
-export type { Profile, Settings };
+// ============================================================
+// Snapshot Atoms（スナップショット機能用）
+// ============================================================
+
+/** スナップショットサマリー型 */
+type SnapshotSummary = {
+  id: string;
+  name: string;
+  createdAt: string;
+  gameVersionId: string;
+  modCount: number;
+  sizeBytes: number;
+};
+
+/** タブID型 */
+type TabId = "snapshots" | "mods" | "settings";
+
+/** ダイアログ状態型 */
+type DialogState = {
+  type: "confirm" | "capacity-warning" | "snapshot-create" | "snapshot-edit" | "mod-add" | null;
+  props: Record<string, unknown> | null;
+};
+
+/** スナップショット一覧 */
+const snapshotsAtom = atom<SnapshotSummary[]>([]);
+
+/** 選択中のスナップショットID */
+const activeSnapshotIdAtom = atom<string | null>(null);
+
+/** 選択中のスナップショット（派生atom） */
+const currentSnapshotAtom = atom((get) => {
+  const id = get(activeSnapshotIdAtom);
+  const snapshots = get(snapshotsAtom);
+  if (!id) return null;
+  return snapshots.find((s) => s.id === id) ?? null;
+});
+
+/** ストレージ使用状況（派生atom） */
+const storageUsageAtom = atom((get) => {
+  const snapshots = get(snapshotsAtom);
+  return {
+    totalBytes: snapshots.reduce((sum, s) => sum + s.sizeBytes, 0),
+    count: snapshots.length,
+  };
+});
+
+/** アクティブタブ */
+const activeTabAtom = atom<TabId>("snapshots");
+
+/** 未保存変更フラグ */
+const hasUnsavedChangesAtom = atom<boolean>(false);
+
+/** ダイアログ状態 */
+const dialogStateAtom = atom<DialogState>({
+  type: null,
+  props: null,
+});
+
+// ============================================================
+// Exports
+// ============================================================
+
+export {
+  // 既存Atoms
+  settingAtom,
+  refreshSettingAtom,
+  modsAtom,
+  refreshModsAtom,
+  activeProfileAtom,
+  logTextAtom,
+  store,
+  // 新規Snapshot Atoms
+  snapshotsAtom,
+  activeSnapshotIdAtom,
+  currentSnapshotAtom,
+  storageUsageAtom,
+  activeTabAtom,
+  hasUnsavedChangesAtom,
+  dialogStateAtom,
+};
+
+export type { Profile, Settings, SnapshotSummary, TabId, DialogState };

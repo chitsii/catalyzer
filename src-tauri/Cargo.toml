@@ -39,6 +39,11 @@ regex = "1"
 reqwest = { version = "0.12", features = ["json", "blocking"] }
 tokio = { version = "1.38.0", features = ["fs"] }
 rayon = "1.10.0"
+thiserror = "1.0"
+walkdir = "2"
+
+[dev-dependencies]
+mockall = "0.11"
 
 [target.x86_64-pc-windows-msvc.dependencies]
 junction = "1.1.0"
