@@ -6,6 +6,40 @@ use regex::Regex;
 const BASE: &str = r#"CleverRaven/Cataclysm-DDA"#;
 const DATE_FORMAT: &str = r"(\d{4}-\d{2}-\d{2}-\d{4})";
 
+/// Hardcoded stable release information.
+/// Stable releases are infrequent (1-2 per year), so dynamic API detection is wasteful.
+struct StableRelease {
+    version: &'static str,
+    tag: &'static str,
+    macos_url: Option<&'static str>,
+    windows_url: &'static str,
+    linux_url: &'static str,
+}
+
+const STABLE_RELEASES: &[StableRelease] = &[
+    StableRelease {
+        version: "0.I",
+        tag: "cdda-0.I-2026-01-20-1811",
+        macos_url: None, // Not available yet
+        windows_url: "https://github.com/CleverRaven/Cataclysm-DDA/releases/download/cdda-0.I-2026-01-20-1811/cdda-windows-with-graphics-and-sounds-x64-2026-01-20-1811.zip",
+        linux_url: "https://github.com/CleverRaven/Cataclysm-DDA/releases/download/cdda-0.I-2026-01-20-1811/cdda-linux-with-graphics-and-sounds-x64-2026-01-20-1811.tar.gz",
+    },
+    StableRelease {
+        version: "0.H",
+        tag: "0.H-RELEASE",
+        macos_url: Some("https://github.com/CleverRaven/Cataclysm-DDA/releases/download/0.H-RELEASE/cdda-osx-with-graphics-universal-2024-11-23-1857.dmg"),
+        windows_url: "https://github.com/CleverRaven/Cataclysm-DDA/releases/download/0.H-RELEASE/cdda-windows-with-graphics-and-sounds-x64-2024-11-23-1857.zip",
+        linux_url: "https://github.com/CleverRaven/Cataclysm-DDA/releases/download/0.H-RELEASE/cdda-linux-with-graphics-and-sounds-x64-2024-11-23-1857.tar.gz",
+    },
+    StableRelease {
+        version: "0.G",
+        tag: "0.G",
+        macos_url: Some("https://github.com/CleverRaven/Cataclysm-DDA/releases/download/0.G/cdda-osx-tiles-x64-2023-03-01-0054.dmg"),
+        windows_url: "https://github.com/CleverRaven/Cataclysm-DDA/releases/download/0.G/cdda-windows-tiles-sounds-x64-msvc-2023-03-01-0054.zip",
+        linux_url: "https://github.com/CleverRaven/Cataclysm-DDA/releases/download/0.G/cdda-linux-tiles-sounds-x64-2023-03-01-0054.tar.gz",
+    },
+];
+
 fn ls_cdda_tags() -> Result<Vec<String>, String> {
     let url = format!("https://github.com/{}.git", BASE);
     let tags = ls_remote_tags(url).map_err(|e| e.to_string())?;
@@ -25,36 +59,47 @@ fn infer_release_browser_url(tag_name: String) -> String {
     url
 }
 
-fn infer_experimental_download_url(tag_name: String) -> String {
-    #[cfg(target_os = "macos")]
-    {
-        let re = Regex::new(DATE_FORMAT).unwrap();
-        let date = re.find(&tag_name).unwrap().as_str();
-        let url = format!(
-            "https://github.com/{}/releases/download/{}/cdda-osx-tiles-universal-{}.dmg",
-            BASE, tag_name, date
+fn get_experimental_download_url(tag_name: String) -> Option<String> {
+    let endpoint = get_release_api_endpoint(tag_name.clone());
+    debug!("Getting experimental release info from {}", endpoint);
+    let client = github_api_client();
+    let response = client.get(&endpoint).send().unwrap();
+
+    let json: serde_json::Value = match &response.status() {
+        &reqwest::StatusCode::OK => response.json().unwrap(),
+        _ => {
+            warn!("Failed to get release info from {}", endpoint);
+            return None;
+        }
+    };
+    let assets = json["assets"].as_array().unwrap();
+    let platform_filter = platform_experimental_release_filter();
+    let re = Regex::new(&platform_filter).unwrap();
+    let filtered = assets
+        .iter()
+        .filter(|asset| re.is_match(asset["name"].as_str().unwrap()))
+        .collect::<Vec<_>>();
+
+    if filtered.is_empty() {
+        warn!(
+            "No asset found for experimental platform filter: {:?}, tag_name: {:?}",
+            platform_filter, tag_name
         );
-        url
+        return None;
     }
-    #[cfg(target_os = "windows")]
-    {
-        let re = Regex::new(DATE_FORMAT).unwrap();
-        let date = re.find(&tag_name).unwrap().as_str();
-        let url = format!(
-            "https://github.com/{}/releases/download/{}/cdda-windows-tiles-sounds-x64-msvc-{}.zip",
-            BASE, tag_name, date
-        );
-        url
-    }
-    #[cfg(target_os = "linux")]
-    {
-        let re = Regex::new(DATE_FORMAT).unwrap();
-        let date = re.find(&tag_name).unwrap().as_str();
-        let url = format!(
-            "https://github.com/{}/releases/download/{}/cdda-linux-tiles-sounds-x64-{}.tar.gz",
-            BASE, tag_name, date
-        );
-        url
+    let asset = filtered.first().unwrap();
+    let download_url: Option<&str> = asset["browser_download_url"].as_str();
+    match download_url {
+        Some(url) => Some(url.to_string()),
+        None => {
+            warn!(
+                "Failed to get download url from experimental release info.
+                    * asset: {:?},
+                    * filter used: {:?}",
+                asset, platform_filter
+            );
+            None
+        }
     }
 }
 
@@ -81,6 +126,21 @@ fn platform_release_filter() -> String {
     #[cfg(target_os = "linux")]
     {
         r#"linux-tiles-sounds-x64|Linux_x64"#.to_string()
+    }
+}
+
+fn platform_experimental_release_filter() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        r#"windows-with-graphics-and-sounds-x64"#.to_string()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        r#"osx-with-graphics-universal"#.to_string()
+    }
+    #[cfg(target_os = "linux")]
+    {
+        r#"linux-tiles-sounds-x64"#.to_string()
     }
 }
 
@@ -229,31 +289,39 @@ pub mod commands {
 
     #[tauri::command]
     pub fn cdda_get_stable_releases(num: usize) -> Result<Vec<ReleaseInfo>, String> {
-        info!("retrieve stable releases.");
+        info!("retrieve stable releases (hardcoded).");
 
-        // let repo = get_cdda_repo().unwrap();
-
-        debug!("got repo");
-
-        match get_stable_release_tag(num) {
-            Ok(tags) => {
-                debug!("{:?}", tags);
-                let responses = tags
-                    .iter()
-                    .map(|tag| {
-                        let browser_url = infer_release_browser_url(tag.to_string());
-                        let download_url = get_stable_download_url(tag.to_string());
-                        ReleaseInfo {
-                            tag_name: tag.to_string(),
-                            browser_url,
-                            download_url: download_url.unwrap_or_default(),
-                        }
-                    })
-                    .collect::<Vec<ReleaseInfo>>();
-                Ok(responses)
+        let download_url_for_platform = |release: &StableRelease| -> String {
+            #[cfg(target_os = "macos")]
+            {
+                release.macos_url.unwrap_or_default().to_string()
             }
-            Err(e) => Err(format!("Failed to get stable release tags: {}", e)),
-        }
+            #[cfg(target_os = "windows")]
+            {
+                release.windows_url.to_string()
+            }
+            #[cfg(target_os = "linux")]
+            {
+                release.linux_url.to_string()
+            }
+        };
+
+        let releases: Vec<ReleaseInfo> = STABLE_RELEASES
+            .iter()
+            .take(num)
+            .map(|release| {
+                let browser_url = infer_release_browser_url(release.tag.to_string());
+                let download_url = download_url_for_platform(release);
+                ReleaseInfo {
+                    tag_name: release.version.to_string(),
+                    browser_url,
+                    download_url,
+                }
+            })
+            .collect();
+
+        debug!("Returning {} stable releases", releases.len());
+        Ok(releases)
     }
 
     #[tauri::command]
@@ -267,11 +335,11 @@ pub mod commands {
                     .iter()
                     .map(|tag| {
                         let browser_url = infer_release_browser_url(tag.to_string());
-                        let download_url = infer_experimental_download_url(tag.to_string());
+                        let download_url = get_experimental_download_url(tag.to_string());
                         ReleaseInfo {
                             tag_name: tag.to_string(),
                             browser_url,
-                            download_url,
+                            download_url: download_url.unwrap_or_default(),
                         }
                     })
                     .collect::<Vec<ReleaseInfo>>();

@@ -64,7 +64,7 @@ const KaniMenu = () => {
                   "
                   >
                     <Play className="mr-4 h-4 w-4" />
-                    Gameパス未設定
+                    {t("game_path_not_set")}
                   </div>
                 </DropdownMenuItem>
               )

@@ -20,6 +20,8 @@ import { refreshModsAtom, modsAtom } from "@/components/atoms";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { popUp } from "@/lib/utils";
 import { unzipModArchive } from "@/lib/api";
+import type { DragDropEvent } from "@tauri-apps/api/webviewWindow";
+import type { Event } from "@tauri-apps/api/event";
 
 // animation
 import { AnimatePresence, motion } from "framer-motion";
@@ -33,7 +35,7 @@ import { ProfileSwitcher } from "@/components/profile-switcher";
 import { LanguageSetter } from "@/components/language-setter";
 import { KaniMenu } from "@/components/kani-menu";
 
-let IS_LOGGER_ATTACHED = false;
+let IS_DRAGDROP_INITIALIZED = false;
 
 export default function Home() {
   const { t } = useTranslation();
@@ -140,9 +142,9 @@ export default function Home() {
 }
 
 const initializeDragDropAndLogger = () => {
-  if (!IS_LOGGER_ATTACHED) {
+  if (!IS_DRAGDROP_INITIALIZED) {
     handleDragDropEvent();
-    IS_LOGGER_ATTACHED = true;
+    IS_DRAGDROP_INITIALIZED = true;
   }
 };
 
@@ -155,10 +157,10 @@ const handleDragDropEvent = async () => {
   };
 };
 
-const handleDragDropPayload = async (ev: any) => {
-  if (ev.payload.type === "dropped") {
+const handleDragDropPayload = async (ev: Event<DragDropEvent>) => {
+  if (ev.payload.type === "drop") {
     const doesInstall = await ask(
-      `ZipファイルをModディレクトリに解凍しますか？\n${ev.payload.paths}`,
+      `${i18n.t("confirm_extract_zip")}\n${ev.payload.paths}`,
       "Catalyzer"
     );
     if (!doesInstall) return;
@@ -167,7 +169,7 @@ const handleDragDropPayload = async (ev: any) => {
       unzipModArchive(filepath);
       return;
     } else {
-      popUp("failed", "サポートしていないファイル形式です。");
+      popUp("failed", i18n.t("unsupported_file_format"));
     }
   } else {
     return;

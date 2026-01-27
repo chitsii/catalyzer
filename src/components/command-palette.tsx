@@ -26,6 +26,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { popUp } from "@/lib/utils";
+import { useTranslation } from "@/i18n/config";
 
 const repoUrlSchema = z.object({
   repoUrl: z.string().url().trim().endsWith(".git"),
@@ -98,6 +99,7 @@ const CloneModFormDialog = ({ open, setOpen }: CloneModFormDialogProps) => {
   );
 };
 export function CommandPalette() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -121,10 +123,10 @@ export function CommandPalette() {
         </kbd>
       </p>
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="🤖< ナニニシマスカ?" />
+        <CommandInput placeholder={`🤖< ${t("what_would_you_like")}`} />
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
-          <CommandGroup heading="Mod操作">
+          <CommandGroup heading={t("mod_operations")}>
             <CommandItem key="cmd-mod-clone" onSelect={() => setOpenCloneDialog(true)}>
               🧬 Clone mod repository
             </CommandItem>
@@ -157,7 +159,7 @@ export function CommandPalette() {
               ✨ Fetch remote version info
             </CommandItem> */}
           </CommandGroup>
-          <CommandGroup heading="Mod作成ヘルパー">
+          <CommandGroup heading={t("mod_creation_helper")}>
             <CommandItem
               key="cmd-mod-clone"
               onSelect={async () => {

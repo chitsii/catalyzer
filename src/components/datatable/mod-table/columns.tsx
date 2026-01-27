@@ -37,14 +37,13 @@ import {
   openLocalDir,
   listBranches,
   unzipModArchive,
-  listMods,
 } from "@/lib/api";
 import { open, ask } from "@tauri-apps/plugin-dialog";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
-    fetchMods: typeof listMods;
+    fetchMods: () => void;
     t: (key: string) => string; // i18n
   }
 }
@@ -84,7 +83,7 @@ export const columns: ColumnDef<Mod>[] = [
     // enableResizing: false,
     size: 140,
     minSize: 140,
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const info: ModInfo = row.getValue("info");
       if (info == null) return null;
       return (
@@ -106,11 +105,11 @@ export const columns: ColumnDef<Mod>[] = [
           )}
           {isNonEmptyStringOrArray(info.authors) && (
             <p className="text-[10px] text-muted-foreground">
-              作成 {Array.isArray(info.authors) ? info.authors.map((author) => author).join(",") : info.authors}
+              {table.options.meta?.t("created_by")} {Array.isArray(info.authors) ? info.authors.map((author) => author).join(",") : info.authors}
             </p>
           )}
           {isNonEmptyStringOrArray(info.maintainers) && (
-            <p className="text-[10px] text-muted-foreground">保守 {info.maintainers}</p>
+            <p className="text-[10px] text-muted-foreground">{table.options.meta?.t("maintained_by")} {info.maintainers}</p>
           )}
           {/* {info.category && <Badge variant="category">{info.category}</Badge>} */}
         </div>
@@ -231,9 +230,10 @@ export const columns: ColumnDef<Mod>[] = [
                 <DropdownMenuContent>
                   <DropdownMenuLabel>
                     <form
-                      onSubmit={(e: any) => {
+                      onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
                         e.preventDefault();
-                        const selectedBranchName: string = e.target["selectedVersionSwitchTo"].value;
+                        const target = e.target as HTMLFormElement;
+                        const selectedBranchName: string = (target.elements.namedItem("selectedVersionSwitchTo") as HTMLSelectElement)?.value ?? "";
                         // 現在と同じブランチには切り替えない
                         if (selectedBranchName == "") {
                           return;
@@ -368,7 +368,7 @@ export const columns: ColumnDef<Mod>[] = [
                           <br />
                           <Button
                             size="sm"
-                            onClick={(e: any) => {
+                            onClick={() => {
                               //作業中のデータ削除
                               gitCommand("git_reset_changes", {
                                 targetDir: row.original.localPath,
@@ -378,7 +378,7 @@ export const columns: ColumnDef<Mod>[] = [
                               const input_branch_name = newBranchName;
 
                               if (input_branch_name == null) {
-                                popUp("failed", "ブランチ名が入力されていません！");
+                                popUp("failed", table.options.meta?.t("branch_name_required") || "Branch name required");
                                 return;
                               }
                               gitCommand("git_checkout", {

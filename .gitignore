@@ -43,3 +43,6 @@ src-tauri/icons/*
 cicd/*
 src-tauri/sidecar/*
 src-tauri/src/python/*
+
+# multi-agent-shogun
+.shogun/*

@@ -42,8 +42,8 @@ const ProgressButton = ({
         if (download_progress >= 100 && !state.matches("inExtractProgress")) {
           try {
             send({ type: "completeDownload" });
-          } catch (e: any) {
-            onError?.(e);
+          } catch (e: unknown) {
+            onError?.(e instanceof Error ? e : new Error(String(e)));
           }
         } else if (download_progress < 0) {
           send({ type: "setError" });
@@ -63,10 +63,10 @@ const ProgressButton = ({
         if (extract_progress >= 100 && !state.matches("success")) {
           try {
             send({ type: "completeExtract" });
-          } catch (e: any) {
+          } catch (e: unknown) {
             info("error in extract!!!");
             send({ type: "setError" });
-            onError?.(e);
+            onError?.(e instanceof Error ? e : new Error(String(e)));
           }
         } else if (extract_progress < 0) {
           send({ type: "setError" });

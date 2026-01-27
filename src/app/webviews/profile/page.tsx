@@ -29,6 +29,7 @@ import path from "path";
 import { listen } from "@tauri-apps/api/event";
 import { popUp } from "@/lib/utils";
 import { UpdateIcon } from "@radix-ui/react-icons";
+import { useTranslation } from "@/i18n/config";
 
 type Release = {
   tag_name: string;
@@ -40,6 +41,7 @@ type InstallerProps = {
   release: Release;
 };
 const GameInstaller = ({ release }: InstallerProps) => {
+  const { t } = useTranslation();
   const [downloadProgress, setDownloadProgress] = useState<number>(0);
   const [extractProgress, setExtractProgress] = useState<number>(0);
 
@@ -72,7 +74,7 @@ const GameInstaller = ({ release }: InstallerProps) => {
       if (receivedLength <= 1024 * 1024 * 10) {
         setDownloadProgress(-1);
         setExtractProgress(-1);
-        popUp("failed", "このバージョンはビルド中かもしれません。URLから確認してみてください。");
+        popUp("failed", t("version_may_be_building"));
         removeProfile(new_profile.id);
         return;
       }
@@ -110,7 +112,7 @@ const GameInstaller = ({ release }: InstallerProps) => {
       warn(JSON.stringify(error));
       setDownloadProgress(-1);
       setExtractProgress(-1);
-      popUp("failed", "ダウンロードまたは解凍に失敗しました。");
+      popUp("failed", t("download_or_extract_failed"));
       removeProfile(new_profile.id);
     }
   };
@@ -119,7 +121,7 @@ const GameInstaller = ({ release }: InstallerProps) => {
     <div className="flex flex-col justify-center items-center">
       {!!release.download_url ? (
         <ProgressButton
-          label="プロファイルを作る"
+          label={t("create_profile")}
           download_progress={downloadProgress}
           extract_progress={extractProgress}
           successColorClass="teal-500"
@@ -132,7 +134,7 @@ const GameInstaller = ({ release }: InstallerProps) => {
         />
       ) : (
         <>
-          <div>ダウンロードURLが見つかりません</div>
+          <div>{t("download_url_not_found")}</div>
         </>
       )}
     </div>
@@ -174,6 +176,7 @@ class ApiCaller {
 }
 const cached_api = new ApiCaller();
 function Dashboard() {
+  const { t } = useTranslation();
   const [stableReleases, setStableReleases] = useState<Release[]>([]);
   const [latestReleases, setLatestReleases] = useState<Release[]>([]);
   const [rateLimit, setRateLimit] = useState<number | null>(null);
@@ -251,7 +254,7 @@ function Dashboard() {
                   Stable
                 </TabsTrigger>
               </TabsList>
-              <div className="text-xs">APIコール制限残: {rateLimit !== null ? rateLimit : "Loading..."}</div>
+              <div className="text-xs">{t("api_rate_limit_remaining")}: {rateLimit !== null ? rateLimit : "Loading..."}</div>
             </div>
             <TabsContent value="latest">
               <CSR>

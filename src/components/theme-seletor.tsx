@@ -5,6 +5,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/i18n/config";
 
 const ColorThemeIcon = ({ type }: { type: string | undefined }) => {
   switch (type) {
@@ -22,6 +23,7 @@ const ColorThemeIcon = ({ type }: { type: string | undefined }) => {
 };
 
 const ColorThemeSelector = () => {
+  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   const { theme, resolvedTheme, themes, setTheme } = useTheme();
 
@@ -41,7 +43,7 @@ const ColorThemeSelector = () => {
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
-          aria-label="カラーテーマを選択する"
+          aria-label={t("select_color_theme")}
           className="rounded border p-2 text-foreground flex items-center gap-2 hover:bg-secondary capitalize"
           type="button"
         >
@@ -68,7 +70,7 @@ const ColorThemeSelector = () => {
               >
                 <ColorThemeIcon type={item} />
                 <span className="capitalize">{item}</span>
-                {item === theme && <span className="sr-only">（選択中）</span>}
+                {item === theme && <span className="sr-only">({t("selected")})</span>}
               </DropdownMenu.Item>
             ))}
           </DropdownMenu.Group>

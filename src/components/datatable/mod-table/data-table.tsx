@@ -23,7 +23,7 @@ import { CommandPalette } from "@/components/command-palette";
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  fetchMods: any; // function to refresh mods that are displayed in the table
+  fetchMods: () => void;
   t: (k: string) => string; // i18n function
 }
 export function DataTable<TData, TValue>({ columns, data, fetchMods, t }: DataTableProps<TData, TValue>) {

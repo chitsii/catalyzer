@@ -3,6 +3,7 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n/config";
 import {
   Card,
   CardContent,
@@ -30,6 +31,7 @@ const LocalPathForm = (
     inputAtom,
   }: LocalPathFormProps
 ) => {
+  const { t } = useTranslation();
   const [value, setValue] = useAtom<string>(inputAtom);
   const [lock, setLock] = React.useState<boolean>(true);
 
@@ -57,7 +59,7 @@ const LocalPathForm = (
           </form>
         </CardContent>
         <CardFooter className="border-t px-6 py-4">
-          <Button variant="default" onClick={() => setLock(!lock)}>{lock ? "変更" : "保存"}</Button>
+          <Button variant="default" onClick={() => setLock(!lock)}>{lock ? t("change") : t("save")}</Button>
         </CardFooter>
       </Card>
     </>

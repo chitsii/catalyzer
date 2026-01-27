@@ -23,7 +23,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } 
 
 // State
 import { useAtom } from "jotai";
-import { settingAtom, refreshSettingAtom } from "@/components/atoms";
+import { settingAtom, refreshSettingAtom, type Profile } from "@/components/atoms";
 
 // Utils
 import { windowReload } from "@/lib/utils";
@@ -136,14 +136,14 @@ const ProfileSwitcher = () => {
                 }
               }}
             >
-              <DropdownMenuLabel>プロファイルを選択</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("select_profile")}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {profileList.length === 0 ? (
                 <DropdownMenuItem>
                   <span className="text-secondary">No Profiles</span>
                 </DropdownMenuItem>
               ) : (
-                profileList.map((profile: any) => {
+                profileList.map((profile: Profile) => {
                   return (
                     <DropdownMenuItem
                       key={profile.id}
@@ -166,14 +166,14 @@ const ProfileSwitcher = () => {
               <DropdownMenuSeparator />
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <span>編集</span>
+                  <span>{t("edit")}</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent>
                   <DialogItem
                     triggerChildren={
                       <>
                         <LucideExternalLink className="mr-4 h-4 w-4" />
-                        <span>ゲームを選んで追加</span>
+                        <span>{t("add_by_selecting_game")}</span>
                       </>
                     }
                     onSelect={() => {
@@ -193,7 +193,7 @@ const ProfileSwitcher = () => {
                       {/* <DialogTitle className="DialogTitle">Pause</DialogTitle> */}
                       <div className="absolute bg-white bg-opacity-20 z-10 h-full w-full flex items-center justify-center">
                         <div className="flex items-center">
-                          <span className="text-xl mr-4">😴 Escで解除</span>
+                          <span className="text-xl mr-4">😴 {t("press_esc_to_cancel")}</span>
                           <svg
                             className="animate-spin h-8 w-8 text-gray-800"
                             xmlns="http://www.w3.org/2000/svg"
@@ -225,14 +225,14 @@ const ProfileSwitcher = () => {
                     triggerChildren={
                       <>
                         <LucideExternalLink className="mr-4 h-4 w-4" />
-                        <span>手動追加</span>
+                        <span>{t("add_manually")}</span>
                       </>
                     }
                     onSelect={handleDialogItemSelect}
                     onOpenChange={handleDialogItemOpenChange}
                   >
-                    <DialogTitle className="DialogTitle">新規追加</DialogTitle>
-                    <DialogDescription className="DialogDescription">プロファイルを新規追加します。</DialogDescription>
+                    <DialogTitle className="DialogTitle">{t("add_new")}</DialogTitle>
+                    <DialogDescription className="DialogDescription">{t("add_new_profile_description")}</DialogDescription>
                     <ProfileForm handleDialogItemOpenChange={handleDialogItemOpenChange} />
                   </DialogItem>
 
@@ -243,13 +243,13 @@ const ProfileSwitcher = () => {
                     <DropdownMenuSubTrigger>
                       <>
                         <Edit3 className="mr-4 h-4 w-4" />
-                        <span>更新</span>
+                        <span>{t("update")}</span>
                       </>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent>
                       {profileList.filter((profile) => profile.id !== "default").length === 0 ? (
                         <DropdownMenuItem>
-                          <span className="text-muted-foreground">項目無し</span>
+                          <span className="text-muted-foreground">{t("no_items")}</span>
                         </DropdownMenuItem>
                       ) : (
                         profileList.map((profile) => {
@@ -270,7 +270,7 @@ const ProfileSwitcher = () => {
                             >
                               <DialogTitle className="DialogTitle">Add</DialogTitle>
                               <DialogDescription className="DialogDescription">
-                                プロファイルを更新します。
+                                {t("update_profile_description")}
                               </DialogDescription>
                               <ProfileForm
                                 handleDialogItemOpenChange={handleDialogItemOpenChange}
@@ -289,16 +289,16 @@ const ProfileSwitcher = () => {
                     <DropdownMenuSubTrigger>
                       <>
                         <Trash2Icon className="mr-4 h-4 w-4 text-destructive" />
-                        <span className="text-destructive">削除</span>
+                        <span className="text-destructive">{t("delete")}</span>
                       </>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent>
                       {profileList.filter((profile) => profile.id !== "default").length === 0 ? (
                         <DropdownMenuItem>
-                          <span className="text-muted-foreground">項目無し</span>
+                          <span className="text-muted-foreground">{t("no_items")}</span>
                         </DropdownMenuItem>
                       ) : (
-                        profileList.map((profile: any) => {
+                        profileList.map((profile: Profile) => {
                           // default profile is not removable.
                           if (profile.id === "default") return null;
 
@@ -314,9 +314,9 @@ const ProfileSwitcher = () => {
                               onSelect={() => {}}
                               onOpenChange={handleDialogItemOpenChange}
                             >
-                              <DialogTitle className="DialogTitle">プロファイル削除</DialogTitle>
+                              <DialogTitle className="DialogTitle">{t("delete_profile")}</DialogTitle>
                               <DialogDescription>
-                                <p>本当に以下のプロファイルを削除しますか？</p>
+                                <p>{t("confirm_delete_profile")}</p>
                                 <div className="p-4">
                                   <ul className="list-disc">
                                     <li className="text-destructive text-xs">Name: {profile.name}</li>
