@@ -46,6 +46,16 @@ fn infer_experimental_download_url(tag_name: String) -> String {
         );
         url
     }
+    #[cfg(target_os = "linux")]
+    {
+        let re = Regex::new(DATE_FORMAT).unwrap();
+        let date = re.find(&tag_name).unwrap().as_str();
+        let url = format!(
+            "https://github.com/{}/releases/download/{}/cdda-linux-tiles-sounds-x64-{}.tar.gz",
+            BASE, tag_name, date
+        );
+        url
+    }
 }
 
 fn github_api_client() -> reqwest::blocking::Client {
@@ -70,7 +80,7 @@ fn platform_release_filter() -> String {
     }
     #[cfg(target_os = "linux")]
     {
-        panic!("not supported yet for linux.")
+        r#"linux-tiles-sounds-x64|Linux_x64"#.to_string()
     }
 }
 

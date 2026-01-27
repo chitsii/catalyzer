@@ -124,4 +124,28 @@ Date: {time}
             .map_err(|e| format!("Failed to launch the game: {}", e))?;
         Ok(child)
     }
+
+    #[cfg(target_os = "linux")]
+    fn launch(
+        game_path: PathBuf,
+        userdata_path: PathBuf,
+        extra_option_string: Option<String>,
+    ) -> Result<std::process::Child, String> {
+        use std::process::Command;
+        debug!("Launching game: {:?}", &game_path);
+
+        let command = format!(
+            "cd '{}' && ./cataclysm-tiles --userdir '{}/' {}",
+            game_path.parent().unwrap().to_string_lossy(),
+            userdata_path.to_string_lossy(),
+            extra_option_string.unwrap_or_default()
+        );
+        debug!("command: {}", &command);
+        let child = Command::new("sh")
+            .arg("-c")
+            .arg(command)
+            .spawn()
+            .map_err(|e| format!("Failed to launch the game: {}", e))?;
+        Ok(child)
+    }
 }

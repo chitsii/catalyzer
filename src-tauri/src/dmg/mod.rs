@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use dmg::Handle;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 fn mount(source_dmg: PathBuf) -> Result<Handle> {
     info!("Mounting DMG: {}", source_dmg.display());

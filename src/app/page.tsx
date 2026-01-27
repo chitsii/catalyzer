@@ -147,8 +147,8 @@ const initializeDragDropAndLogger = () => {
 };
 
 const handleDragDropEvent = async () => {
-  const { getCurrent } = await import("@tauri-apps/api/webviewWindow");
-  const unlisten = await getCurrent().onDragDropEvent(handleDragDropPayload);
+  const { getCurrentWebviewWindow } = await import("@tauri-apps/api/webviewWindow");
+  const unlisten = await getCurrentWebviewWindow().onDragDropEvent(handleDragDropPayload);
 
   return () => {
     unlisten();

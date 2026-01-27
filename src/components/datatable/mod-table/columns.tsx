@@ -357,7 +357,7 @@ export const columns: ColumnDef<Mod>[] = [
                                 if (selected == null || Array.isArray(selected)) {
                                   return;
                                 } else {
-                                  setUploadFilePath(selected.path);
+                                  setUploadFilePath(selected);
                                 }
                               }}
                             >

@@ -13,6 +13,10 @@ pub fn get_app_data_dir() -> PathBuf {
     {
         dirs::config_dir().unwrap().join("cataylzer")
     }
+    #[cfg(target_os = "linux")]
+    {
+        dirs::config_dir().unwrap().join("catalyzer")
+    }
 }
 
 pub fn log_dir() -> PathBuf {

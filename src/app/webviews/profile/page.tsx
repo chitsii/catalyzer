@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CSR from "@/components/csr/csr";
 import { download } from "@tauri-apps/plugin-upload";
-import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 import {
   unzipArchive,
@@ -81,7 +81,7 @@ const GameInstaller = ({ release }: InstallerProps) => {
         progress: number;
         total: number;
       };
-      WebviewWindow.getCurrent().listen<Payload>("EXTRACT_PROGRESS", (e) => {
+      getCurrentWebviewWindow().listen<Payload>("EXTRACT_PROGRESS", (e) => {
         let percent = Math.ceil((e.payload.progress / e.payload.total) * 100);
         info(`extract: ${e.payload.progress} / ${e.payload.total} / ${percent}`);
         setExtractProgress(() => percent);
