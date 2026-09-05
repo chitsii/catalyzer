@@ -82,8 +82,6 @@ Date: {time}
         debug!("command: {}", &options);
         let child = Command::new("cmd")
             .args(["/C", &options])
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| format!("Failed to launch the game: {}", e))?;
         Ok(child)
